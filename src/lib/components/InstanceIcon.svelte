@@ -1,0 +1,61 @@
+<script lang="ts">
+  import type { Instance, ModLoader } from "$lib/types";
+
+  interface Props {
+    instance: Instance;
+    size?: number;
+  }
+  let { instance, size = 48 }: Props = $props();
+
+  const loaderColor: Record<ModLoader, string> = {
+    vanilla: "#5b8a3a",
+    fabric: "#c8a86a",
+    quilt: "#9b59d0",
+    forge: "#4a6b8a",
+    neoforge: "#d98a3a",
+  };
+
+  const initials = $derived(
+    instance.name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+  const bg = $derived(loaderColor[instance.loader] ?? "#4a6b8a");
+</script>
+
+{#if instance.icon}
+  <img
+    src={instance.icon}
+    alt={instance.name}
+    style="width:{size}px;height:{size}px;border-radius:{Math.round(size / 5)}px;"
+    class="icon-img"
+  />
+{:else}
+  <div
+    class="icon-fallback"
+    style="width:{size}px;height:{size}px;border-radius:{Math.round(
+      size / 5
+    )}px;background:{bg};font-size:{Math.round(size * 0.38)}px;"
+  >
+    {initials}
+  </div>
+{/if}
+
+<style>
+  .icon-img {
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--bg-card);
+  }
+  .icon-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+    flex-shrink: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+</style>

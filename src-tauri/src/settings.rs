@@ -1,0 +1,70 @@
+use std::sync::Mutex;
+
+use serde::{Deserialize, Serialize};
+use tauri::AppHandle;
+
+use crate::error::Result;
+use crate::paths;
+
+/// Global launcher settings, persisted to `settings.json`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Settings {
+    /// "dark" | "light" | "system"
+    pub theme: String,
+    /// Explicit Java executable path. `None` = auto-detect / managed runtime.
+    pub java_path: Option<String>,
+    pub max_memory_mb: u32,
+    pub min_memory_mb: u32,
+    /// Extra JVM arguments appended at launch.
+    pub jvm_args: String,
+    pub game_width: u32,
+    pub game_height: u32,
+    /// Username used for offline/dev launches (until Microsoft auth lands).
+    pub offline_username: String,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            theme: "dark".into(),
+            java_path: None,
+            max_memory_mb: 4096,
+            min_memory_mb: 1024,
+            jvm_args: String::new(),
+            game_width: 854,
+            game_height: 480,
+            offline_username: "Player".into(),
+        }
+    }
+}
+
+/// Thread-safe settings holder that writes through to disk on save.
+#[derive(Default)]
+pub struct SettingsStore {
+    inner: Mutex<Settings>,
+}
+
+impl SettingsStore {
+    pub fn load(&self, app: &AppHandle) -> Result<()> {
+        let file = paths::settings_file(app)?;
+        if file.exists() {
+            let data = std::fs::read_to_string(&file)?;
+            if let Ok(settings) = serde_json::from_str::<Settings>(&data) {
+                *self.inner.lock().unwrap() = settings;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get(&self) -> Settings {
+        self.inner.lock().unwrap().clone()
+    }
+
+    pub fn save(&self, app: &AppHandle, settings: Settings) -> Result<()> {
+        let file = paths::settings_file(app)?;
+        std::fs::write(&file, serde_json::to_string_pretty(&settings)?)?;
+        *self.inner.lock().unwrap() = settings;
+        Ok(())
+    }
+}
