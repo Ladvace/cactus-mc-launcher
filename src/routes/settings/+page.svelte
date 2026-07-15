@@ -230,8 +230,10 @@
   }
   .card-block {
     background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    border-radius: 0;
+    box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.04),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.28);
     padding: 18px 20px;
     margin-bottom: 18px;
   }
@@ -294,16 +296,22 @@
     margin-bottom: 6px;
   }
   .bar {
-    height: 8px;
+    height: 14px;
     background: var(--bg-input);
-    border-radius: 6px;
+    border: 2px solid var(--border);
+    border-radius: 0;
     overflow: hidden;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
   }
   .bar-fill {
     height: 100%;
     background: var(--accent);
-    border-radius: 6px;
-    transition: width 0.2s ease;
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.18) 0 2px,
+      transparent 2px 8px
+    );
+    transition: width 0.2s steps(16);
   }
   .bar-fill.indeterminate {
     width: 35%;

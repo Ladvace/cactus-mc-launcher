@@ -3,6 +3,7 @@
   import Icon from "./Icon.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
+  import { skinFace } from "$lib/skin";
   import { openUrl } from "@tauri-apps/plugin-opener";
 
   interface Props {
@@ -47,11 +48,7 @@
     {#each accountsStore.accounts as acc (acc.id)}
       <div class="row" class:active={accountsStore.activeId === acc.id}>
         <button class="row-main" onclick={() => accountsStore.setActive(acc.id)}>
-          <img
-            class="avatar"
-            src={`https://crafatar.com/avatars/${acc.uuid}?size=36&overlay`}
-            alt={acc.username}
-          />
+          <img class="avatar" src={skinFace(acc.uuid, 36)} alt={acc.username} />
           <span class="info">
             <span class="name">{acc.username}</span>
             <span class="kind">Microsoft</span>
@@ -125,15 +122,15 @@
     width: 100%;
     padding: 10px 12px;
     background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
     color: var(--text);
     text-align: left;
     transition: border-color 0.12s, background 0.12s;
   }
   button.row:hover,
   .row:hover {
-    border-color: var(--border);
+    border-color: var(--accent);
   }
   .row.active {
     border-color: var(--accent);
@@ -153,7 +150,8 @@
   .avatar {
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: 0;
+    border: 2px solid rgba(0, 0, 0, 0.3);
     background: var(--bg-card);
     display: flex;
     align-items: center;
@@ -181,12 +179,13 @@
     color: var(--text-muted);
   }
   .badge {
+    font-family: var(--font-pixel);
     font-size: 11px;
     font-weight: 600;
     color: var(--accent);
-    border: 1px solid var(--accent);
-    border-radius: 20px;
-    padding: 2px 9px;
+    border: 2px solid var(--accent);
+    border-radius: 0;
+    padding: 3px 9px;
   }
   .remove {
     background: transparent;
@@ -237,14 +236,15 @@
     font-size: 13px;
   }
   .code {
-    font-family: "SF Mono", Menlo, monospace;
-    font-size: 26px;
+    font-family: var(--font-pixel), "SF Mono", Menlo, monospace;
+    font-size: 28px;
     font-weight: 700;
     letter-spacing: 0.12em;
     color: var(--accent);
     background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
     padding: 10px 20px;
   }
   .dc-status {

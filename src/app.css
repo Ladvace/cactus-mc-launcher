@@ -1,36 +1,46 @@
+/* Readable pixel font for headings/brand; body stays clean sans-serif. */
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("/fonts/PixelifySans.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 :root {
-  /* Surfaces (dark, cool-tinted for the amethyst theme) */
-  --bg-app: #131217;
-  --bg-raised: #1b1a22;
-  --bg-card: #232230;
-  --bg-hover: #2c2a3a;
-  --bg-input: #100f15;
+  /* Surfaces (warm stone-tinted dark) */
+  --bg-app: #17161a;
+  --bg-raised: #201e1c;
+  --bg-card: #2a2825;
+  --bg-hover: #35322d;
+  --bg-input: #131210;
 
   /* Borders */
-  --border: #35333f;
-  --border-subtle: #272632;
+  --border: #3d3a34;
+  --border-subtle: #2b2924;
 
-  /* Text */
-  --text: #e9e7f0;
-  --text-secondary: #a7a4b3;
-  --text-muted: #7b7788;
+  /* Text (stone) */
+  --text: #ebe8e0;
+  --text-secondary: #b2aca0;
+  --text-muted: #7f7970;
 
-  /* Brand / accent (amethyst) */
-  --accent: #a06bff;
-  --accent-hover: #8f4dff;
-  --accent-contrast: #ffffff;
-  --accent-soft: rgba(160, 107, 255, 0.12);
+  /* Accent — gold, used sparingly for active/hover/primary actions */
+  --accent: #e8b23a;
+  --accent-hover: #f4c451;
+  --accent-contrast: #211906;
+  --accent-soft: rgba(232, 178, 58, 0.14);
 
   /* Status */
   --danger: #ff5b6e;
   --warning: #ffb454;
 
-  /* Layout */
+  /* Layout — blocky */
   --sidebar-w: 240px;
-  --radius: 10px;
-  --radius-sm: 6px;
+  --radius: 4px;
+  --radius-sm: 3px;
 
-  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --font-pixel: "Pixelify Sans", "Inter", sans-serif;
+
+  --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.45);
 
   color-scheme: dark;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -62,6 +72,8 @@ h4 {
   margin: 0;
   font-weight: 600;
   color: var(--text);
+  font-family: var(--font-pixel);
+  letter-spacing: 0.01em;
 }
 
 a {
@@ -75,92 +87,203 @@ button {
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--bg-input);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 6px;
-  border: 2px solid var(--bg-app);
+  border-radius: 0;
+  border: 3px solid var(--bg-input);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--accent);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 /* --- Shared primitives --- */
 
+/* Pixel-block button: notched (stepped) corners via clip-path; the dark pixel
+   outline, 3D depth, and press are drawn with drop-shadow (which follows the
+   clipped shape, unlike box-shadow which clip-path would hide). */
 .btn {
+  --p: 3px; /* pixel unit: corner-notch size + outline thickness */
+  --d: 5px; /* 3D depth */
+  --face: var(--bg-card);
+  --ink: var(--text);
+  --edge: #100e0b;
+  --depth: #000000;
+  --bevel-lt: rgba(255, 255, 255, 0.1);
+  --bevel-dk: rgba(0, 0, 0, 0.34);
+  --pixel: polygon(
+    var(--p) 0,
+    calc(100% - var(--p)) 0,
+    calc(100% - var(--p)) var(--p),
+    100% var(--p),
+    100% calc(100% - var(--p)),
+    calc(100% - var(--p)) calc(100% - var(--p)),
+    calc(100% - var(--p)) 100%,
+    var(--p) 100%,
+    var(--p) calc(100% - var(--p)),
+    0 calc(100% - var(--p)),
+    0 var(--p),
+    var(--p) var(--p)
+  );
+
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background: var(--bg-card);
-  color: var(--text);
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 0;
+  background: var(--face);
+  color: var(--ink);
   font-size: 13px;
-  font-weight: 500;
-  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  font-weight: 600;
+  clip-path: var(--pixel);
+  box-shadow: inset var(--p) var(--p) 0 var(--bevel-lt),
+    inset calc(-1 * var(--p)) calc(-1 * var(--p)) 0 var(--bevel-dk);
+  filter: drop-shadow(var(--p) 0 0 var(--edge))
+    drop-shadow(calc(-1 * var(--p)) 0 0 var(--edge))
+    drop-shadow(0 calc(-1 * var(--p)) 0 var(--edge))
+    drop-shadow(0 var(--p) 0 var(--edge))
+    drop-shadow(0 var(--d) 0 var(--depth));
+  transition: transform 0.06s ease-out;
 }
 .btn:hover {
-  background: var(--bg-hover);
+  --edge: var(--accent);
+}
+/* Scale in on click — a tactile squish, no vertical shift. */
+.btn:active {
+  transform: scale(0.94);
 }
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.btn:disabled:hover {
+  --edge: #100e0b;
+}
 .btn.primary {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 600;
+  --face: var(--accent);
+  --ink: var(--accent-contrast);
+  --depth: #7c5a12;
+  --bevel-lt: rgba(255, 255, 255, 0.45);
+  --bevel-dk: rgba(0, 0, 0, 0.22);
 }
 .btn.primary:hover {
-  background: var(--accent-hover);
+  --face: var(--accent-hover);
+  --edge: #4a3608;
 }
 .btn.ghost {
-  background: transparent;
-  border-color: var(--border);
-}
-.btn.ghost:hover {
-  background: var(--bg-hover);
+  --face: var(--bg-raised);
 }
 .btn.danger {
-  background: transparent;
-  border-color: var(--border);
-  color: var(--danger);
+  --face: var(--bg-raised);
+  --ink: var(--danger);
 }
 .btn.danger:hover {
-  background: rgba(255, 91, 91, 0.12);
+  --edge: var(--danger);
 }
 
+/* Recessed, blocky inputs (inset shadow reads as a carved panel). */
 .input,
 .select {
   width: 100%;
   padding: 9px 12px;
   background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 2px solid var(--border);
+  border-radius: 0;
   color: var(--text);
   font-size: 13px;
   font-family: inherit;
-  transition: border-color 0.15s;
+  box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.28);
+  transition: border-color 0.12s;
 }
 .input:focus,
 .select:focus {
   outline: none;
   border-color: var(--accent);
 }
+.input::placeholder {
+  color: var(--text-muted);
+}
 
 .field-label {
   display: block;
   margin-bottom: 6px;
+  font-family: var(--font-pixel);
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
+}
+
+/* --- Reusable pixel primitives --- */
+
+/* Raised panel bevel: light top-left edge, dark bottom-right. Apply on cards
+   and blocks together with a square border for the block-UI look. */
+.panel,
+.pixel-panel {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 0;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.05),
+    inset -2px -2px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Skeleton placeholder — blocky with a stepped (pixel) shimmer sweep. */
+.skeleton {
+  position: relative;
+  display: block;
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  overflow: hidden;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.07),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: skeleton-sweep 1.2s steps(14) infinite;
+}
+@keyframes skeleton-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Notched corners for small chips/badges (matches the button silhouette). */
+.pixel-corners {
+  --p: 3px;
+  border-radius: 0 !important;
+  clip-path: polygon(
+    var(--p) 0,
+    calc(100% - var(--p)) 0,
+    calc(100% - var(--p)) var(--p),
+    100% var(--p),
+    100% calc(100% - var(--p)),
+    calc(100% - var(--p)) calc(100% - var(--p)),
+    calc(100% - var(--p)) 100%,
+    var(--p) 100%,
+    var(--p) calc(100% - var(--p)),
+    0 calc(100% - var(--p)),
+    0 var(--p),
+    var(--p) var(--p)
+  );
 }

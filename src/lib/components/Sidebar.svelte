@@ -5,6 +5,7 @@
   import InstanceIcon from "./InstanceIcon.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
+  import { skinFace } from "$lib/skin";
   import { ui } from "$lib/stores/ui.svelte";
 
   interface Props {
@@ -29,8 +30,7 @@
 
 <aside class="sidebar">
   <div class="brand">
-    <div class="brand-mark"><Icon name="cube" size={22} /></div>
-    <span class="brand-name">Drake</span>
+    <img src="/drake-logo.png" alt="Drake" class="brand-logo" />
   </div>
 
   <nav class="nav">
@@ -78,7 +78,7 @@
       {#if accountsStore.active}
         <img
           class="avatar-img"
-          src={`https://crafatar.com/avatars/${accountsStore.active.uuid}?size=30&overlay`}
+          src={skinFace(accountsStore.active.uuid, 30)}
           alt={accountsStore.active.username}
         />
       {:else}
@@ -110,17 +110,12 @@
   .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 6px 8px 10px;
+    padding: 8px 8px 12px;
   }
-  .brand-mark {
-    color: var(--accent);
-    display: flex;
-  }
-  .brand-name {
-    font-weight: 700;
-    font-size: 15px;
-    letter-spacing: 0.01em;
+  .brand-logo {
+    width: 100%;
+    max-width: 176px;
+    height: auto;
   }
 
   .nav {
@@ -134,11 +129,12 @@
     align-items: center;
     gap: 12px;
     padding: 9px 10px;
-    border-radius: var(--radius-sm);
+    border-radius: 0;
+    border: 2px solid transparent;
     color: var(--text-secondary);
     font-weight: 500;
     font-size: 13.5px;
-    transition: background 0.12s, color 0.12s;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
   }
   .nav-item:hover {
     background: var(--bg-hover);
@@ -146,8 +142,9 @@
   }
   .nav-item.active {
     background: var(--bg-hover);
-    color: var(--text);
-    box-shadow: inset 3px 0 0 var(--accent);
+    color: var(--accent);
+    border-color: var(--border);
+    box-shadow: inset 4px 0 0 var(--accent);
   }
 
   .section {
@@ -163,7 +160,8 @@
     justify-content: space-between;
     padding: 6px 10px;
     color: var(--text-muted);
-    font-size: 11px;
+    font-family: var(--font-pixel);
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -197,20 +195,22 @@
     align-items: center;
     gap: 10px;
     padding: 6px 8px;
-    border: none;
+    border: 2px solid transparent;
     background: transparent;
-    border-radius: var(--radius-sm);
+    border-radius: 0;
     color: var(--text-secondary);
     text-align: left;
-    transition: background 0.12s, color 0.12s;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
   }
   .pinned-item:hover {
     background: var(--bg-hover);
     color: var(--text);
+    border-color: var(--border);
   }
   .pinned-item.active {
     background: var(--bg-hover);
-    color: var(--text);
+    color: var(--accent);
+    border-color: var(--border);
   }
   .pinned-name {
     overflow: hidden;
@@ -236,15 +236,16 @@
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
-    border: none;
+    border: 2px solid transparent;
     background: transparent;
-    border-radius: var(--radius-sm);
+    border-radius: 0;
     color: var(--text);
     text-align: left;
-    transition: background 0.12s;
+    transition: background 0.12s, border-color 0.12s;
   }
   .account:hover {
     background: var(--bg-hover);
+    border-color: var(--border);
   }
   .avatar {
     display: flex;
@@ -252,7 +253,8 @@
     justify-content: center;
     width: 30px;
     height: 30px;
-    border-radius: 50%;
+    border-radius: 0;
+    border: 2px solid rgba(0, 0, 0, 0.3);
     background: var(--bg-card);
     color: var(--text-secondary);
     flex-shrink: 0;
@@ -260,7 +262,8 @@
   .avatar-img {
     width: 30px;
     height: 30px;
-    border-radius: 8px;
+    border-radius: 0;
+    border: 2px solid rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
     object-fit: cover;
     image-rendering: pixelated;

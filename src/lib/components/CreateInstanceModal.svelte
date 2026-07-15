@@ -1,5 +1,6 @@
 <script lang="ts">
   import Modal from "./Modal.svelte";
+  import LoaderIcon from "./LoaderIcon.svelte";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import {
@@ -162,6 +163,7 @@
             class:active={loader === l.value}
             onclick={() => (loader = l.value)}
           >
+            <LoaderIcon loader={l.value} size={16} />
             {l.label}
           </button>
         {/each}
@@ -247,17 +249,22 @@
     gap: 8px;
   }
   .loader-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     padding: 9px 10px;
     background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
     color: var(--text-secondary);
     font-size: 13px;
     font-weight: 500;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.22);
     transition: all 0.12s;
   }
   .loader-chip:hover {
-    border-color: var(--text-muted);
+    border-color: var(--accent);
     color: var(--text);
   }
   .loader-chip.active {
@@ -293,7 +300,8 @@
   .status {
     padding: 10px 12px;
     background: var(--bg-input);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
     color: var(--text-secondary);
     font-size: 13px;
   }

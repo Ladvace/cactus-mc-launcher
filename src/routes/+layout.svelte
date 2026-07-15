@@ -1,5 +1,6 @@
 <script lang="ts">
   import "../app.css";
+  import "@hackernoon/pixel-icon-library/fonts/iconfont.css";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import CreateInstanceModal from "$lib/components/CreateInstanceModal.svelte";
   import AccountModal from "$lib/components/AccountModal.svelte";

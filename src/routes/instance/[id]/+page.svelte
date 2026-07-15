@@ -209,7 +209,7 @@
         <div class="actions">
           {#if launchRunning}
             <button class="btn danger big" onclick={() => launchStore.stop(id)}>
-              <Icon name="trash" size={16} /> Stop
+              <Icon name="stop" size={16} /> Stop
             </button>
           {:else}
             <button
@@ -319,7 +319,20 @@
           </div>
 
           {#if contentLoading}
-            <p class="muted">Loading…</p>
+            <div class="content-list">
+              {#each Array(4) as _, i (i)}
+                <div class="content-row">
+                  <span class="skeleton" style="width:36px;height:36px"></span>
+                  <div class="content-info">
+                    <span
+                      class="skeleton"
+                      style="width:38%;height:13px;margin-bottom:5px"
+                    ></span>
+                    <span class="skeleton" style="width:62%;height:10px"></span>
+                  </div>
+                </div>
+              {/each}
+            </div>
           {:else if content.length === 0}
             <div class="content-empty">
               <div class="mark"><Icon name="package" size={30} /></div>
@@ -477,10 +490,11 @@
     margin-bottom: 10px;
   }
   .badge {
-    padding: 3px 9px;
+    padding: 4px 10px;
     background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: 20px;
+    border: 2px solid var(--border);
+    border-radius: 0;
+    font-family: var(--font-pixel);
     font-size: 12px;
     font-weight: 500;
     color: var(--text-secondary);
@@ -518,9 +532,10 @@
     padding: 12px 14px;
     background: transparent;
     border: none;
-    border-bottom: 2px solid transparent;
+    border-bottom: 3px solid transparent;
     color: var(--text-secondary);
-    font-size: 13.5px;
+    font-family: var(--font-pixel);
+    font-size: 14px;
     font-weight: 500;
     margin-bottom: -1px;
   }
@@ -547,7 +562,8 @@
     background: var(--bg-card);
     width: 72px;
     height: 72px;
-    border-radius: 20px;
+    border-radius: 0;
+    border: 2px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -559,8 +575,10 @@
   }
   .card-block {
     background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    border-radius: 0;
+    box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.04),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.28);
     padding: 18px 20px;
   }
   .card-block h3 {
@@ -605,20 +623,26 @@
     margin-bottom: 6px;
   }
   .bar {
-    height: 8px;
+    height: 14px;
     background: var(--bg-input);
-    border-radius: 6px;
+    border: 2px solid var(--border);
+    border-radius: 0;
     overflow: hidden;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
   }
   .bar-fill {
     height: 100%;
     background: var(--accent);
-    border-radius: 6px;
-    transition: width 0.2s ease;
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.18) 0 2px,
+      transparent 2px 8px
+    );
+    transition: width 0.2s steps(16);
   }
   .bar-fill.indeterminate {
     width: 35%;
-    animation: slide 1.1s ease-in-out infinite;
+    animation: slide 1.1s steps(8) infinite;
   }
   @keyframes slide {
     0% {
@@ -647,15 +671,16 @@
     margin-bottom: 12px;
   }
   .state-pill {
-    padding: 2px 10px;
-    border-radius: 20px;
+    padding: 3px 10px;
+    border-radius: 0;
+    font-family: var(--font-pixel);
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     background: var(--bg-card);
     color: var(--text-secondary);
-    border: 1px solid var(--border-subtle);
+    border: 2px solid var(--border);
   }
   .state-running {
     color: var(--accent);
@@ -677,8 +702,9 @@
     max-height: 60vh;
     overflow: auto;
     background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
     padding: 12px 14px;
     font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
     font-size: 12px;
@@ -718,8 +744,8 @@
     gap: 12px;
     padding: 10px 12px;
     background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
   }
   .content-row.disabled {
     opacity: 0.55;
@@ -727,10 +753,12 @@
   .content-icon {
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: 0;
+    border: 2px solid rgba(0, 0, 0, 0.3);
     object-fit: cover;
     background: var(--bg-input);
     flex-shrink: 0;
+    image-rendering: pixelated;
   }
   .content-icon.ph {
     display: flex;

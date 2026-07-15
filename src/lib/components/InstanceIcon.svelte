@@ -29,15 +29,15 @@
   <img
     src={instance.icon}
     alt={instance.name}
-    style="width:{size}px;height:{size}px;border-radius:{Math.round(size / 5)}px;"
+    style="width:{size}px;height:{size}px;"
     class="icon-img"
   />
 {:else}
   <div
     class="icon-fallback"
-    style="width:{size}px;height:{size}px;border-radius:{Math.round(
-      size / 5
-    )}px;background:{bg};font-size:{Math.round(size * 0.38)}px;"
+    style="width:{size}px;height:{size}px;background:{bg};font-size:{Math.round(
+      size * 0.38
+    )}px;"
   >
     {initials}
   </div>
@@ -48,14 +48,20 @@
     object-fit: cover;
     flex-shrink: 0;
     background: var(--bg-card);
+    border: 2px solid rgba(0, 0, 0, 0.35);
+    image-rendering: pixelated;
   }
   .icon-fallback {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-family: var(--font-pixel);
     font-weight: 700;
     color: rgba(255, 255, 255, 0.92);
     flex-shrink: 0;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.18),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.25);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
   }
 </style>

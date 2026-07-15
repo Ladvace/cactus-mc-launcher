@@ -335,10 +335,12 @@
   .icon {
     width: 64px;
     height: 64px;
-    border-radius: 12px;
+    border-radius: 0;
+    border: 2px solid rgba(0, 0, 0, 0.3);
     object-fit: cover;
     background: var(--bg-card);
     flex-shrink: 0;
+    image-rendering: pixelated;
   }
   .icon.placeholder {
     display: flex;
@@ -381,8 +383,9 @@
   }
   .install-box {
     background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.28);
     padding: 14px;
   }
   .mp-note {
@@ -399,11 +402,12 @@
     flex-wrap: wrap;
   }
   .pill {
-    padding: 2px 9px;
-    border-radius: 20px;
+    padding: 3px 9px;
+    border-radius: 0;
+    font-family: var(--font-pixel);
     font-size: 11px;
     font-weight: 600;
-    border: 1px solid;
+    border: 2px solid;
   }
   .pill.ok {
     color: var(--accent);
@@ -459,20 +463,26 @@
     margin-bottom: 6px;
   }
   .bar {
-    height: 8px;
-    background: var(--bg-card);
-    border-radius: 6px;
+    height: 14px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    border-radius: 0;
     overflow: hidden;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
   }
   .bar-fill {
     height: 100%;
     background: var(--accent);
-    border-radius: 6px;
-    transition: width 0.2s ease;
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.18) 0 2px,
+      transparent 2px 8px
+    );
+    transition: width 0.2s steps(16);
   }
   .bar-fill.indeterminate {
     width: 35%;
-    animation: slide 1.1s ease-in-out infinite;
+    animation: slide 1.1s steps(8) infinite;
   }
   @keyframes slide {
     0% {

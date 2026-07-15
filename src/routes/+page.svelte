@@ -2,6 +2,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import InstanceCard from "$lib/components/InstanceCard.svelte";
+  import InstanceCardSkeleton from "$lib/components/InstanceCardSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
 
   const recent = $derived(
@@ -24,7 +25,14 @@
   </header>
 
   {#if instancesStore.loading && !instancesStore.loaded}
-    <p class="muted">Loading…</p>
+    <section>
+      <h3 class="section-title"><Icon name="clock" size={16} /> Jump back in</h3>
+      <div class="grid">
+        {#each Array(5) as _, i (i)}
+          <InstanceCardSkeleton />
+        {/each}
+      </div>
+    </section>
   {:else if instancesStore.instances.length === 0}
     <div class="empty">
       <div class="empty-mark"><Icon name="cube" size={40} /></div>
@@ -81,9 +89,6 @@
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 16px;
   }
-  .muted {
-    color: var(--text-muted);
-  }
   .empty {
     display: flex;
     flex-direction: column;
@@ -98,7 +103,8 @@
     background: var(--bg-card);
     width: 88px;
     height: 88px;
-    border-radius: 24px;
+    border-radius: 0;
+    border: 2px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;

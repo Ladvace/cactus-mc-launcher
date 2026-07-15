@@ -197,7 +197,19 @@
       <button class="btn ghost" onclick={search}>Retry</button>
     </div>
   {:else if loading}
-    <div class="status">Searching…</div>
+    <div class="results">
+      {#each Array(8) as _, i (i)}
+        <div class="card skel">
+          <span class="skeleton" style="width:56px;height:56px"></span>
+          <div class="card-body">
+            <span class="skeleton" style="width:55%;height:14px"></span>
+            <span class="skeleton" style="width:100%;height:11px"></span>
+            <span class="skeleton" style="width:75%;height:11px"></span>
+            <span class="skeleton skel-stat" style="width:44px;height:11px"></span>
+          </div>
+        </div>
+      {/each}
+    </div>
   {:else if hits.length === 0}
     <div class="status">No results.</div>
   {:else}
@@ -255,9 +267,10 @@
     padding: 10px 14px;
     background: transparent;
     border: none;
-    border-bottom: 2px solid transparent;
+    border-bottom: 3px solid transparent;
     color: var(--text-secondary);
-    font-size: 13.5px;
+    font-family: var(--font-pixel);
+    font-size: 14px;
     font-weight: 500;
     margin-bottom: -1px;
     transition: color 0.12s, border-color 0.12s;
@@ -290,10 +303,11 @@
     width: 100%;
     padding: 9px 12px 9px 36px;
     background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
     color: var(--text);
     font-size: 13px;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.28);
   }
   .search-input:focus {
     outline: none;
@@ -331,20 +345,29 @@
     gap: 14px;
     padding: 14px;
     background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius);
+    border: 2px solid var(--border);
+    border-radius: 0;
     text-align: left;
+    box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.04),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.28);
     transition: border-color 0.12s, transform 0.12s, background 0.12s;
   }
   .card:hover {
-    border-color: var(--border);
+    border-color: var(--accent);
     background: var(--bg-hover);
     transform: translateY(-2px);
+  }
+  .card.skel {
+    pointer-events: none;
+  }
+  .skel-stat {
+    margin-top: auto;
   }
   .card-icon {
     width: 56px;
     height: 56px;
-    border-radius: 10px;
+    border-radius: 0;
+    border: 2px solid rgba(0, 0, 0, 0.3);
     object-fit: cover;
     background: var(--bg-input);
     flex-shrink: 0;

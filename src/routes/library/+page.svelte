@@ -2,6 +2,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import InstanceCard from "$lib/components/InstanceCard.svelte";
+  import InstanceCardSkeleton from "$lib/components/InstanceCardSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { MOD_LOADERS, type ModLoader } from "$lib/types";
 
@@ -45,7 +46,13 @@
     </select>
   </div>
 
-  {#if instancesStore.instances.length === 0}
+  {#if instancesStore.loading && !instancesStore.loaded}
+    <div class="grid">
+      {#each Array(8) as _, i (i)}
+        <InstanceCardSkeleton />
+      {/each}
+    </div>
+  {:else if instancesStore.instances.length === 0}
     <div class="empty">
       <p>Your library is empty.</p>
       <button class="btn primary" onclick={() => ui.openCreateInstance()}>
@@ -99,10 +106,11 @@
     width: 100%;
     padding: 9px 12px 9px 36px;
     background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    border-radius: 0;
     color: var(--text);
     font-size: 13px;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.28);
   }
   .search-input:focus {
     outline: none;

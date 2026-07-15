@@ -67,9 +67,11 @@
   .modal {
     width: 100%;
     background: var(--bg-raised);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-md);
+    border: 2px solid var(--border);
+    border-radius: 0;
+    box-shadow: var(--shadow-md),
+      inset 2px 2px 0 rgba(255, 255, 255, 0.05),
+      inset -2px -2px 0 rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
     max-height: 90vh;
@@ -91,7 +93,7 @@
     color: var(--text-muted);
     font-size: 15px;
     padding: 4px 8px;
-    border-radius: var(--radius-sm);
+    border-radius: 0;
   }
   .close:hover {
     background: var(--bg-hover);
