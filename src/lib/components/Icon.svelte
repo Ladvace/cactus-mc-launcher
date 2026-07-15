@@ -24,6 +24,11 @@
     search: "search",
     clock: "clock",
     package: "archive",
+    shuffle: "shuffle",
+    sparkles: "sparkles",
+    expand: "expand",
+    refresh: "refresh",
+    check: "check",
   };
 
   const cls = $derived(`hn hn-${MAP[name] ?? "grid"}`);

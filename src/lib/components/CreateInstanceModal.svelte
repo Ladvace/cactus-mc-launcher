@@ -1,6 +1,8 @@
 <script lang="ts">
   import Modal from "./Modal.svelte";
   import LoaderIcon from "./LoaderIcon.svelte";
+  import Icon from "./Icon.svelte";
+  import { randomInstanceName } from "$lib/funnyNames";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import {
@@ -101,6 +103,8 @@
     name.trim().length > 0 &&
       selectedVersion.length > 0 &&
       supportedLoader &&
+      // a modded loader needs at least one compatible build
+      (!needsLoaderVersion || (!loaderVersionsLoading && loaderVersions.length > 0)) &&
       !creating
   );
 
@@ -144,13 +148,23 @@
   <div class="form">
     <div>
       <label class="field-label" for="ci-name">Name</label>
-      <input
-        id="ci-name"
-        class="input"
-        placeholder="My awesome instance"
-        bind:value={name}
-        autocomplete="off"
-      />
+      <div class="name-row">
+        <input
+          id="ci-name"
+          class="input"
+          placeholder="My awesome instance"
+          bind:value={name}
+          autocomplete="off"
+        />
+        <button
+          type="button"
+          class="dice"
+          title="Roll a random name"
+          onclick={() => (name = randomInstanceName())}
+        >
+          <Icon name="shuffle" size={16} />
+        </button>
+      </div>
     </div>
 
     <div>
@@ -242,6 +256,34 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+  .name-row {
+    display: flex;
+    gap: 8px;
+  }
+  .name-row .input {
+    flex: 1;
+  }
+  /* Square dice button matched to the input height. */
+  .dice {
+    flex-shrink: 0;
+    width: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    border-radius: 0;
+    color: var(--text-secondary);
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.28);
+    transition: color 0.12s, border-color 0.12s, transform 0.08s;
+  }
+  .dice:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .dice:active {
+    transform: scale(0.9);
   }
   .loader-grid {
     display: grid;

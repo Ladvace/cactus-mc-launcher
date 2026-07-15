@@ -8,8 +8,10 @@
 
   interface Props {
     instance: Instance;
+    iconSize?: number;
+    fill?: boolean;
   }
-  let { instance }: Props = $props();
+  let { instance, iconSize = 72, fill = false }: Props = $props();
 
   const loaderLabel = $derived(
     MOD_LOADERS.find((l) => l.value === instance.loader)?.label ?? instance.loader
@@ -33,13 +35,14 @@
 
 <div
   class="card"
+  class:fill
   role="button"
   tabindex="0"
   onclick={open}
   onkeydown={(e) => e.key === "Enter" && open()}
 >
   <div class="art">
-    <InstanceIcon {instance} size={72} />
+    <InstanceIcon {instance} size={iconSize} />
     <button
       class="play"
       class:visible={busy || running}
@@ -83,6 +86,15 @@
     border-color: var(--accent);
     background: var(--bg-hover);
     transform: translateY(-2px);
+  }
+  /* When filling a grid tile, grow the art to center the (larger) icon and
+     keep the meta pinned to the bottom. */
+  .card.fill {
+    height: 100%;
+  }
+  .card.fill .art {
+    flex: 1;
+    padding: 0;
   }
   .art {
     position: relative;

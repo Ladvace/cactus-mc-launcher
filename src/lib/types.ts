@@ -103,11 +103,12 @@ export interface DeviceCodeEvent {
 
 // --- Content sources ---
 
-export type Source = "modrinth" | "curseforge";
+export type Source = "modrinth" | "curseforge" | "ftb";
 
 export const SOURCES: { value: Source; label: string; enabled: boolean }[] = [
   { value: "modrinth", label: "Modrinth", enabled: true },
   { value: "curseforge", label: "CurseForge", enabled: false },
+  { value: "ftb", label: "FTB (modpacks)", enabled: true },
 ];
 
 export type ProjectType =

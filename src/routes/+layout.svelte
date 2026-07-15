@@ -1,7 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import "@hackernoon/pixel-icon-library/fonts/iconfont.css";
-  import Sidebar from "$lib/components/Sidebar.svelte";
+  import Dock from "$lib/components/Dock.svelte";
   import CreateInstanceModal from "$lib/components/CreateInstanceModal.svelte";
   import AccountModal from "$lib/components/AccountModal.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
@@ -23,10 +23,10 @@
 </script>
 
 <div class="app">
-  <Sidebar onCreate={() => ui.openCreateInstance()} />
   <main class="content">
     {@render children()}
   </main>
+  <Dock onCreate={() => ui.openCreateInstance()} />
 </div>
 
 <CreateInstanceModal
@@ -38,15 +38,16 @@
 
 <style>
   .app {
-    display: flex;
     height: 100vh;
     width: 100vw;
     overflow: hidden;
   }
   .content {
-    flex: 1;
-    min-width: 0;
+    height: 100vh;
+    width: 100%;
     overflow-y: auto;
     background: var(--bg-app);
+    /* leave room for the floating dock */
+    padding-bottom: 90px;
   }
 </style>

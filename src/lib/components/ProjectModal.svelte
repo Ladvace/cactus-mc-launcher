@@ -178,7 +178,11 @@
     mpTotal = 0;
     mpMessage = "Starting…";
     try {
-      const inst = await api.installModpack(versions[0].id, hit.iconUrl);
+      const inst = await api.installModpack(
+        hit.source as Source,
+        versions[0].id,
+        hit.iconUrl
+      );
       await instancesStore.refresh();
       close();
       goto(`/instance/${inst.id}`);
@@ -229,9 +233,9 @@
         </p>
       {:else if isModpack}
         <p class="mp-note">
-          Installs as a <strong>new instance</strong>
-          {#if versions.length > 0}
-            (Minecraft {versions[0].gameVersions[0] ?? ""}, latest {versions[0].versionNumber}){/if}.
+          Installs as a <strong>new instance</strong>{#if versions.length > 0}
+            (latest {versions[0].versionNumber}{#if versions[0].gameVersions[0]}, MC
+              {versions[0].gameVersions[0]}{/if}){/if}.
         </p>
         {#if loadingVersions}
           <span class="muted">Finding latest version…</span>

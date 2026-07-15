@@ -279,8 +279,15 @@ pub fn remove_content(app: AppHandle, instance_id: String, version_id: String) -
 #[tauri::command]
 pub async fn install_modpack(
     app: AppHandle,
+    source: Source,
     version_id: String,
     icon_url: Option<String>,
 ) -> Result<Instance> {
-    content::install_modpack(&app, &version_id, icon_url).await
+    match source {
+        Source::Modrinth => content::install_modpack(&app, &version_id, icon_url).await,
+        Source::Ftb => content::install_ftb_modpack(&app, &version_id, icon_url).await,
+        Source::CurseForge => Err(AppError::Other(
+            "CurseForge modpack install isn't supported yet".into(),
+        )),
+    }
 }

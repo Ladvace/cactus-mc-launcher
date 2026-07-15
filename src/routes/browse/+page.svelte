@@ -48,6 +48,13 @@
 
   const LIMIT = 20;
   const showLoader = $derived(activeType === "mod" || activeType === "modpack");
+  // FTB only has modpacks — restrict the tabs and force the type.
+  const visibleTabs = $derived(
+    source === "ftb" ? tabs.filter((t) => t.type === "modpack") : tabs
+  );
+  $effect(() => {
+    if (source === "ftb" && activeType !== "modpack") activeType = "modpack";
+  });
 
   // Debounce the search text.
   $effect(() => {
@@ -147,7 +154,7 @@
   </header>
 
   <div class="tabs">
-    {#each tabs as t}
+    {#each visibleTabs as t}
       <button
         class="tab"
         class:active={activeType === t.type}
@@ -293,9 +300,11 @@
     display: flex;
     align-items: center;
   }
-  .search :global(svg) {
+  .search :global(.hn) {
     position: absolute;
     left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     color: var(--text-muted);
     pointer-events: none;
   }

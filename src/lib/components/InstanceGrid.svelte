@@ -1,0 +1,309 @@
+<script lang="ts">
+  import { browser } from "$app/environment";
+  import InstanceCard from "./InstanceCard.svelte";
+  import type { Instance } from "$lib/types";
+
+  interface Props {
+    instances: Instance[];
+    arranging?: boolean;
+  }
+  let { instances, arranging = false }: Props = $props();
+
+  // --- Persisted per-instance layout (span + order) ---------------------------
+  interface Cell {
+    w: number; // column span
+    h: number; // row span
+    order: number;
+  }
+  const KEY = "drake:instanceLayout";
+
+  // Grid geometry — a fixed cell so spans produce consistent tiles.
+  const CELL = 168;
+  const GAP = 16;
+  const PITCH = CELL + GAP; // distance between two cell origins
+  const MAX_H = 4;
+
+  // Legacy size-label → span, for migrating older saved layouts.
+  const LEGACY: Record<string, [number, number]> = {
+    s: [1, 1],
+    w: [2, 1],
+    t: [1, 2],
+    l: [2, 2],
+  };
+
+  function load(): Record<string, Cell> {
+    if (!browser) return {};
+    try {
+      const raw = JSON.parse(localStorage.getItem(KEY) || "{}") ?? {};
+      const out: Record<string, Cell> = {};
+      for (const [id, v] of Object.entries<any>(raw)) {
+        if (v && typeof v.w === "number" && typeof v.h === "number") {
+          out[id] = { w: v.w, h: v.h, order: v.order ?? 0 };
+        } else if (v && typeof v.size === "string" && LEGACY[v.size]) {
+          const [w, h] = LEGACY[v.size];
+          out[id] = { w, h, order: v.order ?? 0 };
+        }
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  }
+
+  let layout = $state<Record<string, Cell>>(load());
+
+  function persist() {
+    if (browser) localStorage.setItem(KEY, JSON.stringify(layout));
+  }
+
+  export function resetLayout() {
+    layout = {};
+    persist();
+  }
+  export function isCustomized() {
+    return Object.keys(layout).length > 0;
+  }
+
+  // How many columns currently fit — clamps the max width a tile can grow to.
+  let gridWidth = $state(0);
+  const maxCols = $derived(Math.max(1, Math.floor((gridWidth + GAP) / PITCH)));
+
+  function cellOf(id: string): Cell {
+    return layout[id] ?? { w: 1, h: 1, order: Number.MAX_SAFE_INTEGER };
+  }
+  const clamp = (n: number, lo: number, hi: number) =>
+    Math.min(hi, Math.max(lo, n));
+
+  // Bigger tiles get a bigger icon.
+  function iconFor(w: number, h: number): number {
+    if (Math.min(w, h) >= 2) return 120;
+    if (Math.max(w, h) >= 2) return 84;
+    return 60;
+  }
+
+  // Instances sorted by their stored order (unplaced ones fall to the end).
+  const ordered = $derived(
+    [...instances].sort(
+      (a, b) => cellOf(a.id).order - cellOf(b.id).order
+    )
+  );
+
+  // --- Drag to reorder (HTML5 DnD, live reflow) -------------------------------
+  let draggingId = $state<string | null>(null);
+
+  function onDragStart(e: DragEvent, id: string) {
+    if (!arranging || resizing) {
+      e.preventDefault();
+      return;
+    }
+    draggingId = id;
+    e.dataTransfer?.setData("text/plain", id);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+  }
+
+  function onDragEnter(overId: string) {
+    if (!draggingId || draggingId === overId) return;
+    const ids = ordered.map((i) => i.id);
+    const from = ids.indexOf(draggingId);
+    const to = ids.indexOf(overId);
+    if (from < 0 || to < 0) return;
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    const next: Record<string, Cell> = {};
+    ids.forEach((id, idx) => {
+      const c = cellOf(id);
+      next[id] = { w: c.w, h: c.h, order: idx };
+    });
+    layout = next;
+  }
+
+  function onDragEnd() {
+    draggingId = null;
+    persist();
+  }
+
+  // --- Resize by dragging an edge/corner (pointer events) ---------------------
+  type Axis = "e" | "s" | "se";
+  let resizing = $state<{
+    id: string;
+    axis: Axis;
+    startX: number;
+    startY: number;
+    startW: number;
+    startH: number;
+  } | null>(null);
+
+  function startResize(e: PointerEvent, id: string, axis: Axis) {
+    e.preventDefault();
+    e.stopPropagation();
+    const c = cellOf(id);
+    resizing = {
+      id,
+      axis,
+      startX: e.clientX,
+      startY: e.clientY,
+      startW: c.w,
+      startH: c.h,
+    };
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    const r = resizing;
+    if (!r) return;
+    let w = r.startW;
+    let h = r.startH;
+    if (r.axis === "e" || r.axis === "se") {
+      w = clamp(r.startW + Math.round((e.clientX - r.startX) / PITCH), 1, maxCols);
+    }
+    if (r.axis === "s" || r.axis === "se") {
+      h = clamp(r.startH + Math.round((e.clientY - r.startY) / PITCH), 1, MAX_H);
+    }
+    const cur = cellOf(r.id);
+    if (cur.w !== w || cur.h !== h) {
+      layout = { ...layout, [r.id]: { w, h, order: cur.order } };
+    }
+  }
+
+  function onPointerUp() {
+    if (!resizing) return;
+    resizing = null;
+    persist();
+  }
+</script>
+
+<svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp} />
+
+<div class="grid" class:arranging bind:clientWidth={gridWidth}>
+  {#each ordered as inst (inst.id)}
+    {@const c = cellOf(inst.id)}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="tile"
+      class:dragging={draggingId === inst.id}
+      class:resizing={resizing?.id === inst.id}
+      style="grid-column: span {c.w}; grid-row: span {c.h};"
+      draggable={arranging}
+      ondragstart={(e) => onDragStart(e, inst.id)}
+      ondragenter={() => onDragEnter(inst.id)}
+      ondragover={(e) => arranging && e.preventDefault()}
+      ondragend={onDragEnd}
+    >
+      <InstanceCard instance={inst} iconSize={iconFor(c.w, c.h)} fill />
+      {#if arranging}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="handle e"
+          title="Drag to resize width"
+          onpointerdown={(e) => startResize(e, inst.id, "e")}
+        ></div>
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="handle s"
+          title="Drag to resize height"
+          onpointerdown={(e) => startResize(e, inst.id, "s")}
+        ></div>
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="handle se"
+          title="Drag to resize"
+          onpointerdown={(e) => startResize(e, inst.id, "se")}
+        ></div>
+      {/if}
+    </div>
+  {/each}
+</div>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 168px);
+    grid-auto-rows: 168px;
+    grid-auto-flow: row dense;
+    gap: 16px;
+    justify-content: start;
+  }
+  .tile {
+    position: relative;
+    min-width: 0;
+    transition: transform 0.12s;
+  }
+  /* Arrange mode: tiles become draggable and gently jiggle (Android-style).
+     Hovering a tile stops its jiggle so grabbing a border stays precise. */
+  .grid.arranging .tile {
+    cursor: grab;
+    animation: jiggle 0.5s ease-in-out infinite;
+  }
+  .grid.arranging .tile:nth-child(even) {
+    animation-delay: -0.25s;
+  }
+  .grid.arranging .tile:nth-child(3n) {
+    animation-delay: -0.12s;
+  }
+  .grid.arranging .tile:hover,
+  .tile.resizing {
+    animation: none !important;
+  }
+  /* Clicks shouldn't navigate/launch while arranging — the tile owns the drag. */
+  .grid.arranging .tile :global(.card) {
+    pointer-events: none;
+    border-style: dashed;
+  }
+  .grid.arranging .tile:hover :global(.card),
+  .tile.resizing :global(.card) {
+    border-color: var(--accent);
+  }
+  .tile.dragging {
+    opacity: 0.45;
+    animation: none;
+    transform: scale(0.95);
+  }
+  @keyframes jiggle {
+    0%,
+    100% {
+      transform: rotate(-0.5deg);
+    }
+    50% {
+      transform: rotate(0.5deg);
+    }
+  }
+
+  /* Invisible drag zones along the right edge, bottom edge, and corner. */
+  .handle {
+    position: absolute;
+    z-index: 3;
+    touch-action: none;
+  }
+  .handle.e {
+    top: 0;
+    right: -4px;
+    width: 12px;
+    height: 100%;
+    cursor: ew-resize;
+  }
+  .handle.s {
+    left: 0;
+    bottom: -4px;
+    height: 12px;
+    width: 100%;
+    cursor: ns-resize;
+  }
+  /* Visible corner grip so the resize affordance is discoverable. */
+  .handle.se {
+    right: -4px;
+    bottom: -4px;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    background: linear-gradient(
+      135deg,
+      transparent 45%,
+      var(--accent) 45%,
+      var(--accent) 60%,
+      transparent 60%,
+      transparent 72%,
+      var(--accent) 72%,
+      var(--accent) 87%,
+      transparent 87%
+    );
+    z-index: 4;
+  }
+</style>

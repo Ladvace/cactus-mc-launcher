@@ -47,22 +47,16 @@ fn parse_metadata_versions(xml: &str) -> Vec<String> {
 ///   `1.21.1` (and `.0` minor means no trailing patch, e.g. `21.0.x` → `1.21`).
 fn match_version(loader: ModLoader, mc: &str, raw: &str) -> Option<String> {
     match loader {
-        ModLoader::Forge => raw
-            .strip_prefix(&format!("{mc}-"))
-            .map(|v| v.to_string()),
+        // Forge keeps the "<mc>-<forge>" scheme (both "1.20.1-47.4.21" and the
+        // newer "26.2-65.0.4"), so stripping "<mc>-" works for all eras.
+        ModLoader::Forge => raw.strip_prefix(&format!("{mc}-")).map(|v| v.to_string()),
+        // NeoForge encodes the Minecraft version in its own version string:
+        // old MC "1.X.Y" drops the leading "1." ("1.21.1" -> "21.1.x"), while
+        // new MC like "26.2" is used as-is ("26.2" -> "26.2.0.x").
         _ => {
-            let parts: Vec<&str> = mc.split('.').collect();
-            if parts.first() != Some(&"1") || parts.len() < 2 {
-                return None;
-            }
-            let major = parts[1];
-            let minor = parts.get(2).copied().unwrap_or("0");
-            let prefix = format!("{major}.{minor}.");
-            if raw.starts_with(&prefix) {
-                Some(raw.to_string())
-            } else {
-                None
-            }
+            let sig = mc.strip_prefix("1.").unwrap_or(mc);
+            let prefix = format!("{sig}.");
+            raw.starts_with(&prefix).then(|| raw.to_string())
         }
     }
 }

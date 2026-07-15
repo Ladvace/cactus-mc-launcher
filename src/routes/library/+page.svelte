@@ -96,9 +96,11 @@
     display: flex;
     align-items: center;
   }
-  .search :global(svg) {
+  .search :global(.hn) {
     position: absolute;
     left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     color: var(--text-muted);
     pointer-events: none;
   }

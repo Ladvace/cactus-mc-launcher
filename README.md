@@ -45,6 +45,7 @@ apps must also be approved by Mojang at https://aka.ms/mce-reviewappid before
 - `instance/` — `Instance`/`ModLoader` model + `InstanceStore` (folder-per-instance, `instance.json`).
 - `settings.rs` — `Settings` + `SettingsStore` (persisted to `settings.json`).
 - `minecraft/` — Mojang version manifest + per-version detail fetching/caching.
+- `sources/` — content-provider abstraction: Modrinth, CurseForge (needs `CURSEFORGE_API_KEY`), and FTB modpacks (`api.modpacks.ch`; installs resolve CurseForge-hosted mods, so also needs the CF key).
 - `modrinth/` — Modrinth API client (search, versions).
 - `content/` — install content into instances, per-instance `content.json`, enable/disable/remove, and `.mrpack` modpack install.
 - `loader/` — Fabric/Quilt meta profile fetch + merge; `forge.rs` runs the Forge/NeoForge installer headlessly and merges its generated profile.

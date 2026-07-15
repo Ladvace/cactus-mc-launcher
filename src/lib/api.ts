@@ -95,6 +95,10 @@ export const api = {
   removeContent: (instanceId: string, versionId: string) =>
     invoke<void>("remove_content", { instanceId, versionId }),
 
-  installModpack: (versionId: string, iconUrl?: string | null) =>
-    invoke<Instance>("install_modpack", { versionId, iconUrl: iconUrl ?? null }),
+  installModpack: (source: Source, versionId: string, iconUrl?: string | null) =>
+    invoke<Instance>("install_modpack", {
+      source,
+      versionId,
+      iconUrl: iconUrl ?? null,
+    }),
 };
