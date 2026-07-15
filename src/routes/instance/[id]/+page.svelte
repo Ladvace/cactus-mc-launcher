@@ -3,7 +3,8 @@
   import { goto } from "$app/navigation";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
-  import { MOD_LOADERS } from "$lib/types";
+  import { api } from "$lib/api";
+  import { MOD_LOADERS, type ContentItem, type Source } from "$lib/types";
   import Icon from "$lib/components/Icon.svelte";
   import InstanceIcon from "$lib/components/InstanceIcon.svelte";
   import Modal from "$lib/components/Modal.svelte";
@@ -30,6 +31,89 @@
   const progressPct = $derived(
     runtime.total > 0 ? Math.round((runtime.current / runtime.total) * 100) : null
   );
+
+  // --- Installed content ---
+  let content = $state<ContentItem[]>([]);
+  let contentLoading = $state(false);
+
+  async function loadContent() {
+    if (!id) return;
+    contentLoading = true;
+    try {
+      content = await api.listContent(id);
+    } finally {
+      contentLoading = false;
+    }
+  }
+
+  $effect(() => {
+    if (activeTab === "Content" && id) loadContent();
+  });
+
+  async function toggleContent(item: ContentItem) {
+    await api.setContentEnabled(id, item.versionId, !item.enabled);
+    await loadContent();
+  }
+
+  async function removeContentItem(item: ContentItem) {
+    await api.removeContent(id, item.versionId);
+    await loadContent();
+  }
+
+  // Update checking: map installed versionId -> available newer version.
+  let updates = $state<Record<string, { versionId: string; number: string }>>({});
+  let checkingUpdates = $state(false);
+  let updatingId = $state<string | null>(null);
+
+  async function checkUpdates() {
+    if (!instance) return;
+    checkingUpdates = true;
+    updates = {};
+    try {
+      const found: Record<string, { versionId: string; number: string }> = {};
+      for (const item of content) {
+        if (!item.projectId) continue;
+        const loaderFilter =
+          item.projectType === "mod" && instance.loader !== "vanilla"
+            ? instance.loader
+            : null;
+        const vs = await api.contentVersions(
+          item.source as Source,
+          item.projectId,
+          loaderFilter,
+          instance.mcVersion
+        );
+        if (vs.length > 0 && vs[0].id !== item.versionId) {
+          found[item.versionId] = { versionId: vs[0].id, number: vs[0].versionNumber };
+        }
+      }
+      updates = found;
+    } finally {
+      checkingUpdates = false;
+    }
+  }
+
+  async function updateItem(item: ContentItem) {
+    const upd = updates[item.versionId];
+    if (!upd) return;
+    updatingId = item.versionId;
+    try {
+      await api.installContent({
+        instanceId: id,
+        source: item.source as Source,
+        versionId: upd.versionId,
+        projectType: item.projectType,
+        title: item.title,
+        iconUrl: item.iconUrl,
+      });
+      const next = { ...updates };
+      delete next[item.versionId];
+      updates = next;
+      await loadContent();
+    } finally {
+      updatingId = null;
+    }
+  }
 
   let renameOpen = $state(false);
   let deleteOpen = $state(false);
@@ -211,6 +295,80 @@
               </button>
             </div>
           </section>
+        </div>
+      {:else if activeTab === "Content"}
+        <div class="content-tab">
+          <div class="content-head">
+            <span class="muted">
+              {content.length} item{content.length === 1 ? "" : "s"} installed
+            </span>
+            <div class="content-head-actions">
+              {#if content.length > 0}
+                <button
+                  class="btn ghost sm"
+                  onclick={checkUpdates}
+                  disabled={checkingUpdates}
+                >
+                  {checkingUpdates ? "Checking…" : "Check for updates"}
+                </button>
+              {/if}
+              <button class="btn ghost sm" onclick={() => goto("/browse")}>
+                <Icon name="compass" size={14} /> Browse Modrinth
+              </button>
+            </div>
+          </div>
+
+          {#if contentLoading}
+            <p class="muted">Loading…</p>
+          {:else if content.length === 0}
+            <div class="content-empty">
+              <div class="mark"><Icon name="package" size={30} /></div>
+              <p>No content installed yet.</p>
+              <button class="btn primary" onclick={() => goto("/browse")}>
+                <Icon name="compass" size={15} /> Find mods on Modrinth
+              </button>
+            </div>
+          {:else}
+            <div class="content-list">
+              {#each content as item (item.versionId)}
+                <div class="content-row" class:disabled={!item.enabled}>
+                  {#if item.iconUrl}
+                    <img class="content-icon" src={item.iconUrl} alt={item.title} />
+                  {:else}
+                    <div class="content-icon ph"><Icon name="package" size={16} /></div>
+                  {/if}
+                  <div class="content-info">
+                    <span class="content-title">{item.title}</span>
+                    <span class="content-sub">{item.projectType} · {item.fileName}</span>
+                  </div>
+                  {#if updates[item.versionId]}
+                    <button
+                      class="btn primary sm"
+                      onclick={() => updateItem(item)}
+                      disabled={updatingId === item.versionId}
+                      title={`Update to ${updates[item.versionId].number}`}
+                    >
+                      {updatingId === item.versionId ? "Updating…" : "Update"}
+                    </button>
+                  {/if}
+                  <button
+                    class="btn ghost sm"
+                    onclick={() => toggleContent(item)}
+                    title={item.enabled ? "Disable" : "Enable"}
+                  >
+                    {item.enabled ? "Enabled" : "Disabled"}
+                  </button>
+                  <button
+                    class="icon-remove"
+                    onclick={() => removeContentItem(item)}
+                    title="Remove"
+                  >
+                    <Icon name="trash" size={15} />
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
         </div>
       {:else if activeTab === "Logs"}
         <div class="logs">
@@ -528,5 +686,87 @@
     color: var(--text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
+  }
+
+  /* Content tab */
+  .content-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .content-head-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .content-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px;
+    color: var(--text-secondary);
+  }
+  .content-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .content-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+  }
+  .content-row.disabled {
+    opacity: 0.55;
+  }
+  .content-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--bg-input);
+    flex-shrink: 0;
+  }
+  .content-icon.ph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+  }
+  .content-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.3;
+  }
+  .content-title {
+    font-weight: 600;
+    font-size: 13.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .content-sub {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    text-transform: capitalize;
+  }
+  .icon-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 7px;
+    border-radius: var(--radius-sm);
+    display: flex;
+  }
+  .icon-remove:hover {
+    background: rgba(255, 91, 110, 0.12);
+    color: var(--danger);
   }
 </style>

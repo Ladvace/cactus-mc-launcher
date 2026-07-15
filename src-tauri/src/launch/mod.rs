@@ -106,6 +106,7 @@ pub async fn launch(app: AppHandle, instance: Instance, settings: Settings) -> R
     let id = instance.id.clone();
     let result = prepare_and_spawn(&app, &instance, &settings).await;
     if let Err(e) = &result {
+        eprintln!("[launch] error for instance {id}: {e}");
         emit_status(&app, &id, "error", Some(e.to_string()));
     }
     result
@@ -131,17 +132,63 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
 
     let mut detail = version::fetch_detail(app, &entry.id, &entry.url).await?;
 
-    // Apply the mod loader profile (Fabric/Quilt): swaps main class, adds
-    // loader libraries and arguments on top of vanilla.
-    if instance.loader != crate::instance::ModLoader::Vanilla {
-        emit_status(app, id, "preparing", Some("Resolving mod loader…".into()));
-        crate::loader::apply_loader(
-            &mut detail,
-            instance.loader,
-            &instance.mc_version,
-            instance.loader_version.as_deref(),
+    // --- Ensure Java early (Forge/NeoForge need it to run their installer) ---
+    emit_status(app, id, "preparing", Some("Preparing Java runtime…".into()));
+    let java_version = detail.java_version.clone().unwrap_or(JavaVersion {
+        component: "jre-legacy".into(),
+        major_version: 8,
+    });
+    // Apple Silicon: versions with LWJGL < 3.3.1 have no arm64 natives, so run
+    // them with an x86_64 (Rosetta) Java to match the x86_64 native libraries.
+    let force_x64 = macos_needs_rosetta(&detail);
+    let java = {
+        let app_cb = app.clone();
+        let id_cb = id.clone();
+        java::ensure_java(
+            app,
+            &client,
+            &java_version,
+            settings.java_path.as_deref(),
+            force_x64,
+            move |cur, total| emit_progress(&app_cb, &id_cb, "java", cur, total),
         )
-        .await?;
+        .await?
+    };
+
+    // --- Apply the mod loader profile on top of vanilla ---
+    use crate::instance::ModLoader;
+    if instance.loader != ModLoader::Vanilla {
+        emit_status(app, id, "preparing", Some("Resolving mod loader…".into()));
+        match instance.loader {
+            ModLoader::Fabric | ModLoader::Quilt => {
+                crate::loader::apply_loader(
+                    &mut detail,
+                    instance.loader,
+                    &instance.mc_version,
+                    instance.loader_version.as_deref(),
+                )
+                .await?;
+            }
+            ModLoader::Forge | ModLoader::NeoForge => {
+                emit_status(
+                    app,
+                    id,
+                    "preparing",
+                    Some("Installing Forge/NeoForge (first run can take a minute)…".into()),
+                );
+                crate::loader::forge::apply(
+                    &mut detail,
+                    app,
+                    &client,
+                    &java,
+                    instance.loader,
+                    &instance.mc_version,
+                    instance.loader_version.as_deref(),
+                )
+                .await?;
+            }
+            ModLoader::Vanilla => unreachable!(),
+        }
     }
 
     // Paths.
@@ -188,25 +235,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         libraries::extract_natives(jar, &natives_dir, exclude)?;
     }
 
-    // --- Ensure Java ---
-    emit_status(app, id, "downloading", Some("Preparing Java runtime…".into()));
-    let java_version = detail.java_version.clone().unwrap_or(JavaVersion {
-        component: "jre-legacy".into(),
-        major_version: 8,
-    });
-    let java = {
-        let app_cb = app.clone();
-        let id_cb = id.clone();
-        java::ensure_java(
-            app,
-            &client,
-            &java_version,
-            settings.java_path.as_deref(),
-            move |cur, total| emit_progress(&app_cb, &id_cb, "java", cur, total),
-        )
-        .await?
-    };
-
     // --- Resolve the account (Microsoft if active, else offline) ---
     let (player_name, uuid, access_token) =
         match crate::auth::active_valid_account(app, &client).await? {
@@ -231,6 +259,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         natives_dir,
         game_dir: game_dir.clone(),
         assets_dir: assets.assets_dir.clone(),
+        library_directory: paths::libraries_dir(app)?,
         assets_index: detail.assets.clone(),
         uuid,
         player_name,
@@ -253,4 +282,31 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     process::spawn_and_monitor(app.clone(), java, command_args, game_dir, id.clone())?;
 
     Ok(())
+}
+
+/// On Apple Silicon, decide whether this version must run under x86_64/Rosetta.
+/// True when the version's LWJGL is older than 3.3.1 (the first release with
+/// arm64 macOS natives).
+fn macos_needs_rosetta(detail: &version::VersionDetail) -> bool {
+    if !(cfg!(target_os = "macos") && std::env::consts::ARCH == "aarch64") {
+        return false;
+    }
+    for lib in &detail.libraries {
+        if let Some(ver) = lib.name.strip_prefix("org.lwjgl:lwjgl:") {
+            return lwjgl_below_331(ver);
+        }
+    }
+    false
+}
+
+fn lwjgl_below_331(ver: &str) -> bool {
+    let parts: Vec<u32> = ver.split('.').filter_map(|s| s.parse().ok()).collect();
+    let target = [3u32, 3, 1];
+    for i in 0..3 {
+        let a = parts.get(i).copied().unwrap_or(0);
+        if a != target[i] {
+            return a < target[i];
+        }
+    }
+    false // equal to 3.3.1 → has arm64 natives
 }

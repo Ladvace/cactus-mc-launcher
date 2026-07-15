@@ -14,7 +14,21 @@ Other useful scripts:
 ```bash
 bun run check          # svelte-check (type-check the frontend)
 bun run build          # build the SvelteKit SPA
+bun run tauri build    # produce a release .app / .dmg (bundles in src-tauri/target/release/bundle)
 ```
+
+### Microsoft login (optional)
+Copy `src-tauri/.env.example` to `src-tauri/.env` and set `AZURE_CLIENT_ID`
+(a personal-accounts Azure app with "Allow public client flows" enabled). New
+apps must also be approved by Mojang at https://aka.ms/mce-reviewappid before
+`login_with_xbox` works. Offline mode needs none of this.
+
+### macOS notes
+- **Apple Silicon:** Minecraft versions before 1.19 ship LWJGL without arm64
+  natives, so the launcher runs them under an x86_64 managed Java via Rosetta 2
+  (`softwareupdate --install-rosetta` if missing). 1.19+ run natively.
+- In `tauri dev`, the game is spawned with inherited `DYLD_*` vars stripped
+  (cargo injects `DYLD_FALLBACK_LIBRARY_PATH`, which breaks macOS OpenGL).
 
 ## Architecture
 
@@ -31,6 +45,9 @@ bun run build          # build the SvelteKit SPA
 - `instance/` — `Instance`/`ModLoader` model + `InstanceStore` (folder-per-instance, `instance.json`).
 - `settings.rs` — `Settings` + `SettingsStore` (persisted to `settings.json`).
 - `minecraft/` — Mojang version manifest + per-version detail fetching/caching.
+- `modrinth/` — Modrinth API client (search, versions).
+- `content/` — install content into instances, per-instance `content.json`, enable/disable/remove, and `.mrpack` modpack install.
+- `loader/` — Fabric/Quilt meta profile fetch + merge; `forge.rs` runs the Forge/NeoForge installer headlessly and merges its generated profile.
 - `launch/` — the launch pipeline:
   - `download.rs` — concurrent downloads with SHA-1 verification.
   - `rules.rs` — OS/arch/feature rule evaluation.
@@ -52,5 +69,6 @@ and `launch-log` events (see `src/lib/stores/launch.svelte.ts`).
 - [x] **Foundation** — UI shell, command architecture, instance model, settings, version fetching.
 - [x] **Launch pipeline** — download vanilla client/libraries/assets, managed Java, offline launch with live logs.
 - [x] **Microsoft auth** — device-code login (MS → Xbox → XSTS → Minecraft), multi-account, offline mode retained. Requires your Azure client ID in `src-tauri/src/auth/mod.rs`.
-- [ ] **Mod loaders** — Fabric, Quilt, NeoForge, Forge install logic.
-- [ ] **Modrinth integration** — browse & install mods, modpacks, resource packs, shaders.
+- [x] **Mod loaders (Fabric & Quilt)** — meta-driven profile merge (main class, libraries, args) at launch; loader-version picker in Create Instance.
+- [x] **Modrinth integration** — browse (search + facets), install mods/resource packs/shaders/datapacks into instances, per-instance content manager (enable/disable/remove), and one-click `.mrpack` modpack install (creates an instance).
+- [x] **Mod loaders (Forge & NeoForge)** — runs the official installer headlessly (`--installClient`) on first launch, merges the generated profile into the launch command (main class, module-path args, generated libraries).

@@ -2,6 +2,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::auth::{self, AccountInfo, AccountStore, AccountsState};
+use crate::content::{self, ContentItem};
 use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
 use crate::instance::{CreateInstance, Instance, UpdateInstance};
@@ -9,7 +10,9 @@ use crate::instance::ModLoader;
 use crate::launch::{self, LaunchState};
 use crate::loader::{self, LoaderVersion};
 use crate::minecraft::{self, VersionList};
+use crate::modrinth::{SearchParams, SearchResults, Version as ModrinthVersion};
 use crate::settings::{Settings, SettingsStore};
+use crate::sources::{self, Source, SourceInfo};
 
 // ---------------------------------------------------------------------------
 // Instances
@@ -212,4 +215,72 @@ pub fn remove_account(
     id: String,
 ) -> Result<()> {
     store.remove(&app, &id)
+}
+
+// ---------------------------------------------------------------------------
+// Modrinth content
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn list_sources() -> Vec<SourceInfo> {
+    sources::available()
+}
+
+#[tauri::command]
+pub async fn search_content(source: Source, params: SearchParams) -> Result<SearchResults> {
+    sources::search(source, params).await
+}
+
+#[tauri::command]
+pub async fn content_versions(
+    source: Source,
+    project_id: String,
+    loader: Option<String>,
+    game_version: Option<String>,
+) -> Result<Vec<ModrinthVersion>> {
+    sources::get_versions(source, &project_id, loader.as_deref(), game_version.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn install_content(
+    app: AppHandle,
+    instance_id: String,
+    source: Source,
+    version_id: String,
+    project_type: String,
+    title: String,
+    icon_url: Option<String>,
+) -> Result<ContentItem> {
+    content::install(&app, &instance_id, source, &version_id, &project_type, &title, icon_url).await
+}
+
+#[tauri::command]
+pub fn list_content(app: AppHandle, instance_id: String) -> Result<Vec<ContentItem>> {
+    content::list(&app, &instance_id)
+}
+
+#[tauri::command]
+pub fn set_content_enabled(
+    app: AppHandle,
+    instance_id: String,
+    version_id: String,
+    enabled: bool,
+) -> Result<()> {
+    content::set_enabled(&app, &instance_id, &version_id, enabled)
+}
+
+#[tauri::command]
+pub fn remove_content(app: AppHandle, instance_id: String, version_id: String) -> Result<()> {
+    content::remove(&app, &instance_id, &version_id)
+}
+
+/// Install a Modrinth modpack version as a new instance (streams progress via
+/// the `modpack-progress` event).
+#[tauri::command]
+pub async fn install_modpack(
+    app: AppHandle,
+    version_id: String,
+    icon_url: Option<String>,
+) -> Result<Instance> {
+    content::install_modpack(&app, &version_id, icon_url).await
 }

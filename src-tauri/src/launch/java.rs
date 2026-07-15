@@ -67,9 +67,12 @@ struct RawDownload {
     size: u64,
 }
 
-/// The Mojang platform key for the current OS/arch.
-fn platform_key() -> &'static str {
+/// The Mojang platform key for the current OS/arch. When `force_x64` is set on
+/// Apple Silicon we pick the x86_64 runtime (run under Rosetta 2) so old
+/// Minecraft versions whose LWJGL lacks arm64 natives can still launch.
+fn platform_key(force_x64: bool) -> &'static str {
     match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("macos", "aarch64") if force_x64 => "mac-os",
         ("macos", "aarch64") => "mac-os-arm64",
         ("macos", _) => "mac-os",
         ("linux", "x86") => "linux-i386",
@@ -149,8 +152,9 @@ fn pick_component(
     all: &AllRuntimes,
     required_component: &str,
     required_major: u32,
+    force_x64: bool,
 ) -> Option<(String, String)> {
-    let map = all.get(platform_key())?;
+    let map = all.get(platform_key(force_x64))?;
 
     // Exact match, if that component actually has a build for this platform.
     if let Some(entries) = map.get(required_component) {
@@ -199,6 +203,7 @@ pub async fn ensure_java<F>(
     client: &reqwest::Client,
     required: &JavaVersion,
     configured: Option<&str>,
+    force_x64: bool,
     on_progress: F,
 ) -> Result<PathBuf>
 where
@@ -219,14 +224,16 @@ where
 
     let all = fetch_all(client).await?;
     let (component, manifest_url) =
-        pick_component(&all, &required.component, required.major_version).ok_or_else(|| {
-            AppError::Other(format!(
-                "no managed Java available for {}. Set a Java path in Settings.",
-                platform_key()
-            ))
-        })?;
+        pick_component(&all, &required.component, required.major_version, force_x64).ok_or_else(
+            || {
+                AppError::Other(format!(
+                    "no managed Java available for {}. Set a Java path in Settings.",
+                    platform_key(force_x64)
+                ))
+            },
+        )?;
 
-    let install_dir = paths::java_dir(app)?.join(&component).join(platform_key());
+    let install_dir = paths::java_dir(app)?.join(&component).join(platform_key(force_x64));
     if let Some(java) = locate_java(&install_dir) {
         return Ok(java);
     }
@@ -253,8 +260,8 @@ where
 {
     let all = fetch_all(client).await?;
     let map = all
-        .get(platform_key())
-        .ok_or_else(|| AppError::Other(format!("no Java runtimes for {}", platform_key())))?;
+        .get(platform_key(false))
+        .ok_or_else(|| AppError::Other(format!("no Java runtimes for {}", platform_key(false))))?;
 
     let mut installed = Vec::new();
 
@@ -266,7 +273,7 @@ where
         let major = component_major(component, entry).unwrap_or(0);
         let label = format!("Java {major}");
 
-        let install_dir = paths::java_dir(app)?.join(component).join(platform_key());
+        let install_dir = paths::java_dir(app)?.join(component).join(platform_key(false));
         if locate_java(&install_dir).is_some() {
             installed.push(label);
             continue;

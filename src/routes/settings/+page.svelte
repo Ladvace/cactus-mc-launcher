@@ -120,8 +120,8 @@
       <div class="label">
         <span>Managed Java</span>
         <small>
-          Download the runtimes Minecraft needs (Java 8, 17 & 21). This also
-          happens automatically on first launch.
+          Pre-download the runtimes Minecraft needs (Java 8, 17 & 21). Used
+          automatically at launch — you don't need to set a path below.
         </small>
       </div>
       <button class="btn primary" onclick={setupJava} disabled={javaBusy}>
@@ -151,8 +151,11 @@
     {/if}
     <div class="setting">
       <div class="label">
-        <span>Java path</span>
-        <small>Override the managed runtime with your own Java executable.</small>
+        <span>Java path (optional)</span>
+        <small>
+          Leave empty to use managed Java. Only set this to force your own Java
+          executable.
+        </small>
       </div>
       <input
         class="input narrow"

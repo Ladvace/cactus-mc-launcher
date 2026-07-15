@@ -1,3 +1,5 @@
+pub mod forge;
+
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
@@ -37,6 +39,10 @@ struct LoaderInfo {
 
 /// List available loader builds for a Minecraft version (newest first).
 pub async fn list_versions(loader: ModLoader, mc_version: &str) -> Result<Vec<LoaderVersion>> {
+    if matches!(loader, ModLoader::Forge | ModLoader::NeoForge) {
+        return forge::list_versions(loader, mc_version).await;
+    }
+
     let base = meta_base(loader)
         .ok_or_else(|| AppError::Other(format!("{loader:?} is not supported yet")))?;
     let url = format!("{base}/versions/loader/{mc_version}");

@@ -1,8 +1,144 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
+  import ProjectModal from "$lib/components/ProjectModal.svelte";
+  import { api } from "$lib/api";
+  import { formatCount } from "$lib/format";
+  import { SOURCES, type ProjectType, type SearchHit, type Source } from "$lib/types";
 
-  const tabs = ["Modpacks", "Mods", "Resource Packs", "Shaders", "Datapacks"];
-  let active = $state("Modpacks");
+  const tabs: { label: string; type: ProjectType }[] = [
+    { label: "Modpacks", type: "modpack" },
+    { label: "Mods", type: "mod" },
+    { label: "Resource Packs", type: "resourcepack" },
+    { label: "Shaders", type: "shader" },
+    { label: "Datapacks", type: "datapack" },
+  ];
+
+  const sorts = [
+    { value: "relevance", label: "Relevance" },
+    { value: "downloads", label: "Downloads" },
+    { value: "follows", label: "Follows" },
+    { value: "newest", label: "Newest" },
+    { value: "updated", label: "Updated" },
+  ];
+
+  const loaders = ["", "fabric", "quilt", "forge", "neoforge"];
+
+  let source = $state<Source>("modrinth");
+  let activeType = $state<ProjectType>("mod");
+  let query = $state("");
+  let debounced = $state("");
+  let gameVersion = $state("");
+  let loader = $state("");
+  let sort = $state("relevance");
+
+  let sourceEnabled = $state<Record<string, boolean>>({
+    modrinth: true,
+    curseforge: false,
+  });
+  let gameVersions = $state<string[]>([]);
+  let hits = $state<SearchHit[]>([]);
+  let totalHits = $state(0);
+  let offset = $state(0);
+  let loading = $state(false);
+  let loadingMore = $state(false);
+  let error = $state<string | null>(null);
+
+  let selectedHit = $state<SearchHit | null>(null);
+  let modalOpen = $state(false);
+
+  const LIMIT = 20;
+  const showLoader = $derived(activeType === "mod" || activeType === "modpack");
+
+  // Debounce the search text.
+  $effect(() => {
+    const q = query;
+    const t = setTimeout(() => (debounced = q), 350);
+    return () => clearTimeout(t);
+  });
+
+  // Which sources are available (CurseForge only if its API key is set).
+  $effect(() => {
+    api
+      .listSources()
+      .then((list) => {
+        const map: Record<string, boolean> = {};
+        for (const s of list) map[s.id] = s.enabled;
+        sourceEnabled = map;
+      })
+      .catch(() => {});
+  });
+
+  // Load release versions once for the game-version filter.
+  $effect(() => {
+    if (gameVersions.length === 0) {
+      api
+        .getMinecraftVersions()
+        .then((list) => {
+          gameVersions = list.versions
+            .filter((v) => v.type === "release")
+            .map((v) => v.id);
+        })
+        .catch(() => {});
+    }
+  });
+
+  // Re-search when any facet changes.
+  $effect(() => {
+    // Track dependencies:
+    void [source, activeType, debounced, gameVersion, loader, sort];
+    search();
+  });
+
+  async function search() {
+    loading = true;
+    error = null;
+    offset = 0;
+    try {
+      const res = await api.searchContent(source, {
+        query: debounced,
+        projectType: activeType,
+        gameVersion: gameVersion || null,
+        loader: showLoader ? loader || null : null,
+        sort,
+        offset: 0,
+        limit: LIMIT,
+      });
+      hits = res.hits;
+      totalHits = res.totalHits;
+    } catch (e) {
+      error = String(e);
+      hits = [];
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function loadMore() {
+    loadingMore = true;
+    try {
+      const next = offset + LIMIT;
+      const res = await api.searchContent(source, {
+        query: debounced,
+        projectType: activeType,
+        gameVersion: gameVersion || null,
+        loader: showLoader ? loader || null : null,
+        sort,
+        offset: next,
+        limit: LIMIT,
+      });
+      hits = [...hits, ...res.hits];
+      offset = next;
+    } catch (e) {
+      error = String(e);
+    } finally {
+      loadingMore = false;
+    }
+  }
+
+  function openProject(hit: SearchHit) {
+    selectedHit = hit;
+    modalOpen = true;
+  }
 </script>
 
 <div class="page">
@@ -12,22 +148,92 @@
 
   <div class="tabs">
     {#each tabs as t}
-      <button class="tab" class:active={active === t} onclick={() => (active = t)}>
-        {t}
+      <button
+        class="tab"
+        class:active={activeType === t.type}
+        onclick={() => (activeType = t.type)}
+      >
+        {t.label}
       </button>
     {/each}
   </div>
 
-  <div class="placeholder">
-    <div class="mark"><Icon name="package" size={40} /></div>
-    <h2>Content discovery coming soon</h2>
-    <p>
-      This tab will search Modrinth for {active.toLowerCase()} and let you install
-      them into an instance with one click. Wired up in the Modrinth integration
-      milestone.
-    </p>
+  <div class="toolbar">
+    <select class="select filter" bind:value={source} title="Content source">
+      {#each SOURCES as s}
+        <option value={s.value} disabled={!sourceEnabled[s.value]}>
+          {s.label}{sourceEnabled[s.value] ? "" : " (add API key)"}
+        </option>
+      {/each}
+    </select>
+    <div class="search">
+      <Icon name="search" size={16} />
+      <input class="search-input" placeholder="Search…" bind:value={query} />
+    </div>
+    <select class="select filter" bind:value={gameVersion}>
+      <option value="">Any version</option>
+      {#each gameVersions as v}
+        <option value={v}>{v}</option>
+      {/each}
+    </select>
+    {#if showLoader}
+      <select class="select filter" bind:value={loader}>
+        {#each loaders as l}
+          <option value={l}>{l === "" ? "Any loader" : l}</option>
+        {/each}
+      </select>
+    {/if}
+    <select class="select filter" bind:value={sort}>
+      {#each sorts as s}
+        <option value={s.value}>{s.label}</option>
+      {/each}
+    </select>
   </div>
+
+  {#if error}
+    <div class="status error">
+      <p>Couldn't reach Modrinth.</p>
+      <p class="err-detail">{error}</p>
+      <button class="btn ghost" onclick={search}>Retry</button>
+    </div>
+  {:else if loading}
+    <div class="status">Searching…</div>
+  {:else if hits.length === 0}
+    <div class="status">No results.</div>
+  {:else}
+    <div class="results">
+      {#each hits as hit (hit.projectId)}
+        <button class="card" onclick={() => openProject(hit)}>
+          {#if hit.iconUrl}
+            <img class="card-icon" src={hit.iconUrl} alt={hit.title} />
+          {:else}
+            <div class="card-icon placeholder"><Icon name="package" size={24} /></div>
+          {/if}
+          <div class="card-body">
+            <div class="card-top">
+              <span class="card-title">{hit.title}</span>
+              <span class="card-author">by {hit.author}</span>
+            </div>
+            <p class="card-desc">{hit.description}</p>
+            <div class="card-stats">
+              <span><Icon name="package" size={12} /> {formatCount(hit.downloads)}</span>
+            </div>
+          </div>
+        </button>
+      {/each}
+    </div>
+
+    {#if hits.length < totalHits}
+      <div class="more">
+        <button class="btn ghost" onclick={loadMore} disabled={loadingMore}>
+          {loadingMore ? "Loading…" : "Load more"}
+        </button>
+      </div>
+    {/if}
+  {/if}
 </div>
+
+<ProjectModal hit={selectedHit} open={modalOpen} onClose={() => (modalOpen = false)} />
 
 <style>
   .page {
@@ -43,7 +249,7 @@
     display: flex;
     gap: 4px;
     border-bottom: 1px solid var(--border-subtle);
-    margin-bottom: 32px;
+    margin-bottom: 20px;
   }
   .tab {
     padding: 10px 14px;
@@ -63,31 +269,143 @@
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
-  .placeholder {
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .search {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  .search :global(svg) {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 13px;
+  }
+  .search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .filter {
+    width: auto;
+    min-width: 130px;
+  }
+  .status {
+    padding: 48px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .status.error {
+    color: var(--danger);
     display: flex;
     flex-direction: column;
     align-items: center;
-    text-align: center;
-    padding: 72px 24px;
-    color: var(--text-secondary);
     gap: 10px;
   }
-  .mark {
+  .err-detail {
+    font-size: 12px;
     color: var(--text-muted);
+    max-width: 480px;
+    word-break: break-word;
+  }
+  .results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    display: flex;
+    gap: 14px;
+    padding: 14px;
     background: var(--bg-card);
-    width: 88px;
-    height: 88px;
-    border-radius: 24px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius);
+    text-align: left;
+    transition: border-color 0.12s, transform 0.12s, background 0.12s;
+  }
+  .card:hover {
+    border-color: var(--border);
+    background: var(--bg-hover);
+    transform: translateY(-2px);
+  }
+  .card-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: var(--bg-input);
+    flex-shrink: 0;
+  }
+  .card-icon.placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 6px;
+    color: var(--text-muted);
   }
-  .placeholder h2 {
-    font-size: 18px;
+  .card-body {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
-  .placeholder p {
-    max-width: 420px;
+  .card-top {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .card-title {
+    font-weight: 600;
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card-author {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .card-desc {
     margin: 0;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: auto;
+  }
+  .card-stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .more {
+    display: flex;
+    justify-content: center;
+    margin: 24px 0;
   }
 </style>

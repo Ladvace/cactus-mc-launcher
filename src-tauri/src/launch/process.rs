@@ -10,6 +10,50 @@ use tokio::sync::oneshot;
 use super::{LaunchState, LogEvent, EVENT_LOG};
 use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
+use crate::paths;
+
+/// Collapse the (very long) classpath argument for readable launch logging.
+fn concise_args(args: &[String]) -> String {
+    let sep = if cfg!(windows) { ';' } else { ':' };
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        if (args[i] == "-cp" || args[i] == "-classpath") && i + 1 < args.len() {
+            let count = args[i + 1].split(sep).count();
+            out.push("-cp".to_string());
+            out.push(format!("<{count} jars>"));
+            i += 2;
+        } else {
+            out.push(args[i].clone());
+            i += 1;
+        }
+    }
+    out.join(" ")
+}
+
+/// Human-readable exit description, including the signal name on Unix.
+fn describe_exit(status: &std::process::ExitStatus) -> String {
+    if let Some(code) = status.code() {
+        return format!("Exited with code {code}");
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(sig) = status.signal() {
+            let name = match sig {
+                4 => "SIGILL",
+                5 => "SIGTRAP",
+                6 => "SIGABRT",
+                7 | 10 => "SIGBUS",
+                9 => "SIGKILL",
+                11 => "SIGSEGV",
+                _ => "signal",
+            };
+            return format!("Crashed ({name}, signal {sig})");
+        }
+    }
+    "Exited".to_string()
+}
 
 fn emit_log(app: &AppHandle, id: &str, line: String) {
     let _ = app.emit(
@@ -41,13 +85,43 @@ pub fn spawn_and_monitor(
     game_dir: PathBuf,
     instance_id: String,
 ) -> Result<()> {
-    let mut child = tokio::process::Command::new(&java)
-        .args(&args)
+    eprintln!(
+        "[launch] {} {}\n[launch] cwd: {}",
+        java.display(),
+        concise_args(&args),
+        game_dir.display()
+    );
+
+    // Capture the child's stderr to a file so native crashes (which bypass our
+    // line-buffered reader) are preserved for diagnosis.
+    let stderr_path = paths::instance_dir(&app, &instance_id)?.join("launch-stderr.log");
+    let stderr_file = std::fs::File::create(&stderr_path)?;
+
+    let mut cmd = tokio::process::Command::new(&java);
+    cmd.args(&args)
         .current_dir(&game_dir)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::from(stderr_file));
+
+    // Strip inherited `DYLD_*` overrides. In dev, `cargo run` sets
+    // DYLD_FALLBACK_LIBRARY_PATH to Rust build dirs; inheriting it in the game
+    // process breaks macOS OpenGL loading (GL dispatch LOAD_ERROR -> SIGABRT).
+    for (key, _) in std::env::vars() {
+        if key.starts_with("DYLD_") {
+            cmd.env_remove(key);
+        }
+    }
+
+    let mut child = cmd
         .spawn()
-        .map_err(|e| AppError::Other(format!("failed to start Java process: {e}")))?;
+        .map_err(|e| {
+            let hint = if cfg!(target_os = "macos") {
+                " (older Minecraft versions need Rosetta 2 on Apple Silicon — install it with: softwareupdate --install-rosetta --agree-to-license)"
+            } else {
+                ""
+            };
+            AppError::Other(format!("failed to start Java process: {e}{hint}"))
+        })?;
 
     emit_status(&app, &instance_id, "running", None);
 
@@ -63,17 +137,7 @@ pub fn spawn_and_monitor(
         });
     }
 
-    // Stream stderr.
-    if let Some(stderr) = child.stderr.take() {
-        let app = app.clone();
-        let id = instance_id.clone();
-        tokio::spawn(async move {
-            let mut lines = BufReader::new(stderr).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                emit_log(&app, &id, line);
-            }
-        });
-    }
+    // (stderr goes to launch-stderr.log — see Stdio::from above.)
 
     // Register a kill channel so `stop_instance` can terminate the game.
     let (kill_tx, kill_rx) = oneshot::channel::<()>();
@@ -83,8 +147,7 @@ pub fn spawn_and_monitor(
     tokio::spawn(async move {
         let exit_message = tokio::select! {
             status = child.wait() => match status {
-                Ok(s) => s.code().map(|c| format!("Exited with code {c}"))
-                    .unwrap_or_else(|| "Exited".to_string()),
+                Ok(s) => describe_exit(&s),
                 Err(e) => format!("Process error: {e}"),
             },
             _ = kill_rx => {
@@ -93,6 +156,20 @@ pub fn spawn_and_monitor(
                 "Stopped".to_string()
             }
         };
+
+        eprintln!("[launch] instance {instance_id} {exit_message}");
+
+        // Surface captured stderr (incl. native crashes) in the in-app Logs tab.
+        if let Ok(err) = std::fs::read_to_string(&stderr_path) {
+            let lines: Vec<&str> = err.lines().filter(|l| !l.trim().is_empty()).collect();
+            if !lines.is_empty() {
+                // Keep the last chunk to avoid flooding the UI on huge dumps.
+                let start = lines.len().saturating_sub(200);
+                for line in &lines[start..] {
+                    emit_log(&app, &instance_id, line.to_string());
+                }
+            }
+        }
 
         // Record playtime.
         let elapsed = started.elapsed().as_secs();

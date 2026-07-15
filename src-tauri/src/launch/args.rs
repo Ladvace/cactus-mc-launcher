@@ -15,6 +15,8 @@ pub struct LaunchContext {
     pub natives_dir: PathBuf,
     pub game_dir: PathBuf,
     pub assets_dir: PathBuf,
+    /// Shared libraries root (Forge's module-path args reference this).
+    pub library_directory: PathBuf,
     pub assets_index: String,
     pub player_name: String,
     pub uuid: String,
@@ -146,6 +148,11 @@ fn substitutions(detail: &VersionDetail, ctx: &LaunchContext) -> HashMap<String,
     m.insert("launcher_name".into(), LAUNCHER_NAME.into());
     m.insert("launcher_version".into(), LAUNCHER_VERSION.into());
     m.insert("classpath".into(), classpath_string(&ctx.classpath));
+    m.insert("library_directory".into(), s(&ctx.library_directory));
+    m.insert(
+        "classpath_separator".into(),
+        if cfg!(windows) { ";" } else { ":" }.into(),
+    );
 
     m.insert("auth_player_name".into(), ctx.player_name.clone());
     m.insert("version_name".into(), detail.id.clone());

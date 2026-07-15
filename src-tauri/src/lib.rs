@@ -1,12 +1,15 @@
 mod auth;
 mod commands;
+mod content;
 mod error;
 mod instance;
 mod launch;
 mod loader;
 mod minecraft;
+mod modrinth;
 mod paths;
 mod settings;
+mod sources;
 
 use auth::AccountStore;
 use instance::store::InstanceStore;
@@ -47,6 +50,14 @@ pub fn run() {
             commands::get_accounts,
             commands::set_active_account,
             commands::remove_account,
+            commands::list_sources,
+            commands::search_content,
+            commands::content_versions,
+            commands::install_content,
+            commands::list_content,
+            commands::set_content_enabled,
+            commands::remove_content,
+            commands::install_modpack,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

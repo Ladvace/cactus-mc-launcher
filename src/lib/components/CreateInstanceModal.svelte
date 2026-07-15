@@ -187,6 +187,11 @@
               {/each}
             </select>
           {/if}
+          {#if loader === "forge" || loader === "neoforge"}
+            <p class="hint">
+              First launch runs the official installer, which can take a minute.
+            </p>
+          {/if}
         </div>
       {:else if loader !== "vanilla"}
         <p class="hint warn">

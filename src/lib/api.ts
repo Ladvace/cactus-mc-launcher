@@ -2,11 +2,16 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AccountInfo,
   AccountsState,
+  ContentItem,
   CreateInstance,
   Instance,
   LoaderVersion,
   ModLoader,
+  ModrinthVersion,
+  SearchParams,
+  SearchResults,
   Settings,
+  Source,
   UpdateInstance,
   VersionList,
 } from "./types";
@@ -52,4 +57,44 @@ export const api = {
     invoke<void>("set_active_account", { id }),
 
   removeAccount: (id: string) => invoke<void>("remove_account", { id }),
+
+  // Content (source-agnostic; defaults to Modrinth)
+  listSources: () => invoke<{ id: string; enabled: boolean }[]>("list_sources"),
+
+  searchContent: (source: Source, params: SearchParams) =>
+    invoke<SearchResults>("search_content", { source, params }),
+
+  contentVersions: (
+    source: Source,
+    projectId: string,
+    loader?: string | null,
+    gameVersion?: string | null
+  ) =>
+    invoke<ModrinthVersion[]>("content_versions", {
+      source,
+      projectId,
+      loader: loader ?? null,
+      gameVersion: gameVersion ?? null,
+    }),
+
+  installContent: (args: {
+    instanceId: string;
+    source: Source;
+    versionId: string;
+    projectType: string;
+    title: string;
+    iconUrl?: string | null;
+  }) => invoke<ContentItem>("install_content", { ...args, iconUrl: args.iconUrl ?? null }),
+
+  listContent: (instanceId: string) =>
+    invoke<ContentItem[]>("list_content", { instanceId }),
+
+  setContentEnabled: (instanceId: string, versionId: string, enabled: boolean) =>
+    invoke<void>("set_content_enabled", { instanceId, versionId, enabled }),
+
+  removeContent: (instanceId: string, versionId: string) =>
+    invoke<void>("remove_content", { instanceId, versionId }),
+
+  installModpack: (versionId: string, iconUrl?: string | null) =>
+    invoke<Instance>("install_modpack", { versionId, iconUrl: iconUrl ?? null }),
 };

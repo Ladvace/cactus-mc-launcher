@@ -65,10 +65,13 @@ pub async fn xbl_authenticate(client: &reqwest::Client, ms_access_token: &str) -
     });
 
     let resp = client.post(XBL_URL).json(&body).send().await?;
-    if !resp.status().is_success() {
-        return Err(AppError::Other(
-            "Xbox Live authentication failed".into(),
-        ));
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(AppError::Other(format!(
+            "Xbox Live authentication failed ({status}): {}",
+            body.chars().take(300).collect::<String>()
+        )));
     }
     extract(resp.json().await?)
 }
@@ -133,8 +136,25 @@ pub async fn minecraft_login(
     });
 
     let resp = client.post(MC_LOGIN_URL).json(&body).send().await?;
-    if !resp.status().is_success() {
-        return Err(AppError::Other("Minecraft services login failed".into()));
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        // A newly-registered Azure app must be approved by Mojang for the
+        // Minecraft API — until then this endpoint returns "Invalid app
+        // registration". Give an actionable message instead of the raw body.
+        if body.contains("Invalid app registration") {
+            return Err(AppError::Other(
+                "This launcher's Azure app isn't approved for Minecraft yet. \
+                 Newly-created apps must be allowlisted by Mojang — apply at \
+                 https://aka.ms/mce-reviewappid (this can take a while). Offline \
+                 mode works in the meantime."
+                    .into(),
+            ));
+        }
+        return Err(AppError::Other(format!(
+            "Minecraft services login failed ({status}): {}",
+            body.chars().take(300).collect::<String>()
+        )));
     }
     let parsed: McLoginResponse = resp.json().await?;
     Ok(McAuth {
@@ -167,8 +187,13 @@ pub async fn minecraft_profile(client: &reqwest::Client, mc_access_token: &str) 
             "This Microsoft account does not own Minecraft: Java Edition.".into(),
         ));
     }
-    if !resp.status().is_success() {
-        return Err(AppError::Other("Failed to fetch Minecraft profile".into()));
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(AppError::Other(format!(
+            "Failed to fetch Minecraft profile ({status}): {}",
+            body.chars().take(300).collect::<String>()
+        )));
     }
     Ok(resp.json().await?)
 }

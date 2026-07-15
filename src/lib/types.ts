@@ -101,6 +101,86 @@ export interface DeviceCodeEvent {
   expiresIn: number;
 }
 
+// --- Content sources ---
+
+export type Source = "modrinth" | "curseforge";
+
+export const SOURCES: { value: Source; label: string; enabled: boolean }[] = [
+  { value: "modrinth", label: "Modrinth", enabled: true },
+  { value: "curseforge", label: "CurseForge", enabled: false },
+];
+
+export type ProjectType =
+  | "mod"
+  | "modpack"
+  | "resourcepack"
+  | "shader"
+  | "datapack";
+
+export interface SearchHit {
+  projectId: string;
+  slug: string;
+  title: string;
+  description: string;
+  author: string;
+  downloads: number;
+  follows: number;
+  iconUrl: string | null;
+  categories: string[];
+  versions: string[];
+  projectType: string;
+  source: string;
+}
+
+export interface SearchResults {
+  hits: SearchHit[];
+  totalHits: number;
+  offset: number;
+  limit: number;
+}
+
+export interface SearchParams {
+  query: string;
+  projectType: ProjectType;
+  gameVersion?: string | null;
+  loader?: string | null;
+  sort?: string | null;
+  offset?: number;
+  limit?: number;
+}
+
+export interface ModrinthVersionFile {
+  url: string;
+  filename: string;
+  primary: boolean;
+  size: number;
+  hashes: { sha1: string | null; sha512: string | null };
+}
+
+export interface ModrinthVersion {
+  id: string;
+  projectId: string;
+  name: string;
+  versionNumber: string;
+  versionType: string;
+  gameVersions: string[];
+  loaders: string[];
+  files: ModrinthVersionFile[];
+  datePublished: string;
+  downloads: number;
+}
+
+export interface ContentItem {
+  projectId: string | null;
+  versionId: string;
+  projectType: string;
+  title: string;
+  fileName: string;
+  iconUrl: string | null;
+  enabled: boolean;
+  source: string;
+}
+
 export interface MinecraftVersion {
   id: string;
   type: "release" | "snapshot" | "old_beta" | "old_alpha";
@@ -120,4 +200,9 @@ export interface LoaderVersion {
 }
 
 /** Loaders with working install support today. */
-export const SUPPORTED_LOADERS: ModLoader[] = ["fabric", "quilt"];
+export const SUPPORTED_LOADERS: ModLoader[] = [
+  "fabric",
+  "quilt",
+  "forge",
+  "neoforge",
+];

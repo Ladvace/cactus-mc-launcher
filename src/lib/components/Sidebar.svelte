@@ -30,7 +30,7 @@
 <aside class="sidebar">
   <div class="brand">
     <div class="brand-mark"><Icon name="cube" size={22} /></div>
-    <span class="brand-name">Launcher</span>
+    <span class="brand-name">Drake</span>
   </div>
 
   <nav class="nav">

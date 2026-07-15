@@ -42,6 +42,10 @@ fn join_url(base: &str, rel: &str) -> String {
 }
 
 /// Queue a download for a vanilla-style artifact and return its local path.
+///
+/// Forge's locally-generated libraries carry an empty `url`/`sha1`; those files
+/// are copied in by the installer, so we skip the hash and (if the file is
+/// already present) the download itself.
 fn push_artifact(
     downloads: &mut Vec<DownloadTask>,
     base: &std::path::Path,
@@ -49,10 +53,23 @@ fn push_artifact(
 ) -> Option<PathBuf> {
     let rel = art.path.clone()?;
     let dest = base.join(&rel);
+    let sha1 = if art.sha1.is_empty() {
+        None
+    } else {
+        Some(art.sha1.clone())
+    };
+    // A library with no URL that already exists on disk (installer-provided).
+    if art.url.is_empty() {
+        if dest.exists() {
+            return Some(dest);
+        }
+        // No URL and no file — nothing we can fetch; skip it.
+        return None;
+    }
     downloads.push(DownloadTask {
         url: art.url.clone(),
         dest: dest.clone(),
-        sha1: Some(art.sha1.clone()),
+        sha1,
         executable: false,
     });
     Some(dest)
