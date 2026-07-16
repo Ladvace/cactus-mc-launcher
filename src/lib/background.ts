@@ -21,7 +21,16 @@ export function parsePattern(bg: string): { name: string; color: string | null }
 
 /** Split `image:[#color|]<uri>` into its parts. Data URIs/URLs never start with `#`. */
 export function parseImage(bg: string): { uri: string; color: string | null } {
-  const rest = bg.slice("image:".length);
+  return parsePrefixed(bg, "image:");
+}
+
+/** Split `tile:[#color|]<uri>` (a repeating decor-sprite wallpaper). */
+export function parseTile(bg: string): { uri: string; color: string | null } {
+  return parsePrefixed(bg, "tile:");
+}
+
+function parsePrefixed(bg: string, prefix: string): { uri: string; color: string | null } {
+  const rest = bg.slice(prefix.length);
   if (rest.startsWith("#")) {
     const i = rest.indexOf("|");
     if (i > 0) return { color: rest.slice(0, i), uri: rest.slice(i + 1) };
@@ -70,14 +79,21 @@ export function backgroundCss(bg: string): string {
     const scrim = color ? hexToRgba(color, 0.55) : "rgba(23, 22, 26, 0.55)";
     return `linear-gradient(${scrim}, ${scrim}), url("${uri}") center / cover no-repeat`;
   }
+  if (bg.startsWith("tile:")) {
+    const { uri, color } = parseTile(bg);
+    const base = color || "var(--bg-app)";
+    // A decor sprite repeated as sparse wallpaper over a base colour.
+    return `url("${uri}") 0 0 / 140px repeat, ${base}`;
+  }
   return "var(--bg-app)";
 }
 
-export type BgKind = "default" | "color" | "pattern" | "image";
+export type BgKind = "default" | "color" | "pattern" | "image" | "tile";
 
 export function bgKind(bg: string): BgKind {
   if (bg.startsWith("color:")) return "color";
   if (bg.startsWith("pattern:")) return "pattern";
   if (bg.startsWith("image:")) return "image";
+  if (bg.startsWith("tile:")) return "tile";
   return "default";
 }

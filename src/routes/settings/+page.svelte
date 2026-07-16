@@ -14,6 +14,7 @@
     DEFAULT_COLOR,
   } from "$lib/background";
   import { fileToBackgroundDataUri } from "$lib/image";
+  import { THEME_PRESETS } from "$lib/themes";
   import { playClick } from "$lib/sound";
   import type { CacheStats, DockPosition, Settings } from "$lib/types";
 
@@ -261,6 +262,25 @@
 
   <section class="card-block">
     <h3>Appearance</h3>
+
+    <div class="label themes-label">
+      <span>Theme presets</span>
+      <small>One-click backgrounds — solid colours, patterns, and cactus decor.</small>
+    </div>
+    <div class="themes">
+      {#each THEME_PRESETS as t (t.name)}
+        <button
+          class="theme"
+          class:on={draft.background === t.bg}
+          onclick={() => (draft.background = t.bg)}
+          title={t.name}
+        >
+          <span class="theme-swatch" style="background: {backgroundCss(t.bg)};"></span>
+          <span class="theme-name">{t.name}</span>
+        </button>
+      {/each}
+    </div>
+
     <div class="setting bg-setting">
       <div class="label">
         <span>Background</span>
@@ -689,6 +709,42 @@
   }
   .patterns {
     flex-wrap: wrap;
+  }
+  .themes-label {
+    margin-bottom: 10px;
+  }
+  .themes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .theme {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    text-align: left;
+  }
+  .theme-swatch {
+    height: 44px;
+    border: 2px solid var(--border);
+  }
+  .theme:hover .theme-swatch {
+    border-color: var(--accent);
+  }
+  .theme.on .theme-swatch {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  .theme-name {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+  }
+  .theme.on .theme-name {
+    color: var(--accent);
   }
   .bg-color-label {
     font-size: 13px;
