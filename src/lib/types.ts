@@ -21,6 +21,7 @@ export interface Instance {
   created: string; // ISO 8601
   lastPlayed: string | null;
   totalPlaytimeSeconds: number;
+  coverImage: boolean;
 }
 
 export interface CreateInstance {
@@ -38,6 +39,20 @@ export interface UpdateInstance {
   mcVersion?: string;
   loader?: ModLoader;
   loaderVersion?: string;
+  coverImage?: boolean;
+}
+
+export interface Sticker {
+  id: string;
+  preview: string;
+  full: string;
+}
+
+export interface CacheStats {
+  files: number;
+  bytes: number;
+  linkedBytes: number;
+  savedBytes: number;
 }
 
 export interface Settings {
@@ -49,6 +64,7 @@ export interface Settings {
   gameWidth: number;
   gameHeight: number;
   offlineUsername: string;
+  background: string;
 }
 
 // --- Launch events (mirror the Rust payloads in src-tauri/src/launch) ---

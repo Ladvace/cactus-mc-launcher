@@ -150,7 +150,7 @@
     try {
       await instancesStore.remove(instance.id);
       deleteOpen = false;
-      goto("/library");
+      goto("/");
     } finally {
       busy = false;
     }
@@ -177,8 +177,8 @@
   <div class="missing">
     {#if instancesStore.loaded}
       <p>This instance no longer exists.</p>
-      <button class="btn ghost" onclick={() => goto("/library")}>
-        Back to library
+      <button class="btn ghost" onclick={() => goto("/")}>
+        Back to home
       </button>
     {:else}
       <p class="muted">Loading…</p>
@@ -187,8 +187,8 @@
 {:else}
   <div class="detail">
     <div class="banner">
-      <button class="back" onclick={() => goto("/library")} aria-label="Back">
-        ← Library
+      <button class="back" onclick={() => goto("/")} aria-label="Back">
+        ← Home
       </button>
       <div class="header">
         <InstanceIcon {instance} size={96} />

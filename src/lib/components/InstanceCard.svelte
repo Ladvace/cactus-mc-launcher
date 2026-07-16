@@ -4,6 +4,7 @@
   import InstanceIcon from "./InstanceIcon.svelte";
   import LoaderIcon from "./LoaderIcon.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { MOD_LOADERS, type Instance } from "$lib/types";
 
   interface Props {
@@ -18,9 +19,16 @@
   );
   const busy = $derived(launchStore.isBusy(instance.id));
   const running = $derived(launchStore.isRunning(instance.id));
+  // Cover mode: the icon fills the whole tile behind the label.
+  const cover = $derived(instance.coverImage && !!instance.icon);
 
   function open() {
     goto(`/instance/${instance.id}`);
+  }
+
+  function contextMenu(e: MouseEvent) {
+    e.preventDefault();
+    ui.openInstanceMenu(instance, e.clientX, e.clientY);
   }
 
   function play(e: MouseEvent) {
@@ -33,44 +41,60 @@
   }
 </script>
 
+{#snippet playButton()}
+  <button
+    class="play"
+    class:visible={busy || running}
+    class:is-running={running}
+    onclick={play}
+    aria-label={running ? "Stop" : "Play"}
+    title={running ? "Running" : busy ? "Preparing…" : "Play"}
+  >
+    {#if busy}
+      <span class="spinner"></span>
+    {:else if running}
+      <Icon name="stop" size={16} />
+    {:else}
+      <Icon name="play" size={18} />
+    {/if}
+  </button>
+{/snippet}
+
+{#snippet meta()}
+  <span class="name" title={instance.name}>{instance.name}</span>
+  <span class="sub">
+    <LoaderIcon loader={instance.loader} size={13} />
+    {loaderLabel} · {instance.mcVersion}
+  </span>
+{/snippet}
+
 <div
   class="card"
   class:fill
+  class:cover
   role="button"
   tabindex="0"
   onclick={open}
+  oncontextmenu={contextMenu}
   onkeydown={(e) => e.key === "Enter" && open()}
 >
-  <div class="art">
-    <InstanceIcon {instance} size={iconSize} />
-    <button
-      class="play"
-      class:visible={busy || running}
-      class:is-running={running}
-      onclick={play}
-      aria-label={running ? "Stop" : "Play"}
-      title={running ? "Running" : busy ? "Preparing…" : "Play"}
-    >
-      {#if busy}
-        <span class="spinner"></span>
-      {:else if running}
-        <Icon name="stop" size={16} />
-      {:else}
-        <Icon name="play" size={18} />
-      {/if}
-    </button>
-  </div>
-  <div class="meta">
-    <span class="name" title={instance.name}>{instance.name}</span>
-    <span class="sub">
-      <LoaderIcon loader={instance.loader} size={13} />
-      {loaderLabel} · {instance.mcVersion}
-    </span>
-  </div>
+  {#if cover}
+    <img class="cover-img" src={instance.icon} alt={instance.name} />
+    <div class="cover-scrim"></div>
+    {@render playButton()}
+    <div class="meta on-cover">{@render meta()}</div>
+  {:else}
+    <div class="art">
+      <InstanceIcon {instance} size={iconSize} />
+      {@render playButton()}
+    </div>
+    <div class="meta">{@render meta()}</div>
+  {/if}
 </div>
 
 <style>
   .card {
+    position: relative;
     background: var(--bg-card);
     border: 2px solid var(--border);
     border-radius: 0;
@@ -95,6 +119,51 @@
   .card.fill .art {
     flex: 1;
     padding: 0;
+  }
+  /* Cover mode: full-bleed icon behind an overlaid label. */
+  .card.cover {
+    padding: 0;
+    overflow: hidden;
+    min-height: 140px;
+    justify-content: flex-end;
+  }
+  .cover-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+  }
+  .cover-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.35) 32%,
+      rgba(0, 0, 0, 0) 60%
+    );
+    pointer-events: none;
+  }
+  .meta.on-cover {
+    position: relative;
+    z-index: 1;
+    padding: 10px 12px;
+  }
+  .meta.on-cover .name {
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  }
+  .meta.on-cover .sub {
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  }
+  /* In cover mode the play button sits top-right so it doesn't cover the label. */
+  .card.cover .play {
+    top: 8px;
+    right: 8px;
+    bottom: auto;
   }
   .art {
     position: relative;

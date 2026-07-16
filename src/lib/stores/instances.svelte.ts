@@ -46,6 +46,17 @@ class InstancesStore {
     await api.deleteInstance(id);
     await this.refresh();
   }
+
+  /** Set a custom icon (data URI). */
+  async setIcon(id: string, dataUri: string): Promise<void> {
+    await this.update(id, { icon: dataUri });
+  }
+
+  /** Clear the custom icon, falling back to the generated default.
+      (The backend treats an empty string as "reset".) */
+  async resetIcon(id: string): Promise<void> {
+    await this.update(id, { icon: "" });
+  }
 }
 
 export const instancesStore = new InstancesStore();

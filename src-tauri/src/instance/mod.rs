@@ -35,6 +35,10 @@ pub struct Instance {
     pub created: DateTime<Utc>,
     pub last_played: Option<DateTime<Utc>>,
     pub total_playtime_seconds: u64,
+    /// When true, the icon is shown full-bleed (cover) behind the tile instead
+    /// of as a small centered thumbnail.
+    #[serde(default)]
+    pub cover_image: bool,
 }
 
 impl Instance {
@@ -56,6 +60,7 @@ impl Instance {
             created: Utc::now(),
             last_played: None,
             total_playtime_seconds: 0,
+            cover_image: false,
         }
     }
 }
@@ -84,4 +89,5 @@ pub struct UpdateInstance {
     pub mc_version: Option<String>,
     pub loader: Option<ModLoader>,
     pub loader_version: Option<String>,
+    pub cover_image: Option<bool>,
 }

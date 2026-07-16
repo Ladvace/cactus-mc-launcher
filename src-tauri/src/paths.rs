@@ -51,6 +51,15 @@ pub fn assets_dir(app: &AppHandle) -> Result<PathBuf> {
     Ok(dir)
 }
 
+/// `meta/content-cache/` — content-addressed store of downloaded mods,
+/// resource packs and shaders, shared (hard-linked) across all instances so
+/// identical files are stored only once.
+pub fn content_cache_dir(app: &AppHandle) -> Result<PathBuf> {
+    let dir = meta_dir(app)?.join("content-cache");
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
 /// `meta/java/` — managed Java runtimes (one folder per component).
 pub fn java_dir(app: &AppHandle) -> Result<PathBuf> {
     let dir = meta_dir(app)?.join("java");

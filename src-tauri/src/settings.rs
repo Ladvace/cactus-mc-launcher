@@ -22,6 +22,9 @@ pub struct Settings {
     pub game_height: u32,
     /// Username used for offline/dev launches (until Microsoft auth lands).
     pub offline_username: String,
+    /// App background. Empty = default; otherwise `color:#rrggbb`,
+    /// `pattern:<name>`, or `image:<data-uri>`.
+    pub background: String,
 }
 
 impl Default for Settings {
@@ -35,6 +38,7 @@ impl Default for Settings {
             game_width: 854,
             game_height: 480,
             offline_username: "Player".into(),
+            background: String::new(),
         }
     }
 }

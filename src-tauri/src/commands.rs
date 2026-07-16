@@ -58,7 +58,8 @@ pub fn update_instance(
         instance.name = name;
     }
     if let Some(icon) = patch.icon {
-        instance.icon = Some(icon);
+        // An empty string is the "reset to default" signal — clear the icon.
+        instance.icon = if icon.is_empty() { None } else { Some(icon) };
     }
     if let Some(group) = patch.group {
         instance.group = Some(group);
@@ -71,6 +72,9 @@ pub fn update_instance(
     }
     if let Some(loader_version) = patch.loader_version {
         instance.loader_version = Some(loader_version);
+    }
+    if let Some(cover_image) = patch.cover_image {
+        instance.cover_image = cover_image;
     }
 
     store.save(&app, &instance)?;
@@ -290,4 +294,32 @@ pub async fn install_modpack(
             "CurseForge modpack install isn't supported yet".into(),
         )),
     }
+}
+
+/// Whether the Giphy sticker source is configured (a GIPHY_API_KEY is set).
+#[tauri::command]
+pub fn stickers_enabled() -> bool {
+    crate::stickers::is_configured()
+}
+
+/// Search animated stickers (trending when the query is empty).
+#[tauri::command]
+pub async fn search_stickers(
+    query: String,
+    offset: u32,
+) -> Result<Vec<crate::stickers::Sticker>> {
+    crate::stickers::search(&query, offset).await
+}
+
+/// Download an image URL and return it as a data URI (used to store a chosen
+/// sticker as an offline instance icon).
+#[tauri::command]
+pub async fn download_image(url: String) -> Result<String> {
+    crate::stickers::download_data_uri(&url).await
+}
+
+/// Stats about the shared, deduplicated content cache (files, size, disk saved).
+#[tauri::command]
+pub fn content_cache_stats(app: AppHandle) -> Result<content::CacheStats> {
+    content::cache::stats(&app)
 }

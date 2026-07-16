@@ -10,6 +10,7 @@ const DEFAULTS: Settings = {
   gameWidth: 854,
   gameHeight: 480,
   offlineUsername: "Player",
+  background: "",
 };
 
 /// Reactive settings store, persisted through the Rust backend.

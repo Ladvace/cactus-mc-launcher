@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AccountInfo,
   AccountsState,
+  CacheStats,
   ContentItem,
   CreateInstance,
   Instance,
@@ -12,6 +13,7 @@ import type {
   SearchResults,
   Settings,
   Source,
+  Sticker,
   UpdateInstance,
   VersionList,
 } from "./types";
@@ -101,4 +103,15 @@ export const api = {
       versionId,
       iconUrl: iconUrl ?? null,
     }),
+
+  // Stickers (Giphy)
+  stickersEnabled: () => invoke<boolean>("stickers_enabled"),
+
+  searchStickers: (query: string, offset = 0) =>
+    invoke<Sticker[]>("search_stickers", { query, offset }),
+
+  downloadImage: (url: string) => invoke<string>("download_image", { url }),
+
+  // Shared content cache
+  contentCacheStats: () => invoke<CacheStats>("content_cache_stats"),
 };

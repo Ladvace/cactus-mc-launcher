@@ -10,6 +10,7 @@ mod modrinth;
 mod paths;
 mod settings;
 mod sources;
+mod stickers;
 
 use auth::AccountStore;
 use instance::store::InstanceStore;
@@ -58,6 +59,10 @@ pub fn run() {
             commands::set_content_enabled,
             commands::remove_content,
             commands::install_modpack,
+            commands::stickers_enabled,
+            commands::search_stickers,
+            commands::download_image,
+            commands::content_cache_stats,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

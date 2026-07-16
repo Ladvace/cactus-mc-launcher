@@ -8,7 +8,10 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
 use crate::instance::{Instance, ModLoader};
-use crate::launch::download::{download_all, download_one, DownloadTask};
+use crate::launch::download::{download_one, DownloadTask};
+
+pub mod cache;
+pub use cache::CacheStats;
 use crate::modrinth;
 use crate::paths;
 use crate::sources::{self, Source};
@@ -122,17 +125,9 @@ pub async fn install(
     let dir = target_dir(app, instance_id, project_type)?;
     let dest = dir.join(&file.filename);
 
+    // Deduplicated: fetched once into the shared cache, then hard-linked here.
     let client = modrinth::client()?;
-    download_one(
-        &client,
-        &DownloadTask {
-            url: file.url.clone(),
-            dest,
-            sha1: file.hashes.sha1.clone(),
-            executable: false,
-        },
-    )
-    .await?;
+    cache::install_one(&client, app, &file.url, &dest, file.hashes.sha1.as_deref()).await?;
 
     let item = ContentItem {
         project_id: Some(version.project_id.clone()),
@@ -369,9 +364,9 @@ pub async fn install_modpack(
         .collect();
 
     {
-        let app = app.clone();
-        download_all(&client, tasks, 12, move |cur, total| {
-            emit_progress(&app, cur, total, "Downloading mods…");
+        let app_cb = app.clone();
+        cache::install_all(&client, app, tasks, 12, move |cur, total| {
+            emit_progress(&app_cb, cur, total, "Downloading mods…");
         })
         .await?;
     }
@@ -479,9 +474,9 @@ pub async fn install_ftb_modpack(
     // Download everything.
     emit_progress(app, 0, tasks.len(), "Downloading modpack…");
     {
-        let app = app.clone();
-        download_all(&client, tasks, 12, move |cur, total| {
-            emit_progress(&app, cur, total, "Downloading modpack…");
+        let app_cb = app.clone();
+        cache::install_all(&client, app, tasks, 12, move |cur, total| {
+            emit_progress(&app_cb, cur, total, "Downloading modpack…");
         })
         .await?;
     }
