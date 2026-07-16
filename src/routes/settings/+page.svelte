@@ -8,6 +8,8 @@
   import {
     backgroundCss,
     bgKind,
+    parsePattern,
+    parseImage,
     PATTERNS,
     DEFAULT_COLOR,
   } from "$lib/background";
@@ -53,7 +55,14 @@
       : DEFAULT_COLOR
   );
   const activePattern = $derived(
-    draft.background.startsWith("pattern:") ? draft.background.slice(8) : ""
+    kind === "pattern" ? parsePattern(draft.background).name : ""
+  );
+  // Chosen base/tint colours for pattern & image backgrounds (default when unset).
+  const patternColor = $derived(
+    kind === "pattern" ? (parsePattern(draft.background).color ?? DEFAULT_COLOR) : DEFAULT_COLOR
+  );
+  const imageColor = $derived(
+    kind === "image" ? (parseImage(draft.background).color ?? DEFAULT_COLOR) : DEFAULT_COLOR
   );
 
   let bgFileInput = $state<HTMLInputElement>();
@@ -61,8 +70,18 @@
   function setColor(v: string) {
     draft.background = `color:${v}`;
   }
+  // Set the pattern, keeping any chosen base colour.
   function setPattern(name: string) {
-    draft.background = `pattern:${name}`;
+    const { color } = parsePattern(draft.background);
+    draft.background = color ? `pattern:${name}|${color}` : `pattern:${name}`;
+  }
+  function setPatternColor(color: string) {
+    const { name } = parsePattern(draft.background);
+    draft.background = `pattern:${name || "dots"}|${color}`;
+  }
+  function setImageColor(color: string) {
+    const { uri } = parseImage(draft.background);
+    if (uri) draft.background = `image:${color}|${uri}`;
   }
   async function onBgFile(e: Event) {
     const input = e.currentTarget as HTMLInputElement;
@@ -278,12 +297,22 @@
           <button
             class="swatch"
             class:on={activePattern === p}
-            style="background: {backgroundCss(`pattern:${p}`)};"
+            style="background: {backgroundCss(`pattern:${p}|${patternColor}`)};"
             title={p}
             aria-label={p}
             onclick={() => setPattern(p)}
           ></button>
         {/each}
+      </div>
+      <div class="bg-detail bg-color">
+        <span class="bg-color-label">Base color</span>
+        <input
+          type="color"
+          class="color-input"
+          value={patternColor}
+          oninput={(e) => setPatternColor(e.currentTarget.value)}
+        />
+        <span class="hex">{patternColor}</span>
       </div>
     {:else if kind === "image"}
       <div class="bg-detail">
@@ -293,6 +322,16 @@
         <button class="btn ghost" onclick={pickBgSticker}>
           <Icon name="sparkles" size={14} /> Stickers & GIFs…
         </button>
+      </div>
+      <div class="bg-detail bg-color">
+        <span class="bg-color-label">Tint</span>
+        <input
+          type="color"
+          class="color-input"
+          value={imageColor}
+          oninput={(e) => setImageColor(e.currentTarget.value)}
+        />
+        <span class="hex">{imageColor}</span>
       </div>
     {/if}
     <input
@@ -618,6 +657,10 @@
   }
   .patterns {
     flex-wrap: wrap;
+  }
+  .bg-color-label {
+    font-size: 13px;
+    color: var(--text-secondary);
   }
   .swatch {
     width: 56px;
