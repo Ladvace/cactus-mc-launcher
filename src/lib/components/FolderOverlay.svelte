@@ -36,26 +36,108 @@
     await instancesStore.update(id, { group: "" });
   }
 
-  // Drag an instance out onto the remove zone to ungroup it.
+  // Drag an instance out of the folder to ungroup it (pointer-based, so the
+  // dragged tile stays fully opaque and the drop is reliable in the webview).
   let draggingId = $state<string | null>(null);
-  let overRemove = $state(false);
+  let overRemove = $state(false); // cursor is in "ungroup" territory
+  let suppressClick = false;
 
-  function onCardDragStart(e: DragEvent, id: string) {
-    draggingId = id;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", id);
-      const el = e.currentTarget as HTMLElement;
-      const r = el.getBoundingClientRect();
-      e.dataTransfer.setDragImage(el, e.clientX - r.left, e.clientY - r.top);
-    }
+  let press: {
+    id: string;
+    el: HTMLElement;
+    startX: number;
+    startY: number;
+    offX: number;
+    offY: number;
+  } | null = null;
+  let started = false;
+  let clone: HTMLElement | null = null;
+
+  function onCardPointerDown(e: PointerEvent, id: string) {
+    if (e.button !== 0) return;
+    const el = e.currentTarget as HTMLElement;
+    const r = el.getBoundingClientRect();
+    press = {
+      id,
+      el,
+      startX: e.clientX,
+      startY: e.clientY,
+      offX: e.clientX - r.left,
+      offY: e.clientY - r.top,
+    };
+    started = false;
   }
-  async function onRemoveDrop(e: DragEvent) {
+
+  function makeClone(el: HTMLElement): HTMLElement {
+    const r = el.getBoundingClientRect();
+    const c = el.cloneNode(true) as HTMLElement;
+    c.querySelectorAll(".pop").forEach((p) => p.remove());
+    Object.assign(c.style, {
+      position: "fixed",
+      left: `${r.left}px`,
+      top: `${r.top}px`,
+      width: `${r.width}px`,
+      height: `${r.height}px`,
+      margin: "0",
+      zIndex: "1200",
+      pointerEvents: "none",
+      opacity: "1",
+      transform: "scale(1.05)",
+      transition: "transform 0.12s ease",
+      boxShadow: "0 16px 34px rgba(0, 0, 0, 0.5)",
+    });
+    document.body.appendChild(c);
+    return c;
+  }
+
+  function insideGrid(e: PointerEvent): boolean {
+    return !!document
+      .elementFromPoint(e.clientX, e.clientY)
+      ?.closest("[data-folder-grid]");
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    if (!press) return;
+    if (!started) {
+      if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < 6) return;
+      started = true;
+      draggingId = press.id;
+      clone = makeClone(press.el);
+    }
     e.preventDefault();
-    overRemove = false;
-    const id = draggingId;
+    if (clone) {
+      clone.style.left = `${e.clientX - press.offX}px`;
+      clone.style.top = `${e.clientY - press.offY}px`;
+    }
+    // Anywhere outside the folder's own grid counts as "drop to ungroup".
+    overRemove = !insideGrid(e);
+  }
+
+  async function onPointerUp() {
+    if (!press) return;
+    const doRemove = started && overRemove;
+    const id = press.id;
+    if (clone) {
+      clone.style.transition = "opacity 0.18s ease";
+      clone.style.opacity = "0";
+      const c = clone;
+      setTimeout(() => c.remove(), 200);
+    }
+    if (started) suppressClick = true;
+    clone = null;
+    started = false;
+    press = null;
     draggingId = null;
-    if (id) await removeFromFolder(id);
+    overRemove = false;
+    if (doRemove) await removeFromFolder(id);
+  }
+
+  function onGridClickCapture(e: MouseEvent) {
+    if (suppressClick) {
+      e.stopPropagation();
+      e.preventDefault();
+      suppressClick = false;
+    }
   }
 
   async function ungroupAll() {
@@ -64,6 +146,8 @@
     onClose();
   }
 </script>
+
+<svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp} />
 
 <Modal title="Folder" open={!!name} {onClose} width={640}>
   <div class="folder-head">
@@ -80,14 +164,14 @@
   {#if instances.length === 0}
     <p class="empty">This folder is empty.</p>
   {:else}
-    <div class="grid">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="grid" data-folder-grid onclickcapture={onGridClickCapture}>
       {#each instances as inst (inst.id)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="cell"
-          draggable="true"
-          ondragstart={(e) => onCardDragStart(e, inst.id)}
-          ondragend={() => (draggingId = null)}
+          class:dragging={draggingId === inst.id}
+          onpointerdown={(e) => onCardPointerDown(e, inst.id)}
         >
           <InstanceCard instance={inst} iconSize={64} fill />
           <button
@@ -101,22 +185,12 @@
       {/each}
     </div>
 
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="remove-zone"
-      class:over={overRemove}
-      class:armed={!!draggingId}
-      ondragover={(e) => {
-        e.preventDefault();
-        overRemove = true;
-      }}
-      ondragleave={() => (overRemove = false)}
-      ondrop={onRemoveDrop}
-    >
-      <Icon name="trash" size={14} /> Drag here to remove from the folder
+    <div class="remove-zone" class:over={overRemove} class:armed={!!draggingId}>
+      <Icon name="trash" size={14} />
+      {overRemove ? "Release to remove from the folder" : "Drag a tile out here to remove it"}
     </div>
   {/if}
-  <p class="hint">Drag an instance onto this folder's tile to add it. Right-click for more.</p>
+  <p class="hint">Drag an instance out of the folder to ungroup it. Right-click for more.</p>
 </Modal>
 
 <style>
@@ -143,6 +217,11 @@
   .cell {
     position: relative;
     height: 170px;
+    touch-action: none;
+  }
+  .cell.dragging {
+    opacity: 0.28;
+    filter: grayscale(0.4);
   }
   .pop {
     position: absolute;
