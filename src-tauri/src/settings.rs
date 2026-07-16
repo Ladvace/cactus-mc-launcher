@@ -27,6 +27,9 @@ pub struct Settings {
     pub background: String,
     /// Play subtle UI click sounds on buttons.
     pub ui_sounds: bool,
+    /// User-supplied Giphy API key that enables the animated-sticker picker.
+    /// Empty = stickers disabled (the emoji picker still works).
+    pub giphy_api_key: String,
 }
 
 impl Default for Settings {
@@ -42,6 +45,7 @@ impl Default for Settings {
             offline_username: "Player".into(),
             background: String::new(),
             ui_sounds: true,
+            giphy_api_key: String::new(),
         }
     }
 }

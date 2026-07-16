@@ -184,6 +184,12 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     // Apple Silicon: versions with LWJGL < 3.3.1 have no arm64 natives, so run
     // them with an x86_64 (Rosetta) Java to match the x86_64 native libraries.
     let force_x64 = macos_needs_rosetta(&detail);
+    // Per-instance Java path override, else the global one.
+    let java_path = instance
+        .java_path
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .or(settings.java_path.as_deref());
     let java = {
         let app_cb = app.clone();
         let id_cb = id.clone();
@@ -191,7 +197,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
             app,
             &client,
             &java_version,
-            settings.java_path.as_deref(),
+            java_path,
             force_x64,
             move |cur, total| emit_progress(&app_cb, &id_cb, "java", cur, total),
         )
@@ -297,6 +303,12 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     let mut classpath = libs.classpath.clone();
     classpath.push(version_jar);
 
+    // Per-instance overrides fall back to the global settings.
+    let jvm_args_src = instance
+        .jvm_args
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(settings.jvm_args.as_str());
     let ctx = args::LaunchContext {
         classpath,
         natives_dir,
@@ -308,15 +320,11 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         player_name,
         access_token,
         user_type: "msa".into(),
-        width: settings.game_width,
-        height: settings.game_height,
-        min_mem: settings.min_memory_mb,
-        max_mem: settings.max_memory_mb,
-        extra_jvm: settings
-            .jvm_args
-            .split_whitespace()
-            .map(String::from)
-            .collect(),
+        width: instance.game_width.unwrap_or(settings.game_width),
+        height: instance.game_height.unwrap_or(settings.game_height),
+        min_mem: instance.min_memory_mb.unwrap_or(settings.min_memory_mb),
+        max_mem: instance.max_memory_mb.unwrap_or(settings.max_memory_mb),
+        extra_jvm: jvm_args_src.split_whitespace().map(String::from).collect(),
     };
     let command_args = args::build(&detail, &ctx);
 

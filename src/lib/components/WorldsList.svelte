@@ -166,10 +166,6 @@
     color: var(--text-muted);
     font-size: 12.5px;
   }
-  .btn.sm {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
   .list {
     list-style: none;
     margin: 0;

@@ -1,23 +1,13 @@
 //! Animated sticker search via the Giphy Stickers API (transparent animated
-//! GIFs). Requires a free `GIPHY_API_KEY` (get one at
-//! https://developers.giphy.com). Leave it unset to keep stickers disabled —
-//! the emoji picker still works without it.
+//! GIFs). Requires a free Giphy API key, entered by the user in Settings (get
+//! one at https://developers.giphy.com). Empty = stickers disabled; the emoji
+//! picker still works without it.
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, Result};
 
 const API_BASE: &str = "https://api.giphy.com/v1/stickers";
-
-// Compiled in from the environment / .env (see build.rs), like the other keys.
-const GIPHY_API_KEY: &str = match option_env!("GIPHY_API_KEY") {
-    Some(k) => k,
-    None => "",
-};
-
-pub fn is_configured() -> bool {
-    !GIPHY_API_KEY.is_empty()
-}
 
 /// A sticker result normalized for the UI.
 #[derive(Debug, Serialize)]
@@ -51,20 +41,17 @@ struct Rendition {
     url: String,
 }
 
-fn ensure_configured() -> Result<()> {
-    if GIPHY_API_KEY.is_empty() {
+/// Search stickers (or trending when the query is empty). `api_key` is the
+/// user's Giphy key from settings.
+pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Sticker>> {
+    let api_key = api_key.trim();
+    if api_key.is_empty() {
         return Err(AppError::Other(
-            "Stickers aren't configured. Add a GIPHY_API_KEY in src-tauri/.env \
-             (free at https://developers.giphy.com), then restart."
+            "Stickers aren't configured. Add your free Giphy API key in \
+             Settings → Interface (grab one at https://developers.giphy.com)."
                 .into(),
         ));
     }
-    Ok(())
-}
-
-/// Search stickers (or trending when the query is empty).
-pub async fn search(query: &str, offset: u32) -> Result<Vec<Sticker>> {
-    ensure_configured()?;
 
     let q = query.trim();
     let endpoint = if q.is_empty() { "trending" } else { "search" };
@@ -72,7 +59,7 @@ pub async fn search(query: &str, offset: u32) -> Result<Vec<Sticker>> {
     let offset = offset.to_string();
 
     let mut params: Vec<(&str, &str)> = vec![
-        ("api_key", GIPHY_API_KEY),
+        ("api_key", api_key),
         ("limit", &limit),
         ("offset", &offset),
         ("rating", "pg-13"),

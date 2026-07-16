@@ -2,6 +2,7 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { api } from "$lib/api";
   import { listen } from "@tauri-apps/api/event";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "$lib/components/Icon.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import {
@@ -190,6 +191,27 @@
         />
         <span class="track"><span class="thumb"></span></span>
       </label>
+    </div>
+
+    <div class="setting">
+      <div class="label">
+        <span>Giphy API key (stickers)</span>
+        <small>
+          Animated stickers are off by default. Paste a free key from
+          <button class="linkish" onclick={() => openUrl("https://developers.giphy.com")}>
+            developers.giphy.com
+          </button>
+          to enable the Stickers tab. The emoji picker always works.
+        </small>
+      </div>
+      <input
+        class="input narrow"
+        type="password"
+        placeholder="Paste key to enable"
+        bind:value={draft.giphyApiKey}
+        autocomplete="off"
+        spellcheck="false"
+      />
     </div>
   </section>
 
@@ -624,6 +646,15 @@
   .narrow {
     width: 240px;
     flex-shrink: 0;
+  }
+  .linkish {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
   }
   .range {
     width: 240px;

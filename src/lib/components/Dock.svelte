@@ -16,12 +16,35 @@
   let { onCreate }: Props = $props();
 
   const path = $derived($page.url.pathname);
-  const pinned = $derived(instancesStore.instances.slice(0, 8));
+  const MAX_PINNED = 7;
+  const pinned = $derived(instancesStore.instances.slice(0, MAX_PINNED));
+  const overflow = $derived(
+    Math.max(0, instancesStore.instances.length - MAX_PINNED)
+  );
+  const overflowList = $derived(instancesStore.instances.slice(MAX_PINNED));
+
+  // Popover listing the instances that don't fit on the dock.
+  let overflowMenu = $state<{ x: number; bottom: number } | null>(null);
+  $effect(() => {
+    if (overflow === 0) overflowMenu = null;
+  });
+  function toggleOverflow(e: MouseEvent) {
+    if (overflowMenu) {
+      overflowMenu = null;
+      return;
+    }
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    overflowMenu = {
+      x: r.left + r.width / 2,
+      bottom: window.innerHeight - r.top + 10,
+    };
+  }
 
   type Item =
     | { kind: "nav"; href: string; icon: string; label: string }
     | { kind: "sep" }
     | { kind: "instance"; instance: Instance; label: string }
+    | { kind: "overflow"; count: number; label: string }
     | { kind: "add"; label: string }
     | { kind: "settings"; href: string; label: string }
     | { kind: "account"; label: string };
@@ -34,6 +57,15 @@
     ...pinned.map(
       (i): Item => ({ kind: "instance", instance: i, label: i.name })
     ),
+    ...(overflow > 0
+      ? [
+          {
+            kind: "overflow" as const,
+            count: overflow,
+            label: `${overflow} more on Home`,
+          },
+        ]
+      : []),
     { kind: "add", label: "New instance" },
     { kind: "sep" },
     { kind: "settings", href: "/settings", label: "Settings" },
@@ -98,11 +130,17 @@
   function isActive(href: string) {
     return href === "/" ? path === "/" : path.startsWith(href);
   }
-  function activate(item: Item) {
+  function activate(item: Item, e: MouseEvent) {
     if (item.kind === "nav" || item.kind === "settings") goto(item.href);
     else if (item.kind === "instance") goto(`/instance/${item.instance.id}`);
+    else if (item.kind === "overflow") toggleOverflow(e);
     else if (item.kind === "add") onCreate();
     else if (item.kind === "account") ui.openAccounts();
+  }
+
+  function openOverflowInstance(id: string) {
+    overflowMenu = null;
+    goto(`/instance/${id}`);
   }
 </script>
 
@@ -130,7 +168,7 @@
           class="dock-item"
           class:active={active || activeInstance}
           style="--s:{scales[i] ?? 1}"
-          onclick={() => activate(item)}
+          onclick={(e) => activate(item, e)}
           aria-label={item.label}
         >
           <span class="tip">{item.label}</span>
@@ -138,12 +176,14 @@
             {#if item.kind === "nav" || item.kind === "settings"}
               <Icon
                 name={item.kind === "settings" ? "settings" : item.icon}
-                size={22}
+                size={24}
               />
+            {:else if item.kind === "overflow"}
+              <span class="overflow">+{item.count}</span>
             {:else if item.kind === "add"}
-              <Icon name="plus" size={22} />
+              <Icon name="plus" size={24} />
             {:else if item.kind === "instance"}
-              <InstanceIcon instance={item.instance} size={40} />
+              <InstanceIcon instance={item.instance} size={44} />
               {#if installStore.isInstalling(item.instance.id)}
                 <span class="dock-dl">
                   <span class="dock-spinner"></span>
@@ -156,11 +196,11 @@
               {#if accountsStore.active}
                 <img
                   class="acc"
-                  src={skinFace(accountsStore.active.uuid, 40)}
+                  src={skinFace(accountsStore.active.uuid, 44)}
                   alt={item.label}
                 />
               {:else}
-                <Icon name="user" size={20} />
+                <Icon name="user" size={24} />
               {/if}
             {/if}
           </span>
@@ -170,6 +210,25 @@
     {/each}
   </div>
 </div>
+
+<svelte:window
+  onkeydown={(e) => e.key === "Escape" && (overflowMenu = null)}
+/>
+
+{#if overflowMenu}
+  <button class="ov-backdrop" aria-label="Close menu" onclick={() => (overflowMenu = null)}></button>
+  <div
+    class="ov-menu"
+    style="left:{overflowMenu.x}px; bottom:{overflowMenu.bottom}px;"
+  >
+    {#each overflowList as inst (inst.id)}
+      <button class="ov-item" onclick={() => openOverflowInstance(inst.id)}>
+        <InstanceIcon instance={inst} size={24} />
+        <span class="ov-name">{inst.name}</span>
+      </button>
+    {/each}
+  </div>
+{/if}
 
 <style>
   .dock-wrap {
@@ -235,17 +294,79 @@
     color: var(--accent);
     border-color: var(--border);
   }
+  /* A fixed inner area so every item — line icon, instance icon, avatar —
+     occupies the same centered footprint and lines up across the row. */
   .glyph {
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
   }
+  /* The dock tile already provides the frame; drop the icon's own border so
+     instance/account tiles don't read as a box inside a box. */
+  .glyph :global(.icon-img),
+  .glyph :global(.icon-fallback) {
+    border: none;
+  }
   .acc {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     object-fit: cover;
     image-rendering: pixelated;
-    border: 2px solid rgba(0, 0, 0, 0.3);
+  }
+  .overflow {
+    font-family: var(--font-pixel);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+  .dock-item:hover .overflow {
+    color: var(--accent);
+  }
+  .ov-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: default;
+  }
+  .ov-menu {
+    position: fixed;
+    z-index: 56;
+    transform: translateX(-50%);
+    max-height: 320px;
+    overflow-y: auto;
+    min-width: 200px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--bg-raised);
+    border: 2px solid var(--border);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  }
+  .ov-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    text-align: left;
+  }
+  .ov-item:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+  .ov-name {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .dock-dl {
     position: absolute;

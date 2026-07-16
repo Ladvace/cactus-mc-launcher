@@ -13,6 +13,7 @@
   import ServerAddress from "$lib/components/ServerAddress.svelte";
   import PlayersList from "$lib/components/PlayersList.svelte";
   import WorldsList from "$lib/components/WorldsList.svelte";
+  import InstanceJavaSettings from "$lib/components/InstanceJavaSettings.svelte";
 
   const id = $derived($page.params.id ?? "");
   const instance = $derived(instancesStore.get(id));
@@ -155,37 +156,6 @@
   let renameValue = $state("");
   let busy = $state(false);
 
-  // --- Per-server memory (max heap, MB). null = use the global setting. ---
-  let serverMem = $state<number | null>(null);
-  let memInstanceId = "";
-  let savingMem = $state(false);
-  $effect(() => {
-    if (instance && instance.id !== memInstanceId) {
-      memInstanceId = instance.id;
-      serverMem = instance.serverMemoryMb;
-    }
-  });
-
-  async function saveServerMem(value: number | null) {
-    if (!instance) return;
-    savingMem = true;
-    try {
-      await instancesStore.update(instance.id, {
-        serverMemoryMb: value && value > 0 ? value : 0,
-      });
-      serverMem = value && value > 0 ? value : null;
-      toast.success(
-        value && value > 0
-          ? `Server memory set to ${(value / 1024).toFixed(value % 1024 ? 1 : 0)} GB.`
-          : "Using the global memory setting."
-      );
-    } catch (e) {
-      toast.error(String(e));
-    } finally {
-      savingMem = false;
-    }
-  }
-
   const loaderLabel = $derived(
     instance
       ? MOD_LOADERS.find((l) => l.value === instance.loader)?.label ??
@@ -253,6 +223,7 @@
 {:else}
   <div class="detail">
     <div class="banner">
+      <div class="col">
       <button class="back" onclick={() => goto("/")} aria-label="Back">
         ← Home
       </button>
@@ -326,18 +297,21 @@
       {#if isServer}
         <ServerAddress {id} />
       {/if}
+      </div>
     </div>
 
     <div class="tabs">
-      {#each tabs as t}
-        <button
-          class="tab"
-          class:active={activeTab === t}
-          onclick={() => (activeTab = t)}
-        >
-          {t}
-        </button>
-      {/each}
+      <div class="col tabs-inner">
+        {#each tabs as t}
+          <button
+            class="tab"
+            class:active={activeTab === t}
+            onclick={() => (activeTab = t)}
+          >
+            {t}
+          </button>
+        {/each}
+      </div>
     </div>
 
     <div class="tab-body">
@@ -365,52 +339,7 @@
             </div>
           </section>
 
-          {#if isServer}
-            <section class="card-block">
-              <h3>Server memory</h3>
-              <p class="block-hint">
-                Max heap for this server. Leave on the global default unless the
-                pack needs more.
-              </p>
-              <div class="mem-presets">
-                {#each [2048, 4096, 6144, 8192] as mb (mb)}
-                  <button
-                    class="mem-chip"
-                    class:active={serverMem === mb}
-                    disabled={savingMem}
-                    onclick={() => saveServerMem(mb)}
-                  >
-                    {mb / 1024} GB
-                  </button>
-                {/each}
-                <button
-                  class="mem-chip"
-                  class:active={!serverMem}
-                  disabled={savingMem}
-                  onclick={() => saveServerMem(null)}
-                >
-                  Global default
-                </button>
-              </div>
-              <div class="mem-custom">
-                <input
-                  class="input"
-                  type="number"
-                  min="512"
-                  step="512"
-                  placeholder="Custom (MB)"
-                  bind:value={serverMem}
-                />
-                <button
-                  class="btn ghost sm"
-                  disabled={savingMem}
-                  onclick={() => saveServerMem(serverMem)}
-                >
-                  Save
-                </button>
-              </div>
-            </section>
-          {/if}
+          <InstanceJavaSettings {instance} {isServer} />
 
           <section class="card-block danger-zone">
             <h3>Danger zone</h3>
@@ -614,6 +543,11 @@
     background: linear-gradient(180deg, var(--bg-raised), var(--bg-app));
     border-bottom: 1px solid var(--border-subtle);
   }
+  /* Shared centered content column so the header, tabs and body all line up. */
+  .col {
+    max-width: 960px;
+    margin: 0 auto;
+  }
   .back {
     background: transparent;
     border: none;
@@ -678,15 +612,13 @@
     gap: 8px;
     align-items: center;
   }
-  .btn.big {
-    padding: 11px 24px;
-    font-size: 14px;
-  }
   .tabs {
-    display: flex;
-    gap: 2px;
     padding: 0 32px;
     border-bottom: 1px solid var(--border-subtle);
+  }
+  .tabs-inner {
+    display: flex;
+    gap: 2px;
   }
   .tab {
     padding: 12px 14px;
@@ -708,7 +640,10 @@
   }
   .tab-body {
     padding: 28px 32px;
-    max-width: 900px;
+    /* 960 column + the 32px horizontal padding on each side, so the content
+       edge lines up with the header/tabs columns above. */
+    max-width: 1024px;
+    margin: 0 auto;
   }
   .tab-placeholder {
     display: flex;
@@ -745,44 +680,6 @@
     font-size: 14px;
     margin-bottom: 14px;
   }
-  .block-hint {
-    margin: -6px 0 12px;
-    font-size: 12.5px;
-    color: var(--text-muted);
-    max-width: 60ch;
-  }
-  .mem-presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  .mem-chip {
-    padding: 7px 12px;
-    background: var(--bg-input);
-    border: 2px solid var(--border);
-    color: var(--text-secondary);
-    font-size: 12.5px;
-    font-weight: 600;
-    transition: all 0.12s;
-  }
-  .mem-chip:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--text);
-  }
-  .mem-chip.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-soft);
-  }
-  .mem-custom {
-    display: flex;
-    gap: 8px;
-    max-width: 320px;
-  }
-  .mem-custom .input {
-    flex: 1;
-  }
   .row {
     display: flex;
     align-items: center;
@@ -797,10 +694,6 @@
   }
   .danger-zone {
     border-color: rgba(255, 91, 91, 0.25);
-  }
-  .btn.sm {
-    padding: 6px 12px;
-    font-size: 12px;
   }
   .confirm-text {
     margin: 0;
@@ -904,7 +797,7 @@
     border-radius: 0;
     box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
     padding: 12px 14px;
-    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.5;
     color: var(--text-secondary);
@@ -922,7 +815,7 @@
     padding: 0 10px;
   }
   .console-input .prompt {
-    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     color: var(--accent);
     font-weight: 700;
   }
@@ -932,7 +825,7 @@
     background: transparent;
     border: none;
     color: var(--text);
-    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 12.5px;
   }
   .console-input .cmd:focus {

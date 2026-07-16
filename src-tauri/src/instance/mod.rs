@@ -53,9 +53,26 @@ pub struct Instance {
     #[serde(default)]
     pub cover_image: bool,
     /// Max heap (MB) for a dedicated server. `None` falls back to the global
-    /// memory setting. Only meaningful for `kind == Server`.
+    /// memory setting. Superseded by `max_memory_mb`; kept for older instances.
     #[serde(default)]
     pub server_memory_mb: Option<u32>,
+
+    // --- Per-instance overrides (each `None` = use the global setting) ---
+    #[serde(default)]
+    pub max_memory_mb: Option<u32>,
+    #[serde(default)]
+    pub min_memory_mb: Option<u32>,
+    /// Extra JVM args for this instance (replaces the global ones when set).
+    #[serde(default)]
+    pub jvm_args: Option<String>,
+    /// Explicit Java executable path for this instance.
+    #[serde(default)]
+    pub java_path: Option<String>,
+    /// Game window size (client only).
+    #[serde(default)]
+    pub game_width: Option<u32>,
+    #[serde(default)]
+    pub game_height: Option<u32>,
 }
 
 impl Instance {
@@ -81,6 +98,12 @@ impl Instance {
             total_playtime_seconds: 0,
             cover_image: false,
             server_memory_mb: None,
+            max_memory_mb: None,
+            min_memory_mb: None,
+            jvm_args: None,
+            java_path: None,
+            game_width: None,
+            game_height: None,
         }
     }
 }
@@ -114,4 +137,12 @@ pub struct UpdateInstance {
     pub cover_image: Option<bool>,
     /// Max heap (MB) for a server; 0 clears the override (use the global setting).
     pub server_memory_mb: Option<u32>,
+    // Per-instance overrides. For the numeric ones, 0 clears the override; for
+    // the string ones, an empty string clears it.
+    pub max_memory_mb: Option<u32>,
+    pub min_memory_mb: Option<u32>,
+    pub jvm_args: Option<String>,
+    pub java_path: Option<String>,
+    pub game_width: Option<u32>,
+    pub game_height: Option<u32>,
 }

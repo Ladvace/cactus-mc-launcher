@@ -197,11 +197,6 @@
     font-family: var(--font-pixel);
     font-size: 16px;
   }
-  .btn.sm {
-    padding: 6px 12px;
-    font-size: 12px;
-    flex-shrink: 0;
-  }
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

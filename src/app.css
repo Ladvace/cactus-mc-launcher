@@ -39,8 +39,10 @@
   --radius-sm: 3px;
 
   --font-pixel: "Pixelify Sans", "Inter", sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
   --shadow-md: 0 6px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.5);
 
   color-scheme: dark;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -212,6 +214,16 @@ button {
 }
 .btn.danger:hover {
   --edge: var(--danger);
+}
+/* Size variants (shared so components don't each redefine them). */
+.btn.sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.btn.big {
+  padding: 11px 24px;
+  font-size: 14px;
 }
 
 /* Recessed, blocky inputs (inset shadow reads as a carved panel). */

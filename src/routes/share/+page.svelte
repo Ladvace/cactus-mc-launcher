@@ -353,10 +353,6 @@
   .code input:focus {
     outline: none;
   }
-  .btn.sm {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
   .result p {
     display: flex;
     align-items: center;

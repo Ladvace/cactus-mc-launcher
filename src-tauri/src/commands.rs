@@ -82,6 +82,25 @@ pub fn update_instance(
         // 0 = clear the override and fall back to the global memory setting.
         instance.server_memory_mb = if mem == 0 { None } else { Some(mem) };
     }
+    // Per-instance overrides: 0 / empty string clears back to the global value.
+    if let Some(v) = patch.max_memory_mb {
+        instance.max_memory_mb = (v != 0).then_some(v);
+    }
+    if let Some(v) = patch.min_memory_mb {
+        instance.min_memory_mb = (v != 0).then_some(v);
+    }
+    if let Some(v) = patch.jvm_args {
+        instance.jvm_args = (!v.trim().is_empty()).then_some(v);
+    }
+    if let Some(v) = patch.java_path {
+        instance.java_path = (!v.trim().is_empty()).then_some(v);
+    }
+    if let Some(v) = patch.game_width {
+        instance.game_width = (v != 0).then_some(v);
+    }
+    if let Some(v) = patch.game_height {
+        instance.game_height = (v != 0).then_some(v);
+    }
 
     store.save(&app, &instance)?;
     Ok(instance)
@@ -410,19 +429,15 @@ pub async fn install_modpack(
     }
 }
 
-/// Whether the Giphy sticker source is configured (a GIPHY_API_KEY is set).
-#[tauri::command]
-pub fn stickers_enabled() -> bool {
-    crate::stickers::is_configured()
-}
-
 /// Search animated stickers (trending when the query is empty).
 #[tauri::command]
 pub async fn search_stickers(
+    settings: State<'_, SettingsStore>,
     query: String,
     offset: u32,
 ) -> Result<Vec<crate::stickers::Sticker>> {
-    crate::stickers::search(&query, offset).await
+    let key = settings.get().giphy_api_key;
+    crate::stickers::search(&key, &query, offset).await
 }
 
 /// Download an image URL and return it as a data URI (used to store a chosen

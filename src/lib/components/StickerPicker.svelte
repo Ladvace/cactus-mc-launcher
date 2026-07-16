@@ -3,14 +3,21 @@
   import Icon from "./Icon.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { api } from "$lib/api";
+  import { settingsStore } from "$lib/stores/settings.svelte";
   import { emojiToDataUri } from "$lib/image";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import type { Sticker } from "$lib/types";
 
   const picker = $derived(ui.stickerPicker);
   const open = $derived(!!picker);
 
+  // Stickers are enabled only once the user provides a Giphy API key.
+  const enabled = $derived(settingsStore.settings.giphyApiKey.trim().length > 0);
+
   let tab = $state<"stickers" | "emoji">("emoji");
-  let enabled = $state<boolean | null>(null); // null = not checked yet
+  let keyDraft = $state("");
+  let savingKey = $state(false);
+  let editingKey = $state(false); // re-entering a key even though one is set
   let query = $state("");
   let debounced = $state("");
   let stickers = $state<Sticker[]>([]);
@@ -32,18 +39,30 @@
     return cols;
   });
 
-  // On first open, learn whether Giphy is configured and pick the default tab.
+  // Pick the default tab each time the picker opens (without fighting the user
+  // switching tabs while it's open).
+  let wasOpen = false;
   $effect(() => {
-    if (open && enabled === null) {
-      api
-        .stickersEnabled()
-        .then((e) => {
-          enabled = e;
-          tab = e ? "stickers" : "emoji";
-        })
-        .catch(() => (enabled = false));
-    }
+    if (open && !wasOpen) tab = enabled ? "stickers" : "emoji";
+    wasOpen = open;
   });
+
+  async function saveKey() {
+    const k = keyDraft.trim();
+    if (!k) return;
+    savingKey = true;
+    try {
+      await settingsStore.save({ ...settingsStore.settings, giphyApiKey: k });
+      keyDraft = "";
+      editingKey = false;
+      error = null;
+      tab = "stickers";
+    } catch (e) {
+      error = String(e);
+    } finally {
+      savingKey = false;
+    }
+  }
 
   // Clear transient state when the picker closes.
   $effect(() => {
@@ -179,14 +198,35 @@
     </div>
 
     {#if tab === "stickers"}
-      {#if enabled === false}
+      {#if !enabled || editingKey}
         <div class="notice">
-          <p><strong>Stickers aren't set up yet.</strong></p>
           <p>
-            Add a free <code>GIPHY_API_KEY</code> to
-            <code>src-tauri/.env</code> (grab one at
-            developers.giphy.com), then restart. The Emoji tab works without it.
+            <strong>{editingKey ? "Update your Giphy API key" : "Animated stickers are off."}</strong>
           </p>
+          <p>
+            Paste a free Giphy API key to turn them on (grab one at
+            <button class="linkish" onclick={() => openUrl("https://developers.giphy.com")}>
+              developers.giphy.com</button
+            >). The Emoji tab always works.
+          </p>
+          <div class="key-row">
+            <input
+              class="key-input"
+              type="password"
+              placeholder="Giphy API key"
+              autocomplete="off"
+              spellcheck="false"
+              bind:value={keyDraft}
+              onkeydown={(e) => e.key === "Enter" && saveKey()}
+            />
+            <button class="btn primary sm" disabled={savingKey || !keyDraft.trim()} onclick={saveKey}>
+              {savingKey ? "Saving…" : "Save"}
+            </button>
+            {#if editingKey}
+              <button class="btn ghost sm" onclick={() => (editingKey = false)}>Cancel</button>
+            {/if}
+          </div>
+          <p class="tiny">You can also change this later in Settings → Interface.</p>
         </div>
       {:else}
         <div class="search">
@@ -209,7 +249,18 @@
             {/each}
           </div>
         {:else if error}
-          <div class="notice error">{error}</div>
+          <div class="notice error">
+            <p>{error}</p>
+            <button
+              class="btn ghost sm"
+              onclick={() => {
+                keyDraft = "";
+                editingKey = true;
+              }}
+            >
+              Change API key
+            </button>
+          </div>
         {:else if stickers.length === 0}
           <p class="muted">No stickers found.</p>
         {:else}
@@ -421,11 +472,40 @@
     border-color: var(--danger);
     color: var(--danger);
   }
-  .notice code {
-    background: var(--bg-app);
-    padding: 1px 5px;
-    font-size: 12px;
+  .notice.error .btn {
+    margin-top: 8px;
+  }
+  .linkish {
+    background: none;
+    border: none;
+    padding: 0;
     color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+  }
+  .key-row {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0 4px;
+  }
+  .key-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    background: var(--bg-app);
+    border: 2px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+  }
+  .key-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .tiny {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin: 0;
   }
   .muted {
     color: var(--text-muted);

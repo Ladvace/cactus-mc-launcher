@@ -50,6 +50,11 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         component: "jre-legacy".into(),
         major_version: 8,
     });
+    let java_path = instance
+        .java_path
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .or(settings.java_path.as_deref());
     let java = {
         let app_cb = app.clone();
         let id_cb = id.clone();
@@ -57,7 +62,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
             app,
             &client,
             &java_version,
-            settings.java_path.as_deref(),
+            java_path,
             false,
             move |cur, total| super::emit_progress(&app_cb, &id_cb, "java", cur, total),
         )
@@ -101,8 +106,9 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         }
     };
 
-    // JVM/memory args go first, then the loader-specific args.
-    let mut args = memory_args(settings, instance.server_memory_mb);
+    // JVM/memory args go first, then the loader-specific args. Per-instance
+    // overrides win; the legacy `server_memory_mb` is the next fallback.
+    let mut args = memory_args(settings, instance);
     args.extend(launch_args);
 
     super::emit_status(app, id, "launching", Some("Starting server…".into()));
@@ -110,16 +116,26 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     Ok(())
 }
 
-/// `-Xms/-Xmx` plus any user-configured extra JVM args. A per-server memory
-/// override (`server_mem`) wins over the global setting; when set, `-Xms` is
-/// pinned to the same value (common practice for servers).
-fn memory_args(settings: &Settings, server_mem: Option<u32>) -> Vec<String> {
-    let (min, max) = match server_mem {
-        Some(m) => (m.max(512), m.max(512)),
-        None => (settings.min_memory_mb.max(512), settings.max_memory_mb.max(1024)),
-    };
+/// `-Xms/-Xmx` plus any extra JVM args, resolving per-instance overrides over
+/// the global settings (and the legacy single `server_memory_mb`).
+fn memory_args(settings: &Settings, instance: &Instance) -> Vec<String> {
+    let max = instance
+        .max_memory_mb
+        .or(instance.server_memory_mb)
+        .unwrap_or(settings.max_memory_mb)
+        .max(512);
+    let min = instance
+        .min_memory_mb
+        .or(instance.server_memory_mb)
+        .unwrap_or(settings.min_memory_mb)
+        .max(512);
+    let jvm = instance
+        .jvm_args
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(settings.jvm_args.as_str());
     let mut args = vec![format!("-Xms{min}M"), format!("-Xmx{max}M")];
-    args.extend(settings.jvm_args.split_whitespace().map(String::from));
+    args.extend(jvm.split_whitespace().map(String::from));
     args
 }
 

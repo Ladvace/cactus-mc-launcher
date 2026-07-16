@@ -190,10 +190,6 @@
     gap: 8px;
     flex-shrink: 0;
   }
-  .btn.sm {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
   code {
     font-family: var(--font-pixel);
     color: var(--accent);

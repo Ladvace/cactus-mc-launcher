@@ -312,8 +312,6 @@
     color: var(--text-muted);
   }
   .btn.sm {
-    padding: 6px 12px;
-    font-size: 12px;
     align-self: flex-start;
   }
   .report {

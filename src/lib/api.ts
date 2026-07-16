@@ -139,7 +139,6 @@ export const api = {
     }),
 
   // Stickers (Giphy)
-  stickersEnabled: () => invoke<boolean>("stickers_enabled"),
 
   searchStickers: (query: string, offset = 0) =>
     invoke<Sticker[]>("search_stickers", { query, offset }),

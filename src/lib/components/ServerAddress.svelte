@@ -91,7 +91,7 @@
     color: var(--accent);
   }
   .host {
-    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-size: 13px;
     user-select: text;
   }

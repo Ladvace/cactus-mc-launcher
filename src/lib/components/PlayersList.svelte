@@ -190,10 +190,6 @@
   .add-row .input {
     flex: 1;
   }
-  .btn.sm {
-    padding: 6px 14px;
-    font-size: 12px;
-  }
   .rows {
     list-style: none;
     margin: 0;

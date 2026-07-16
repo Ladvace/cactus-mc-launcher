@@ -26,8 +26,15 @@ export interface Instance {
   lastPlayed: string | null;
   totalPlaytimeSeconds: number;
   coverImage: boolean;
-  /** Max heap (MB) for a server; null = use the global memory setting. */
+  /** Legacy server max heap (MB); superseded by maxMemoryMb. */
   serverMemoryMb: number | null;
+  // Per-instance overrides (null = use the global setting).
+  maxMemoryMb: number | null;
+  minMemoryMb: number | null;
+  jvmArgs: string | null;
+  javaPath: string | null;
+  gameWidth: number | null;
+  gameHeight: number | null;
 }
 
 export interface CreateInstance {
@@ -70,6 +77,13 @@ export interface UpdateInstance {
   coverImage?: boolean;
   /** Max heap (MB) for a server; 0 clears the override. */
   serverMemoryMb?: number;
+  // Per-instance overrides. 0 (numbers) / "" (strings) clears back to global.
+  maxMemoryMb?: number;
+  minMemoryMb?: number;
+  jvmArgs?: string;
+  javaPath?: string;
+  gameWidth?: number;
+  gameHeight?: number;
 }
 
 export interface Sticker {
@@ -168,6 +182,7 @@ export interface Settings {
   offlineUsername: string;
   background: string;
   uiSounds: boolean;
+  giphyApiKey: string;
 }
 
 // --- Launch events (mirror the Rust payloads in src-tauri/src/launch) ---

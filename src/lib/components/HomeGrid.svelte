@@ -23,7 +23,6 @@
   const PITCH = 168 + GAP;
   const MAX_H = 4;
   const DRAG_THRESHOLD = 6; // px before a press becomes a drag
-  const DWELL_MS = 550; // hover-over-target time that commits a group
 
   let gridWidth = $state(0);
   const maxCols = $derived(Math.max(1, Math.floor((gridWidth + GAP) / PITCH)));
@@ -51,7 +50,6 @@
   let draggingId = $state<string | null>(null);
   let dragKind = $state<"instance" | "folder" | null>(null);
   let dropTarget = $state<string | null>(null); // groupable tile under the cursor
-  let armed = $state(false); // dwell elapsed — the group is about to form
 
   // Non-reactive pointer session bookkeeping.
   let press: {
@@ -65,7 +63,6 @@
   } | null = null;
   let started = false;
   let clone: HTMLElement | null = null;
-  let dwellTimer: ReturnType<typeof setTimeout> | null = null;
   let suppressClick = false;
   let lastOver: string | null = null; // last tile hovered (arrange reorder guard)
 
@@ -91,7 +88,6 @@
     draggingId = press.id;
     dragKind = press.kind;
     dropTarget = null;
-    armed = false;
     lastOver = null;
     clone = makeClone(press.el);
     moveClone(e);
@@ -131,11 +127,6 @@
       .elementFromPoint(e.clientX, e.clientY)
       ?.closest<HTMLElement>("[data-entry-id]");
     return el?.dataset.entryId ?? null;
-  }
-
-  function clearDwell() {
-    if (dwellTimer) clearTimeout(dwellTimer);
-    dwellTimer = null;
   }
 
   function reorderTo(overId: string) {
@@ -202,14 +193,12 @@
     const target = ordered.find((x) => x.id === targetId);
     if (!target || !draggingId || dragKind !== "instance") return;
     const dragged = draggingId;
-    armed = true;
     flyCloneInto(targetId);
     performGroup(dragged, target);
     endDrag();
   }
 
   function endDrag() {
-    clearDwell();
     if (clone) {
       // Cancelled without grouping — snap back to where it came from.
       flyCloneInto(null);
@@ -220,7 +209,6 @@
     draggingId = null;
     dragKind = null;
     dropTarget = null;
-    armed = false;
   }
 
   // --- Global pointer handlers (shared with resize below) ---
@@ -244,20 +232,10 @@
       return;
     }
 
-    // Normal mode: dwell over a groupable tile to form/join a group.
+    // Normal mode: highlight a groupable tile under the cursor. Grouping only
+    // happens when the button is released over it (see onPointerUp).
     if (dragKind !== "instance") return;
-    const valid = overId && overId !== draggingId ? overId : null;
-    if (valid !== dropTarget) {
-      dropTarget = valid;
-      armed = false;
-      clearDwell();
-      if (valid) {
-        const capture = valid;
-        dwellTimer = setTimeout(() => {
-          if (dropTarget === capture) commitGroup(capture);
-        }, DWELL_MS);
-      }
-    }
+    dropTarget = overId && overId !== draggingId ? overId : null;
   }
 
   function onPointerUp(e: PointerEvent) {
@@ -325,7 +303,6 @@
       class="tile"
       class:dragging={draggingId === entry.id}
       class:droptarget={dropTarget === entry.id}
-      class:armed={dropTarget === entry.id && armed}
       class:resizing={resizing?.id === entry.id}
       data-entry-id={entry.id}
       style="grid-column: span {c.w}; grid-row: span {c.h};"
@@ -412,19 +389,6 @@
     outline-offset: -3px;
     transform: scale(1.03);
     transition: transform 0.12s ease;
-  }
-  .tile.armed :global(.card),
-  .tile.armed .folder {
-    animation: target-pulse 0.5s ease-in-out infinite;
-  }
-  @keyframes target-pulse {
-    0%,
-    100% {
-      transform: scale(1.03);
-    }
-    50% {
-      transform: scale(1.08);
-    }
   }
   @keyframes jiggle {
     0%,
