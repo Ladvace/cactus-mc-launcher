@@ -59,6 +59,11 @@
           running ? launchStore.stop(inst.id) : launchStore.launch(inst.id),
       },
       { label: "Open", icon: "folder", onSelect: () => goto(`/instance/${inst.id}`) },
+      {
+        label: inst.group ? `Group: ${inst.group}…` : "Move to group…",
+        icon: "folder",
+        onSelect: () => ui.openGroupPicker(inst),
+      },
       { separator: true },
       { label: "Upload image…", icon: "edit", onSelect: () => pickFile(inst.id) },
       {

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { browser } from "$app/environment";
   import InstanceCard from "./InstanceCard.svelte";
+  import { instanceLayout, type Cell } from "$lib/stores/instanceLayout.svelte";
   import type { Instance } from "$lib/types";
 
   interface Props {
@@ -9,68 +9,21 @@
   }
   let { instances, arranging = false }: Props = $props();
 
-  // --- Persisted per-instance layout (span + order) ---------------------------
-  interface Cell {
-    w: number; // column span
-    h: number; // row span
-    order: number;
-  }
-  const KEY = "drake:instanceLayout";
-
   // Grid geometry — a fixed cell so spans produce consistent tiles.
   const CELL = 168;
   const GAP = 16;
   const PITCH = CELL + GAP; // distance between two cell origins
   const MAX_H = 4;
 
-  // Legacy size-label → span, for migrating older saved layouts.
-  const LEGACY: Record<string, [number, number]> = {
-    s: [1, 1],
-    w: [2, 1],
-    t: [1, 2],
-    l: [2, 2],
-  };
-
-  function load(): Record<string, Cell> {
-    if (!browser) return {};
-    try {
-      const raw = JSON.parse(localStorage.getItem(KEY) || "{}") ?? {};
-      const out: Record<string, Cell> = {};
-      for (const [id, v] of Object.entries<any>(raw)) {
-        if (v && typeof v.w === "number" && typeof v.h === "number") {
-          out[id] = { w: v.w, h: v.h, order: v.order ?? 0 };
-        } else if (v && typeof v.size === "string" && LEGACY[v.size]) {
-          const [w, h] = LEGACY[v.size];
-          out[id] = { w, h, order: v.order ?? 0 };
-        }
-      }
-      return out;
-    } catch {
-      return {};
-    }
-  }
-
-  let layout = $state<Record<string, Cell>>(load());
-
-  function persist() {
-    if (browser) localStorage.setItem(KEY, JSON.stringify(layout));
-  }
-
   export function resetLayout() {
-    layout = {};
-    persist();
-  }
-  export function isCustomized() {
-    return Object.keys(layout).length > 0;
+    instanceLayout.reset();
   }
 
   // How many columns currently fit — clamps the max width a tile can grow to.
   let gridWidth = $state(0);
   const maxCols = $derived(Math.max(1, Math.floor((gridWidth + GAP) / PITCH)));
 
-  function cellOf(id: string): Cell {
-    return layout[id] ?? { w: 1, h: 1, order: Number.MAX_SAFE_INTEGER };
-  }
+  const cellOf = (id: string): Cell => instanceLayout.cellOf(id);
   const clamp = (n: number, lo: number, hi: number) =>
     Math.min(hi, Math.max(lo, n));
 
@@ -108,17 +61,11 @@
     const to = ids.indexOf(overId);
     if (from < 0 || to < 0) return;
     ids.splice(to, 0, ids.splice(from, 1)[0]);
-    const next: Record<string, Cell> = {};
-    ids.forEach((id, idx) => {
-      const c = cellOf(id);
-      next[id] = { w: c.w, h: c.h, order: idx };
-    });
-    layout = next;
+    instanceLayout.reorder(ids);
   }
 
   function onDragEnd() {
     draggingId = null;
-    persist();
   }
 
   // --- Resize by dragging an edge/corner (pointer events) ---------------------
@@ -159,14 +106,13 @@
     }
     const cur = cellOf(r.id);
     if (cur.w !== w || cur.h !== h) {
-      layout = { ...layout, [r.id]: { w, h, order: cur.order } };
+      instanceLayout.set(r.id, { w, h, order: cur.order });
     }
   }
 
   function onPointerUp() {
     if (!resizing) return;
     resizing = null;
-    persist();
   }
 </script>
 

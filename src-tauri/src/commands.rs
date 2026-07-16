@@ -62,7 +62,8 @@ pub fn update_instance(
         instance.icon = if icon.is_empty() { None } else { Some(icon) };
     }
     if let Some(group) = patch.group {
-        instance.group = Some(group);
+        // Empty string moves the instance out of any group.
+        instance.group = if group.is_empty() { None } else { Some(group) };
     }
     if let Some(mc_version) = patch.mc_version {
         instance.mc_version = mc_version;

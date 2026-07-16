@@ -2,19 +2,40 @@
   import { goto } from "$app/navigation";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { ui } from "$lib/stores/ui.svelte";
-  import InstanceGrid from "$lib/components/InstanceGrid.svelte";
+  import { instanceLayout } from "$lib/stores/instanceLayout.svelte";
+  import HomeGrid, { type Entry } from "$lib/components/HomeGrid.svelte";
+  import FolderOverlay from "$lib/components/FolderOverlay.svelte";
   import InstanceCardSkeleton from "$lib/components/InstanceCardSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import ContextMenu, { type MenuItem } from "$lib/components/ContextMenu.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import { api } from "$lib/api";
   import { boardApi } from "$lib/boardApi";
-  import { MOD_LOADERS, type ModLoader } from "$lib/types";
+  import { MOD_LOADERS, type Instance, type ModLoader } from "$lib/types";
 
   let query = $state("");
   let loaderFilter = $state<ModLoader | "all">("all");
   let arranging = $state(false);
-  let grid = $state<InstanceGrid>();
+  let openFolder = $state<string | null>(null);
+
+  // Build grid entries: ungrouped instances as tiles, each group as a folder.
+  const entries = $derived.by<Entry[]>(() => {
+    const map = new Map<string, Instance[]>();
+    const list: Entry[] = [];
+    for (const i of filtered) {
+      if (i.group) {
+        (map.get(i.group) ?? map.set(i.group, []).get(i.group)!).push(i);
+      } else {
+        list.push({ kind: "instance", id: i.id, instance: i });
+      }
+    }
+    for (const [name, insts] of [...map.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0])
+    )) {
+      list.push({ kind: "folder", id: `folder:${name}`, name, instances: insts });
+    }
+    return list;
+  });
 
   // --- Import / share context menu ---
   const online = boardApi.configured();
@@ -150,7 +171,7 @@
           Drag a tile to reorder · drag its right edge, bottom edge, or
           <Icon name="expand" size={12} /> corner to resize. Saved automatically.
         </span>
-        <button class="reset" onclick={() => grid?.resetLayout()}>
+        <button class="reset" onclick={() => instanceLayout.reset()}>
           <Icon name="refresh" size={12} /> Reset layout
         </button>
       </div>
@@ -175,9 +196,11 @@
   {:else if filtered.length === 0}
     <p class="muted">No instances match your filters.</p>
   {:else}
-    <InstanceGrid bind:this={grid} instances={filtered} {arranging} />
+    <HomeGrid {entries} {arranging} onOpenFolder={(n) => (openFolder = n)} />
   {/if}
 </div>
+
+<FolderOverlay name={openFolder} onClose={() => (openFolder = null)} />
 
 <input
   bind:this={fileInput}

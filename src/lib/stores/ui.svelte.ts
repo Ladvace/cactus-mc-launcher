@@ -16,6 +16,9 @@ class UiStore {
     onPick: (dataUri: string) => void;
   } | null>(null);
 
+  // "Move to group" picker target instance (null = closed).
+  groupFor = $state<Instance | null>(null);
+
   openCreateInstance() {
     this.createInstanceOpen = true;
   }
@@ -43,6 +46,14 @@ class UiStore {
   }
   closeStickerPicker() {
     this.stickerPicker = null;
+  }
+
+  openGroupPicker(instance: Instance) {
+    this.instanceMenu = null;
+    this.groupFor = instance;
+  }
+  closeGroupPicker() {
+    this.groupFor = null;
   }
 }
 
