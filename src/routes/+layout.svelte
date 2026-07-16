@@ -22,6 +22,14 @@
 
   const bg = $derived(backgroundCss(settingsStore.settings.background ?? ""));
 
+  // Reserve room for the dock on whichever edge it sits.
+  const dockPos = $derived(settingsStore.settings.dockPosition ?? "bottom");
+  const dockPad = $derived(
+    ({ bottom: "padding-bottom", top: "padding-top", left: "padding-left", right: "padding-right" } as const)[
+      dockPos as "bottom" | "top" | "left" | "right"
+    ] ?? "padding-bottom"
+  );
+
   // Brief branded splash on launch, then it fades and unmounts.
   let splash = $state(true);
 
@@ -61,7 +69,7 @@
 
 <div class="app">
   <div class="bg-layer" style="background: {bg};"></div>
-  <main class="content">
+  <main class="content" style="{dockPad}: 90px;">
     {@render children()}
   </main>
   <Dock onCreate={() => ui.openCreateInstance()} />
@@ -147,8 +155,10 @@
     height: 100vh;
     width: 100%;
     overflow-y: auto;
+    /* Always reserve the scrollbar gutter so switching between scrolling and
+       non-scrolling views doesn't nudge the layout sideways. */
+    scrollbar-gutter: stable;
     background: transparent;
-    /* leave room for the floating dock */
-    padding-bottom: 90px;
+    /* Room for the floating dock is added inline on whichever edge it sits. */
   }
 </style>

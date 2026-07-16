@@ -6,6 +6,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { installStore } from "$lib/stores/install.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
+  import { settingsStore } from "$lib/stores/settings.svelte";
   import { skinFace } from "$lib/skin";
   import { ui } from "$lib/stores/ui.svelte";
   import type { Instance } from "$lib/types";
@@ -15,6 +16,9 @@
   }
   let { onCreate }: Props = $props();
 
+  const pos = $derived(settingsStore.settings.dockPosition ?? "bottom");
+  const horizontal = $derived(pos === "top" || pos === "bottom");
+
   const path = $derived($page.url.pathname);
   const MAX_PINNED = 7;
   const pinned = $derived(instancesStore.instances.slice(0, MAX_PINNED));
@@ -23,8 +27,9 @@
   );
   const overflowList = $derived(instancesStore.instances.slice(MAX_PINNED));
 
-  // Popover listing the instances that don't fit on the dock.
-  let overflowMenu = $state<{ x: number; bottom: number } | null>(null);
+  // Popover listing the instances that don't fit on the dock. Its position is
+  // computed to open away from the docked edge, so an inline style string.
+  let overflowMenu = $state<string | null>(null);
   $effect(() => {
     if (overflow === 0) overflowMenu = null;
   });
@@ -34,10 +39,17 @@
       return;
     }
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    overflowMenu = {
-      x: r.left + r.width / 2,
-      bottom: window.innerHeight - r.top + 10,
-    };
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const gap = 10;
+    if (pos === "bottom")
+      overflowMenu = `left:${cx}px; bottom:${window.innerHeight - r.top + gap}px; transform:translateX(-50%);`;
+    else if (pos === "top")
+      overflowMenu = `left:${cx}px; top:${r.bottom + gap}px; transform:translateX(-50%);`;
+    else if (pos === "left")
+      overflowMenu = `left:${r.right + gap}px; top:${cy}px; transform:translateY(-50%);`;
+    else
+      overflowMenu = `right:${window.innerWidth - r.left + gap}px; top:${cy}px; transform:translateY(-50%);`;
   }
 
   type Item =
@@ -93,29 +105,35 @@
   });
 
   let dockEl = $state<HTMLElement>();
-  let dockLeft = 0; // captured on enter (resting frame) to avoid feedback drift
+  let dockStart = 0; // captured on enter (resting frame) to avoid feedback drift
   let scales = $state<number[]>([]);
   // Throttle to one update per animation frame — mousemove can fire far more
   // often than the display refreshes, which otherwise thrashes layout.
   let mouseX = 0;
+  let mouseY = 0;
   let inside = false;
   let rafId = 0;
 
   function apply() {
     rafId = 0;
     if (!inside) return;
-    const base = dockLeft + PAD;
+    const base = dockStart + PAD;
+    const pointer = horizontal ? mouseX : mouseY;
     scales = centers.map((c) => {
-      const d = Math.abs(mouseX - (base + c));
+      const d = Math.abs(pointer - (base + c));
       return d > RANGE ? 1 : 1 + (MAX - 1) * (1 - d / RANGE);
     });
   }
   function onEnter() {
-    if (dockEl) dockLeft = dockEl.getBoundingClientRect().left;
+    if (dockEl) {
+      const r = dockEl.getBoundingClientRect();
+      dockStart = horizontal ? r.left : r.top;
+    }
     inside = true;
   }
   function onMove(e: MouseEvent) {
     mouseX = e.clientX;
+    mouseY = e.clientY;
     if (!rafId) rafId = requestAnimationFrame(apply);
   }
   function reset() {
@@ -144,7 +162,7 @@
   }
 </script>
 
-<div class="dock-wrap">
+<div class="dock-wrap" data-pos={pos}>
   <div
     class="dock"
     bind:this={dockEl}
@@ -217,10 +235,7 @@
 
 {#if overflowMenu}
   <button class="ov-backdrop" aria-label="Close menu" onclick={() => (overflowMenu = null)}></button>
-  <div
-    class="ov-menu"
-    style="left:{overflowMenu.x}px; bottom:{overflowMenu.bottom}px;"
-  >
+  <div class="ov-menu" style={overflowMenu}>
     {#each overflowList as inst (inst.id)}
       <button class="ov-item" onclick={() => openOverflowInstance(inst.id)}>
         <InstanceIcon instance={inst} size={24} />
@@ -233,13 +248,33 @@
 <style>
   .dock-wrap {
     position: fixed;
+    display: flex;
+    pointer-events: none;
+    z-index: 50;
+  }
+  .dock-wrap[data-pos="bottom"] {
     left: 0;
     right: 0;
     bottom: 14px;
-    display: flex;
     justify-content: center;
-    pointer-events: none;
-    z-index: 50;
+  }
+  .dock-wrap[data-pos="top"] {
+    left: 0;
+    right: 0;
+    top: 14px;
+    justify-content: center;
+  }
+  .dock-wrap[data-pos="left"] {
+    top: 0;
+    bottom: 0;
+    left: 14px;
+    align-items: center;
+  }
+  .dock-wrap[data-pos="right"] {
+    top: 0;
+    bottom: 0;
+    right: 14px;
+    align-items: center;
   }
   .dock {
     pointer-events: auto;
@@ -255,11 +290,32 @@
       inset -2px -2px 0 rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(8px);
   }
+  [data-pos="top"] .dock {
+    align-items: flex-start;
+  }
+  /* Vertical docks: stack items in a column. */
+  [data-pos="left"] .dock,
+  [data-pos="right"] .dock {
+    flex-direction: column;
+    padding: 12px 8px;
+  }
+  [data-pos="left"] .dock {
+    align-items: flex-start;
+  }
+  [data-pos="right"] .dock {
+    align-items: flex-end;
+  }
   .dock-sep {
     width: 2px;
     align-self: stretch;
     margin: 4px 2px;
     background: var(--border);
+  }
+  [data-pos="left"] .dock-sep,
+  [data-pos="right"] .dock-sep {
+    width: auto;
+    height: 2px;
+    margin: 2px 4px;
   }
   .dock-item {
     --s: 1;
@@ -275,8 +331,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* transform grows the icon upward without changing the dock's height;
-       the margin reserves horizontal space so neighbors never overlap. */
+    /* transform grows the icon away from the docked edge without resizing the
+       bar; the margin reserves flow-axis space so neighbours never overlap. */
     transform: scale(var(--s));
     transform-origin: bottom center;
     margin: 0 calc((var(--s) - 1) * 24px);
@@ -285,6 +341,17 @@
       inset -2px -2px 0 rgba(0, 0, 0, 0.28);
     transition: transform 0.18s ease, margin 0.18s ease, border-color 0.12s,
       color 0.12s;
+  }
+  [data-pos="top"] .dock-item {
+    transform-origin: top center;
+  }
+  [data-pos="left"] .dock-item {
+    transform-origin: left center;
+    margin: calc((var(--s) - 1) * 24px) 0;
+  }
+  [data-pos="right"] .dock-item {
+    transform-origin: right center;
+    margin: calc((var(--s) - 1) * 24px) 0;
   }
   .dock-item:hover {
     color: var(--text);
@@ -336,7 +403,6 @@
   .ov-menu {
     position: fixed;
     z-index: 56;
-    transform: translateX(-50%);
     max-height: 320px;
     overflow-y: auto;
     min-width: 200px;
@@ -405,6 +471,21 @@
     height: 4px;
     background: var(--accent);
   }
+  [data-pos="top"] .dot {
+    bottom: auto;
+    top: -6px;
+  }
+  [data-pos="left"] .dot {
+    bottom: 50%;
+    left: -6px;
+    transform: translateY(50%);
+  }
+  [data-pos="right"] .dot {
+    bottom: 50%;
+    left: auto;
+    right: -6px;
+    transform: translateY(50%);
+  }
   .tip {
     position: absolute;
     bottom: calc(100% + 9px);
@@ -422,6 +503,27 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.1s;
+  }
+  /* Tooltips point away from the docked edge. */
+  [data-pos="top"] .tip {
+    bottom: auto;
+    top: calc(100% + 9px);
+    transform-origin: top center;
+  }
+  [data-pos="left"] .tip {
+    bottom: auto;
+    top: 50%;
+    left: calc(100% + 9px);
+    transform: translateY(-50%) scale(calc(1 / var(--s)));
+    transform-origin: left center;
+  }
+  [data-pos="right"] .tip {
+    bottom: auto;
+    top: 50%;
+    left: auto;
+    right: calc(100% + 9px);
+    transform: translateY(-50%) scale(calc(1 / var(--s)));
+    transform-origin: right center;
   }
   .dock-item:hover .tip {
     opacity: 1;

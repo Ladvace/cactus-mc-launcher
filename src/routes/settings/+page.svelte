@@ -15,7 +15,14 @@
   } from "$lib/background";
   import { fileToBackgroundDataUri } from "$lib/image";
   import { playClick } from "$lib/sound";
-  import type { CacheStats, Settings } from "$lib/types";
+  import type { CacheStats, DockPosition, Settings } from "$lib/types";
+
+  const DOCK_POSITIONS: { value: DockPosition; label: string }[] = [
+    { value: "bottom", label: "Bottom" },
+    { value: "top", label: "Top" },
+    { value: "left", label: "Left" },
+    { value: "right", label: "Right" },
+  ];
 
   // Local editable copy; committed on "Save".
   let draft = $state<Settings>({ ...settingsStore.settings });
@@ -231,6 +238,24 @@
         autocomplete="off"
         spellcheck="false"
       />
+    </div>
+
+    <div class="setting">
+      <div class="label">
+        <span>Dock position</span>
+        <small>Which edge of the window the app dock sits on.</small>
+      </div>
+      <div class="seg">
+        {#each DOCK_POSITIONS as p}
+          <button
+            class="seg-btn"
+            class:on={draft.dockPosition === p.value}
+            onclick={() => (draft.dockPosition = p.value)}
+          >
+            {p.label}
+          </button>
+        {/each}
+      </div>
     </div>
   </section>
 
@@ -470,6 +495,13 @@
       </div>
     {/if}
   </section>
+
+  <div class="save-bar">
+    {#if saved}<span class="saved">Saved ✓</span>{/if}
+    <button class="btn primary" onclick={save} disabled={saving}>
+      {saving ? "Saving…" : "Save changes"}
+    </button>
+  </div>
 </div>
 
 <style>
@@ -661,6 +693,38 @@
   .bg-color-label {
     font-size: 13px;
     color: var(--text-secondary);
+  }
+  /* Segmented control (dock position). */
+  .seg {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .seg-btn {
+    padding: 8px 14px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    border-left-width: 0;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-weight: 600;
+  }
+  .seg-btn:first-child {
+    border-left-width: 2px;
+  }
+  .seg-btn:hover {
+    color: var(--text);
+  }
+  .seg-btn.on {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .save-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 4px;
   }
   .swatch {
     width: 56px;

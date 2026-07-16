@@ -13,6 +13,7 @@ const DEFAULTS: Settings = {
   background: "",
   uiSounds: true,
   giphyApiKey: "",
+  dockPosition: "bottom",
 };
 
 /// Reactive settings store, persisted through the Rust backend.

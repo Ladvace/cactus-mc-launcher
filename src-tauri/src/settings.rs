@@ -30,6 +30,8 @@ pub struct Settings {
     /// User-supplied Giphy API key that enables the animated-sticker picker.
     /// Empty = stickers disabled (the emoji picker still works).
     pub giphy_api_key: String,
+    /// Where the dock sits: "bottom" | "top" | "left" | "right".
+    pub dock_position: String,
 }
 
 impl Default for Settings {
@@ -46,6 +48,7 @@ impl Default for Settings {
             background: String::new(),
             ui_sounds: true,
             giphy_api_key: String::new(),
+            dock_position: "bottom".into(),
         }
     }
 }

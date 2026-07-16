@@ -193,7 +193,10 @@ export interface Settings {
   background: string;
   uiSounds: boolean;
   giphyApiKey: string;
+  dockPosition: DockPosition;
 }
+
+export type DockPosition = "bottom" | "top" | "left" | "right";
 
 // --- Launch events (mirror the Rust payloads in src-tauri/src/launch) ---
 
