@@ -70,6 +70,9 @@ pub fn run() {
             commands::board_login,
             commands::publish_setup,
             commands::instance_share_check,
+            commands::set_skin,
+            commands::get_capes,
+            commands::set_cape,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

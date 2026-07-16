@@ -137,4 +137,17 @@ export const api = {
     invoke<{ ok: boolean; optOut: string[] }>("instance_share_check", {
       instanceId,
     }),
+
+  /** Change the active account's Minecraft skin (PNG bytes + classic/slim). */
+  setSkin: (bytes: number[], variant: "classic" | "slim") =>
+    invoke<void>("set_skin", { bytes, variant }),
+
+  /** Capes owned by the active account. */
+  getCapes: () =>
+    invoke<{ id: string; alias: string; url: string; active: boolean }[]>(
+      "get_capes"
+    ),
+
+  /** Set the active cape (id) or hide it (null). */
+  setCape: (capeId: string | null) => invoke<void>("set_cape", { capeId }),
 };

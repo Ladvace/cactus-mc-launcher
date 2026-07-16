@@ -25,7 +25,19 @@
     launchStore.init();
     accountsStore.init();
   });
+
+  // Suppress the OS/browser right-click menu everywhere (it looks out of place
+  // in a native app) — except in text fields, where paste is useful. Our own
+  // context menus call preventDefault + open regardless.
+  function onContextMenu(e: MouseEvent) {
+    const t = e.target as HTMLElement | null;
+    const tag = t?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || t?.isContentEditable) return;
+    e.preventDefault();
+  }
 </script>
+
+<svelte:window oncontextmenu={onContextMenu} />
 
 <div class="app">
   <div class="bg-layer" style="background: {bg};"></div>

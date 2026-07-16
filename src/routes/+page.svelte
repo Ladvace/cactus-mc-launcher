@@ -218,6 +218,10 @@
 </Modal>
 
 <style>
+  .page {
+    /* Fill the viewport so right-clicking the empty area still opens the menu. */
+    min-height: 100%;
+  }
   .hero-actions {
     display: flex;
     gap: 10px;

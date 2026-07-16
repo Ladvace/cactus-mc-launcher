@@ -63,6 +63,20 @@ body {
   background: var(--bg-app);
   color: var(--text);
   overflow: hidden;
+  /* Native desktop feel: nothing is text-selectable by default… */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* …except fields you type in, and elements explicitly meant to be copied
+   (share codes, server addresses use `user-select: all`). */
+input,
+textarea,
+[contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 h1,

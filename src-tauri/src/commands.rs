@@ -422,3 +422,120 @@ pub async fn instance_share_check(app: AppHandle, instance_id: String) -> Result
         opt_out,
     })
 }
+
+// ---------------------------------------------------------------------------
+// Character skin
+// ---------------------------------------------------------------------------
+
+/// Change the active Microsoft account's Minecraft skin. `variant` is
+/// "classic" or "slim". `bytes` is a 64×64 (or 64×32) PNG skin.
+#[tauri::command]
+pub async fn set_skin(
+    app: AppHandle,
+    store: State<'_, AccountStore>,
+    bytes: Vec<u8>,
+    variant: String,
+) -> Result<()> {
+    let account = store
+        .active_account()
+        .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
+    let _ = &app;
+
+    let variant = if variant == "slim" { "slim" } else { "classic" };
+    let form = reqwest::multipart::Form::new()
+        .text("variant", variant.to_string())
+        .part(
+            "file",
+            reqwest::multipart::Part::bytes(bytes)
+                .file_name("skin.png")
+                .mime_str("image/png")?,
+        );
+
+    let resp = reqwest::Client::new()
+        .post("https://api.minecraftservices.com/minecraft/profile/skins")
+        .bearer_auth(&account.mc_access_token)
+        .multipart(form)
+        .send()
+        .await?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(AppError::Other(format!("couldn't set skin ({status}): {text}")));
+    }
+    Ok(())
+}
+
+/// A cape the account owns.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Cape {
+    id: String,
+    alias: String,
+    url: String,
+    active: bool,
+}
+
+/// List the capes on the active Microsoft account.
+#[tauri::command]
+pub async fn get_capes(store: State<'_, AccountStore>) -> Result<Vec<Cape>> {
+    let account = store
+        .active_account()
+        .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
+    let profile: serde_json::Value = reqwest::Client::new()
+        .get("https://api.minecraftservices.com/minecraft/profile")
+        .bearer_auth(&account.mc_access_token)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+
+    let capes = profile
+        .get("capes")
+        .and_then(|c| c.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let out = capes
+        .iter()
+        .filter_map(|c| {
+            Some(Cape {
+                id: c.get("id")?.as_str()?.to_string(),
+                alias: c
+                    .get("alias")
+                    .and_then(|a| a.as_str())
+                    .unwrap_or("Cape")
+                    .to_string(),
+                url: c.get("url")?.as_str()?.to_string(),
+                active: c.get("state").and_then(|s| s.as_str()) == Some("ACTIVE"),
+            })
+        })
+        .collect();
+    Ok(out)
+}
+
+/// Set the active cape (`Some(id)`) or hide it (`None`).
+#[tauri::command]
+pub async fn set_cape(store: State<'_, AccountStore>, cape_id: Option<String>) -> Result<()> {
+    let account = store
+        .active_account()
+        .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
+    let client = reqwest::Client::new();
+    let url = "https://api.minecraftservices.com/minecraft/profile/capes/active";
+    let resp = match cape_id {
+        Some(id) => {
+            client
+                .put(url)
+                .bearer_auth(&account.mc_access_token)
+                .json(&serde_json::json!({ "capeId": id }))
+                .send()
+                .await?
+        }
+        None => client.delete(url).bearer_auth(&account.mc_access_token).send().await?,
+    };
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(AppError::Other(format!("couldn't set cape ({status}): {text}")));
+    }
+    Ok(())
+}

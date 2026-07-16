@@ -1,9 +1,11 @@
 <script lang="ts">
   import Modal from "./Modal.svelte";
   import Icon from "./Icon.svelte";
+  import SkinViewer from "./SkinViewer.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { skinFace } from "$lib/skin";
+  import { api } from "$lib/api";
   import { openUrl } from "@tauri-apps/plugin-opener";
 
   interface Props {
@@ -17,6 +19,110 @@
   );
   const dc = $derived(accountsStore.deviceCode);
 
+  // --- Skin viewer / changer (active Microsoft account) ---
+  const active = $derived(accountsStore.active);
+  let mode = $state<"3d" | "2d">("3d");
+  let variant = $state<"classic" | "slim">("classic");
+  let skinData = $state(""); // data URI for the 3D viewer (fetched to avoid CORS)
+  let capeData = $state(""); // active cape as a data URI
+  let capes = $state<{ id: string; alias: string; url: string; active: boolean }[]>([]);
+  let skinInput = $state<HTMLInputElement>();
+  let changing = $state(false);
+  let dragOver = $state(false);
+  let skinMsg = $state<string | null>(null);
+
+  // Load the current skin (via Rust to dodge cross-origin WebGL taint).
+  $effect(() => {
+    const a = active;
+    if (!open || !a) {
+      skinData = "";
+      return;
+    }
+    api
+      .downloadImage(`https://minotar.net/skin/${a.uuid}`)
+      .then((d) => (skinData = d))
+      .catch(() => (skinData = ""));
+  });
+
+  // Load capes the account owns.
+  $effect(() => {
+    const a = active;
+    if (!open || !a) {
+      capes = [];
+      capeData = "";
+      return;
+    }
+    api
+      .getCapes()
+      .then((cs) => {
+        capes = cs;
+        loadActiveCape(cs);
+      })
+      .catch(() => (capes = []));
+  });
+
+  function loadActiveCape(cs: typeof capes) {
+    const activeCape = cs.find((c) => c.active);
+    if (activeCape) {
+      api
+        .downloadImage(activeCape.url)
+        .then((d) => (capeData = d))
+        .catch(() => (capeData = ""));
+    } else {
+      capeData = "";
+    }
+  }
+
+  async function chooseCape(id: string | null) {
+    try {
+      await api.setCape(id);
+      capes = capes.map((c) => ({ ...c, active: c.id === id }));
+      loadActiveCape(capes);
+    } catch (e) {
+      skinMsg = String(e);
+    }
+  }
+
+  function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function applySkinFile(file: File) {
+    if (!active) return;
+    changing = true;
+    skinMsg = null;
+    try {
+      const buf = await file.arrayBuffer();
+      await api.setSkin(Array.from(new Uint8Array(buf)), variant);
+      skinData = await fileToDataUrl(file); // instant preview
+      skinMsg = "Skin updated ✓";
+      setTimeout(() => (skinMsg = null), 4000);
+    } catch (err) {
+      skinMsg = String(err);
+    } finally {
+      changing = false;
+    }
+  }
+
+  function onSkinFile(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (file) applySkinFile(file);
+  }
+
+  function onSkinDrop(e: DragEvent) {
+    e.preventDefault();
+    dragOver = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type === "image/png") applySkinFile(file);
+  }
+
   async function openLink(url: string) {
     try {
       await openUrl(url);
@@ -27,6 +133,80 @@
 </script>
 
 <Modal title="Accounts" {open} {onClose} width={460}>
+  {#if active}
+    <div class="skin-panel">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="skin-stage"
+        class:drag={dragOver}
+        ondragover={(e) => {
+          e.preventDefault();
+          dragOver = true;
+        }}
+        ondragleave={() => (dragOver = false)}
+        ondrop={onSkinDrop}
+      >
+        {#if mode === "3d"}
+          {#if skinData}
+            <SkinViewer skin={skinData} model={variant} cape={capeData} width={170} height={250} />
+          {:else}
+            <div class="skin-loading"><span class="spinner"></span></div>
+          {/if}
+        {:else}
+          <img
+            class="skin-2d"
+            src={`https://minotar.net/armor/body/${active.uuid}/210.png`}
+            alt="{active.username}'s skin"
+          />
+        {/if}
+        {#if dragOver}<div class="drop-hint">Drop a PNG skin</div>{/if}
+      </div>
+      <div class="skin-controls">
+        <div class="mode-toggle">
+          <button class:on={mode === "3d"} onclick={() => (mode = "3d")}>3D</button>
+          <button class:on={mode === "2d"} onclick={() => (mode = "2d")}>2D</button>
+        </div>
+        <span class="skin-label">Model</span>
+        <select class="select" bind:value={variant}>
+          <option value="classic">Classic (Steve)</option>
+          <option value="slim">Slim (Alex)</option>
+        </select>
+        {#if capes.length}
+          <span class="skin-label">Cape</span>
+          <div class="cape-row">
+            <button
+              class="cape-btn"
+              class:on={!capes.some((c) => c.active)}
+              onclick={() => chooseCape(null)}>None</button
+            >
+            {#each capes as c (c.id)}
+              <button class="cape-btn" class:on={c.active} onclick={() => chooseCape(c.id)}>
+                {c.alias}
+              </button>
+            {/each}
+          </div>
+        {/if}
+        <button
+          class="btn primary"
+          disabled={changing}
+          onclick={() => skinInput?.click()}
+        >
+          <Icon name="edit" size={14} />
+          {changing ? "Applying…" : "Change skin…"}
+        </button>
+        {#if skinMsg}<p class="skin-msg">{skinMsg}</p>{/if}
+        <p class="skin-hint">Upload or drop a 64×64 PNG skin.</p>
+      </div>
+      <input
+        bind:this={skinInput}
+        type="file"
+        accept="image/png"
+        style="display:none"
+        onchange={onSkinFile}
+      />
+    </div>
+  {/if}
+
   <div class="list">
     <!-- Offline -->
     <button
@@ -131,6 +311,119 @@
   button.row:hover,
   .row:hover {
     border-color: var(--accent);
+  }
+  .skin-panel {
+    display: flex;
+    gap: 16px;
+    padding: 14px;
+    margin-bottom: 16px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+  }
+  .skin-stage {
+    position: relative;
+    width: 170px;
+    height: 250px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 35%, var(--bg-card), var(--bg-app));
+    border: 2px solid var(--border-subtle);
+  }
+  .skin-stage.drag {
+    border-color: var(--accent);
+    border-style: dashed;
+  }
+  .drop-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--accent);
+    font-size: 13px;
+    pointer-events: none;
+  }
+  .skin-2d {
+    max-height: 230px;
+    image-rendering: pixelated;
+  }
+  .skin-loading {
+    color: var(--text-muted);
+  }
+  .spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid rgba(255, 255, 255, 0.25);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .skin-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+  .mode-toggle {
+    display: flex;
+    border: 2px solid var(--border);
+    align-self: flex-start;
+  }
+  .mode-toggle button {
+    padding: 5px 14px;
+    background: var(--bg-card);
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-pixel);
+    font-size: 12px;
+  }
+  .mode-toggle button.on {
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+  .skin-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 4px;
+  }
+  .cape-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .cape-btn {
+    padding: 4px 8px;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 11.5px;
+  }
+  .cape-btn.on {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .skin-msg {
+    margin: 0;
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .skin-hint {
+    margin: 0;
+    font-size: 11px;
+    color: var(--text-muted);
   }
   .row.active {
     border-color: var(--accent);
