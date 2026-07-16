@@ -84,7 +84,15 @@ textarea,
 [contenteditable] {
   user-select: text;
   -webkit-user-select: text;
+}
+/* Only text-entry fields get the I-beam — not sliders, checkboxes, colours, etc. */
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
+textarea,
+[contenteditable] {
   cursor: text;
+}
+input[type="range"] {
+  cursor: pointer;
 }
 
 h1,
