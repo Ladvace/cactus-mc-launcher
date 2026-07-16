@@ -4,11 +4,19 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { api } from "$lib/api";
   import { fileToIconDataUri } from "$lib/image";
+  import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
   let fileInput = $state<HTMLInputElement>();
   let pendingId = $state<string | null>(null);
   let error = $state<string | null>(null);
+  let toast = $state<string | null>(null);
+
+  function flash(msg: string) {
+    toast = msg;
+    setTimeout(() => (toast = null), 4000);
+  }
 
   const menu = $derived(ui.instanceMenu);
 
@@ -50,6 +58,17 @@
         disabled: !inst.icon,
         onSelect: () => instancesStore.resetIcon(inst.id),
       },
+      { separator: true },
+      {
+        label: "Export setup…",
+        icon: "share",
+        onSelect: () => exportSetup(inst.id, "drakepack"),
+      },
+      {
+        label: "Export as .mrpack…",
+        icon: "upload",
+        onSelect: () => exportSetup(inst.id, "mrpack"),
+      },
     ];
   });
 
@@ -57,6 +76,25 @@
     pendingId = id;
     error = null;
     fileInput?.click();
+  }
+
+  async function exportSetup(id: string, format: "drakepack" | "mrpack") {
+    try {
+      const res = await api.exportSetup(id, format);
+      flash(
+        res.skipped.length
+          ? `Exported — ${res.skipped.length} non-Modrinth item(s) skipped.`
+          : "Setup exported."
+      );
+      try {
+        await revealItemInDir(res.path);
+      } catch {
+        /* reveal is best-effort */
+      }
+    } catch (err) {
+      error = String(err);
+      setTimeout(() => (error = null), 4000);
+    }
   }
 
   async function onFile(e: Event) {
@@ -97,7 +135,9 @@
 {/if}
 
 {#if error}
-  <div class="toast" role="alert">Couldn't set image: {error}</div>
+  <div class="toast" role="alert">{error}</div>
+{:else if toast}
+  <div class="toast ok" role="status">{toast}</div>
 {/if}
 
 <style>
@@ -113,5 +153,9 @@
     color: var(--danger);
     font-size: 13px;
     box-shadow: var(--shadow-md);
+  }
+  .toast.ok {
+    border-color: var(--accent);
+    color: var(--accent);
   }
 </style>

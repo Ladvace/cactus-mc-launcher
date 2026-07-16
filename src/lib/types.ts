@@ -48,6 +48,61 @@ export interface Sticker {
   full: string;
 }
 
+export interface ImportResult {
+  instance: Instance;
+  installed: number;
+  skipped: string[];
+}
+
+export interface ExportResult {
+  path: string;
+  skipped: string[];
+}
+
+// --- Streamer service DTOs (mirror server/src/types.ts) ---
+export interface StreamerCard {
+  handle: string;
+  displayName: string;
+  platform: "twitch" | "youtube";
+  isLive: boolean;
+  currentActivity: string | null;
+}
+
+export interface StreamerProfile extends StreamerCard {
+  currentSnapshotId: string | null;
+  serverInfo: { address: string; notes?: string; gated?: boolean } | null;
+  isPublic: boolean;
+}
+
+export interface StreamerSession {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number; // unix seconds
+  userId: string;
+  displayName: string;
+  provider: string;
+}
+
+export interface OwnedProfile {
+  handle: string;
+  displayName: string;
+  platform: "twitch" | "youtube";
+  isPublic: boolean;
+  currentSnapshotId: string | null;
+  serverInfo: { address: string; notes?: string; gated?: boolean } | null;
+}
+
+export interface SnapshotManifest {
+  id: string;
+  streamerHandle: string;
+  format: "drakepack" | "mrpack";
+  mcVersion: string | null;
+  modLoader: string | null;
+  changelog: string | null;
+  downloadUrl: string;
+  createdAt: string;
+}
+
 export interface CacheStats {
   files: number;
   bytes: number;

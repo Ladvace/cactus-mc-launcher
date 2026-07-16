@@ -9,8 +9,10 @@ mod minecraft;
 mod modrinth;
 mod paths;
 mod settings;
+mod snapshot;
 mod sources;
 mod stickers;
+mod streamer_auth;
 
 use auth::AccountStore;
 use instance::store::InstanceStore;
@@ -63,6 +65,10 @@ pub fn run() {
             commands::search_stickers,
             commands::download_image,
             commands::content_cache_stats,
+            commands::export_setup,
+            commands::import_setup,
+            commands::streamer_login,
+            commands::publish_setup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

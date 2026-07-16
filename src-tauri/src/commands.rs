@@ -323,3 +323,55 @@ pub async fn download_image(url: String) -> Result<String> {
 pub fn content_cache_stats(app: AppHandle) -> Result<content::CacheStats> {
     content::cache::stats(&app)
 }
+
+// ---------------------------------------------------------------------------
+// Snapshots (share / export-import)
+// ---------------------------------------------------------------------------
+
+/// Export an instance's full setup to a `.drakepack` or `.mrpack` file.
+#[tauri::command]
+pub async fn export_setup(
+    app: AppHandle,
+    instance_id: String,
+    format: String,
+    note: Option<String>,
+) -> Result<crate::snapshot::ExportResult> {
+    crate::snapshot::export(&app, &instance_id, &format, note).await
+}
+
+/// Import a snapshot (raw `.drakepack` bytes) as a new instance.
+#[tauri::command]
+pub async fn import_setup(
+    app: AppHandle,
+    bytes: Vec<u8>,
+) -> Result<crate::snapshot::ImportResult> {
+    crate::snapshot::import(&app, bytes).await
+}
+
+// ---------------------------------------------------------------------------
+// Streamer service (sign-in + publish)
+// ---------------------------------------------------------------------------
+
+/// Sign in to the hosted streamer service via Supabase OAuth (loopback + PKCE).
+#[tauri::command]
+pub async fn streamer_login(
+    supabase_url: String,
+    anon_key: String,
+    provider: String,
+) -> Result<crate::streamer_auth::Session> {
+    crate::streamer_auth::login(&supabase_url, &anon_key, &provider).await
+}
+
+/// Export an instance and publish it as the signed-in streamer's current
+/// snapshot; returns the new snapshot id.
+#[tauri::command]
+pub async fn publish_setup(
+    app: AppHandle,
+    instance_id: String,
+    format: String,
+    api_base: String,
+    access_token: String,
+    changelog: Option<String>,
+) -> Result<String> {
+    crate::snapshot::publish(&app, &instance_id, &format, &api_base, &access_token, changelog).await
+}

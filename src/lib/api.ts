@@ -4,6 +4,8 @@ import type {
   AccountsState,
   CacheStats,
   ContentItem,
+  ExportResult,
+  ImportResult,
   CreateInstance,
   Instance,
   LoaderVersion,
@@ -114,4 +116,19 @@ export const api = {
 
   // Shared content cache
   contentCacheStats: () => invoke<CacheStats>("content_cache_stats"),
+
+  // Snapshots (share / export-import)
+  exportSetup: (
+    instanceId: string,
+    format: "drakepack" | "mrpack" = "drakepack",
+    note?: string | null
+  ) =>
+    invoke<ExportResult>("export_setup", {
+      instanceId,
+      format,
+      note: note ?? null,
+    }),
+
+  importSetup: (bytes: number[]) =>
+    invoke<ImportResult>("import_setup", { bytes }),
 };

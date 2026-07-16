@@ -29,6 +29,11 @@
     expand: "expand",
     refresh: "refresh",
     check: "check",
+    share: "share",
+    upload: "upload",
+    download: "download",
+    users: "users",
+    video: "video-camera",
   };
 
   const cls = $derived(`hn hn-${MAP[name] ?? "grid"}`);
