@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from "$app/environment";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import Icon from "./Icon.svelte";
@@ -20,12 +21,26 @@
   const horizontal = $derived(pos === "top" || pos === "bottom");
 
   const path = $derived($page.url.pathname);
-  const MAX_PINNED = 7;
-  const pinned = $derived(instancesStore.instances.slice(0, MAX_PINNED));
-  const overflow = $derived(
-    Math.max(0, instancesStore.instances.length - MAX_PINNED)
-  );
-  const overflowList = $derived(instancesStore.instances.slice(MAX_PINNED));
+
+  // Track viewport height so a vertical (left/right) dock fits the space
+  // instead of running off the top/bottom.
+  let winH = $state(browser ? window.innerHeight : 900);
+
+  // How many instance tiles to pin. Top/bottom keep the flat cap of 7; left/
+  // right compute how many fit in the height, reserving one slot for the
+  // overflow tile when it's needed so the bar never overflows the screen.
+  const cap = $derived.by(() => {
+    if (horizontal) return 7;
+    const chrome = 52; // dock padding + border + a little breathing room
+    const perTile = 56; // ITEM (48) + GAP (8)
+    const fixed = 6 * perTile + 2 * 14; // 6 fixed tiles + 2 separators
+    const slots = Math.max(1, Math.min(7, Math.floor((winH - chrome - fixed) / perTile)));
+    const total = instancesStore.instances.length;
+    return total <= slots ? slots : Math.max(1, slots - 1);
+  });
+  const pinned = $derived(instancesStore.instances.slice(0, cap));
+  const overflow = $derived(Math.max(0, instancesStore.instances.length - cap));
+  const overflowList = $derived(instancesStore.instances.slice(cap));
 
   // Popover listing the instances that don't fit on the dock. Its position is
   // computed to open away from the docked edge, so an inline style string.
@@ -231,6 +246,10 @@
 
 <svelte:window
   onkeydown={(e) => e.key === "Escape" && (overflowMenu = null)}
+  onresize={() => {
+    winH = window.innerHeight;
+    overflowMenu = null;
+  }}
 />
 
 {#if overflowMenu}

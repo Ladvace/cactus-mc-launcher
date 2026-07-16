@@ -700,16 +700,18 @@
     flex-shrink: 0;
   }
   .seg-btn {
+    position: relative;
     padding: 8px 14px;
     background: var(--bg-input);
     border: 2px solid var(--border);
-    border-left-width: 0;
     color: var(--text-secondary);
     font-size: 12.5px;
     font-weight: 600;
+    /* Overlap the neighbour's border so the seam is a single line, not double. */
+    margin-left: -2px;
   }
   .seg-btn:first-child {
-    border-left-width: 2px;
+    margin-left: 0;
   }
   .seg-btn:hover {
     color: var(--text);
@@ -718,6 +720,8 @@
     color: var(--accent);
     background: var(--accent-soft);
     border-color: var(--accent);
+    /* Raise the active button so its full accent border sits above neighbours. */
+    z-index: 1;
   }
   .save-bar {
     display: flex;
