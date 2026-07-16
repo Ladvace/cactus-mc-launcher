@@ -26,8 +26,11 @@
   });
 
   let active = $state<"discover" | string>("discover");
+  // Board-handle tabs = followed boards, plus the current one if it's an
+  // ad-hoc board being viewed. "discover"/"play" are built-in, not handles.
+  const BUILTIN = ["discover", "play"];
   const tabs = $derived(
-    active !== "discover" && !followedBoards.handles.includes(active)
+    !BUILTIN.includes(active) && !followedBoards.handles.includes(active)
       ? [...followedBoards.handles, active]
       : followedBoards.handles
   );
