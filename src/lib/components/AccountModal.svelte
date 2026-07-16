@@ -6,6 +6,7 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { skinFace } from "$lib/skin";
   import { api } from "$lib/api";
+  import { toast } from "$lib/stores/toast.svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
 
   interface Props {
@@ -79,7 +80,7 @@
       capes = capes.map((c) => ({ ...c, active: c.id === id }));
       loadActiveCape(capes);
     } catch (e) {
-      skinMsg = String(e);
+      toast.error(String(e));
     }
   }
 
@@ -103,7 +104,7 @@
       skinMsg = "Skin updated ✓";
       setTimeout(() => (skinMsg = null), 4000);
     } catch (err) {
-      skinMsg = String(err);
+      toast.error(String(err));
     } finally {
       changing = false;
     }

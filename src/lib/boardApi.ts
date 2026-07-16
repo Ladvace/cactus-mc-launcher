@@ -10,6 +10,7 @@ import type {
   BoardCard,
   BoardSession,
   ImportResult,
+  OwnedBoard,
   SnapshotManifest,
 } from "$lib/types";
 
@@ -83,7 +84,7 @@ export const boardApi = {
 
   // --- Creator (authed) ---
   myBoards: (token: string) =>
-    authed<{ boards: BoardCard[] }>(`/v1/boards/me`, token).then((r) => r.boards),
+    authed<{ boards: OwnedBoard[] }>(`/v1/boards/me`, token).then((r) => r.boards),
 
   createBoard: (
     token: string,
@@ -107,11 +108,23 @@ export const boardApi = {
       body: JSON.stringify(patch),
     }),
 
+  deleteBoard: (token: string, handle: string) =>
+    authed<void>(`/v1/boards/${encodeURIComponent(handle)}`, token, {
+      method: "DELETE",
+    }),
+
   postMessage: (token: string, handle: string, body: string) =>
     authed<void>(`/v1/boards/${encodeURIComponent(handle)}/messages`, token, {
       method: "POST",
       body: JSON.stringify({ body }),
     }),
+
+  deleteMessage: (token: string, handle: string, id: string) =>
+    authed<void>(
+      `/v1/boards/${encodeURIComponent(handle)}/messages/${encodeURIComponent(id)}`,
+      token,
+      { method: "DELETE" }
+    ),
 
   mintCode: (token: string, snapshotId: string) =>
     authed<{ code: string }>(`/v1/codes`, token, {

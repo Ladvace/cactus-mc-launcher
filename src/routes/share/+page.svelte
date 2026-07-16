@@ -4,12 +4,25 @@
   import BoardView from "$lib/components/BoardView.svelte";
   import { api } from "$lib/api";
   import { boardApi } from "$lib/boardApi";
+  import { boardAuth } from "$lib/stores/boardAuth.svelte";
   import { followedBoards } from "$lib/stores/followedBoards.svelte";
   import { recordImport } from "$lib/importedFrom";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import type { BoardCard, ImportResult } from "$lib/types";
 
   const online = boardApi.configured();
+
+  // If already signed in, learn whether the user has a board (to flip the button).
+  let hasBoard = $state(false);
+  $effect(() => {
+    const token = boardAuth.token;
+    if (!online || !token) return;
+    boardApi
+      .myBoards(token)
+      .then((bs) => (hasBoard = bs.length > 0))
+      .catch(() => {});
+  });
 
   let active = $state<"discover" | string>("discover");
   const tabs = $derived(
@@ -48,7 +61,6 @@
   let fileInput = $state<HTMLInputElement>();
   let importing = $state(false);
   let result = $state<ImportResult | null>(null);
-  let error = $state<string | null>(null);
   let code = $state("");
   let codeBusy = $state(false);
 
@@ -58,14 +70,13 @@
     input.value = "";
     if (!file) return;
     importing = true;
-    error = null;
     result = null;
     try {
       const buf = await file.arrayBuffer();
       result = await api.importSetup(Array.from(new Uint8Array(buf)));
       await instancesStore.refresh();
     } catch (err) {
-      error = String(err);
+      toast.error(String(err));
     } finally {
       importing = false;
     }
@@ -75,7 +86,6 @@
     const c = code.trim();
     if (!c || codeBusy) return;
     codeBusy = true;
-    error = null;
     result = null;
     try {
       const { snapshotId } = await boardApi.resolveCode(c);
@@ -88,7 +98,7 @@
       });
       await instancesStore.refresh();
     } catch (e) {
-      error = String(e);
+      toast.error(String(e));
     } finally {
       codeBusy = false;
       importing = false;
@@ -103,7 +113,8 @@
       <p>Follow creators & servers, or share and import a setup.</p>
     </div>
     <button class="btn ghost" onclick={() => goto("/share/creator")}>
-      <Icon name="plus" size={15} /> Create a board
+      <Icon name={hasBoard ? "edit" : "plus"} size={15} />
+      {hasBoard ? "Edit board" : "Create a board"}
     </button>
   </header>
 
@@ -171,7 +182,6 @@
           {/if}
         </div>
       {/if}
-      {#if error}<p class="err">{error}</p>{/if}
       <input bind:this={fileInput} type="file" accept=".drakepack,.mrpack,application/zip" style="display:none" onchange={onFile} />
     </section>
 
@@ -205,6 +215,7 @@
     border-bottom: 2px solid var(--border-subtle);
     margin-bottom: 18px;
     overflow-x: auto;
+    overflow-y: hidden;
   }
   .tab {
     padding: 8px 14px;
@@ -360,11 +371,6 @@
   }
   .muted {
     color: var(--text-muted);
-  }
-  .err {
-    color: var(--danger);
-    font-size: 13px;
-    margin: 10px 0 0;
   }
   .tip {
     display: flex;

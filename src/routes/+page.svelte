@@ -11,6 +11,7 @@
   import Modal from "$lib/components/Modal.svelte";
   import { api } from "$lib/api";
   import { boardApi } from "$lib/boardApi";
+  import { toast } from "$lib/stores/toast.svelte";
   import { MOD_LOADERS, type Instance, type ModLoader } from "$lib/types";
 
   let query = $state("");
@@ -44,7 +45,6 @@
   let codeOpen = $state(false);
   let code = $state("");
   let importing = $state(false);
-  let importError = $state<string | null>(null);
 
   const menuItems = $derived<MenuItem[]>([
     { label: "New instance", icon: "plus", onSelect: () => ui.openCreateInstance() },
@@ -66,15 +66,13 @@
     input.value = "";
     if (!file) return;
     importing = true;
-    importError = null;
     try {
       const buf = await file.arrayBuffer();
       const res = await api.importSetup(Array.from(new Uint8Array(buf)));
       await instancesStore.refresh();
       goto(`/instance/${res.instance.id}`);
     } catch (err) {
-      importError = String(err);
-      setTimeout(() => (importError = null), 4000);
+      toast.error(String(err));
     } finally {
       importing = false;
     }
@@ -84,7 +82,6 @@
     const c = code.trim();
     if (!c || importing) return;
     importing = true;
-    importError = null;
     try {
       const { snapshotId } = await boardApi.resolveCode(c);
       const res = await boardApi.importSnapshot(snapshotId);
@@ -93,7 +90,7 @@
       code = "";
       goto(`/instance/${res.instance.id}`);
     } catch (e) {
-      importError = String(e);
+      toast.error(String(e));
     } finally {
       importing = false;
     }
@@ -221,8 +218,6 @@
 
 {#if importing}
   <div class="toast" role="status">Importing…</div>
-{:else if importError}
-  <div class="toast err" role="alert">{importError}</div>
 {/if}
 
 <Modal title="Import from a code" open={codeOpen} onClose={() => (codeOpen = false)} width={380}>
@@ -262,10 +257,6 @@
     color: var(--accent);
     font-size: 13px;
     box-shadow: var(--shadow-md);
-  }
-  .toast.err {
-    border-color: var(--danger);
-    color: var(--danger);
   }
   .page {
     padding: 28px 32px;

@@ -91,6 +91,14 @@ export interface BoardMessage {
   createdAt: string;
 }
 
+export interface OwnedBoard extends BoardCard {
+  description: string | null;
+  streamUrl: string | null;
+  serverAddress: string | null;
+  isPublic: boolean;
+  messages: BoardMessage[];
+}
+
 export interface Board extends BoardCard {
   description: string | null;
   streamUrl: string | null;

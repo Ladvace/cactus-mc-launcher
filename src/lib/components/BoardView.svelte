@@ -7,6 +7,7 @@
   import { followedBoards } from "$lib/stores/followedBoards.svelte";
   import { recordImport } from "$lib/importedFrom";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import type { Board } from "$lib/types";
 
   let { handle }: { handle: string } = $props();
@@ -60,8 +61,9 @@
       });
       importedIds = [...importedIds, id];
       await instancesStore.refresh();
+      toast.success("Imported.");
     } catch (e) {
-      error = String(e);
+      toast.error(String(e));
     } finally {
       importingId = null;
     }
@@ -72,8 +74,9 @@
     if (!token || !reportReason.trim() || !board) return;
     try {
       await boardApi.report(token, board.handle, reportReason.trim());
-    } catch {
-      /* best-effort */
+      toast.success("Report submitted — thanks.");
+    } catch (e) {
+      toast.error(String(e));
     }
     reportOpen = false;
     reportReason = "";
