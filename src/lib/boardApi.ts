@@ -142,8 +142,10 @@ export const boardApi = {
   // --- Presence (opt-in "who's online") ---
   listPresence: (token: string) =>
     authed<{ players: PresencePlayer[] }>(`/v1/presence`, token).then((r) => r.players),
-  setPresence: (token: string, body: { status: string; serverAddress: string }) =>
-    authed<void>(`/v1/presence`, token, { method: "PUT", body: JSON.stringify(body) }),
+  setPresence: (
+    token: string,
+    body: { status: string; serverAddress: string; mcVersion: string; loader: string }
+  ) => authed<void>(`/v1/presence`, token, { method: "PUT", body: JSON.stringify(body) }),
   clearPresence: (token: string) =>
     authed<void>(`/v1/presence`, token, { method: "DELETE" }),
 

@@ -6,6 +6,7 @@
   import { presence } from "$lib/stores/presence.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { skinFace } from "$lib/skin";
+  import { MOD_LOADERS } from "$lib/types";
 
   const online = boardApi.configured();
   const account = $derived(accountsStore.active);
@@ -34,16 +35,44 @@
   // Local editable copies of the broadcast fields (committed on change).
   let status = $state(presence.status);
   let address = $state(presence.serverAddress);
+  let mcVersion = $state(presence.mcVersion);
+  let loader = $state(presence.loader);
+
+  // Filters for the online list ("" = Any).
+  let filterVersion = $state("");
+  let filterLoader = $state("");
 
   const myUuid = $derived(boardAuth.session?.uuid ?? "");
-  const others = $derived(presence.players.filter((p) => p.uuid !== myUuid));
   const me = $derived(presence.players.find((p) => p.uuid === myUuid) ?? null);
+
+  // Versions actually present online, for the version filter dropdown.
+  const versionsOnline = $derived(
+    [...new Set(presence.players.map((p) => p.mcVersion).filter(Boolean))].sort() as string[]
+  );
+
+  function passes(p: import("$lib/types").PresencePlayer): boolean {
+    if (filterLoader && (p.loader ?? "") !== filterLoader) return false;
+    if (filterVersion && (p.mcVersion ?? "") !== filterVersion) return false;
+    return true;
+  }
+  const others = $derived(
+    presence.players.filter((p) => p.uuid !== myUuid && passes(p))
+  );
+
+  function loaderLabel(l: string | null): string {
+    return MOD_LOADERS.find((m) => m.value === l)?.label ?? (l ?? "");
+  }
 
   async function toggleOnline() {
     await presence.setEnabled(!presence.enabled);
   }
   function saveFields() {
-    presence.saveFields(status.trim(), address.trim());
+    presence.saveFields({
+      status: status.trim(),
+      serverAddress: address.trim(),
+      mcVersion: mcVersion.trim(),
+      loader: loader,
+    });
   }
 
   async function copyAddress(addr: string) {
@@ -92,12 +121,32 @@
           <span>Status</span>
           <input
             class="input"
-            placeholder="e.g. looking to play modded 1.20"
+            placeholder="e.g. looking to play modded"
             maxlength="120"
             bind:value={status}
             onblur={saveFields}
             onkeydown={(e) => e.key === "Enter" && saveFields()}
           />
+        </label>
+        <label class="field short">
+          <span>MC version</span>
+          <input
+            class="input"
+            placeholder="1.20.1"
+            maxlength="32"
+            bind:value={mcVersion}
+            onblur={saveFields}
+            onkeydown={(e) => e.key === "Enter" && saveFields()}
+          />
+        </label>
+        <label class="field short">
+          <span>Loader</span>
+          <select class="select" bind:value={loader} onchange={saveFields}>
+            <option value="">Any</option>
+            {#each MOD_LOADERS as l}
+              <option value={l.value}>{l.label}</option>
+            {/each}
+          </select>
         </label>
         <label class="field">
           <span>Server address (optional)</span>
@@ -121,9 +170,23 @@
   <div class="list-head">
     <h3>Online now</h3>
     <span class="count">{others.length + (me ? 1 : 0)}</span>
-    <button class="btn ghost sm" onclick={() => presence.poll()} disabled={presence.loading}>
-      Refresh
-    </button>
+    <div class="filters">
+      <select class="select mini" bind:value={filterLoader} aria-label="Filter by loader">
+        <option value="">Any loader</option>
+        {#each MOD_LOADERS as l}
+          <option value={l.value}>{l.label}</option>
+        {/each}
+      </select>
+      <select class="select mini" bind:value={filterVersion} aria-label="Filter by version">
+        <option value="">Any version</option>
+        {#each versionsOnline as v}
+          <option value={v}>{v}</option>
+        {/each}
+      </select>
+      <button class="btn ghost sm" onclick={() => presence.poll()} disabled={presence.loading}>
+        Refresh
+      </button>
+    </div>
   </div>
 
   {#if presence.error}
@@ -154,6 +217,9 @@
       <span class="name">{p.name}{#if isMe} <span class="you">you</span>{/if}</span>
       <span class="status">{p.status || "online"}</span>
     </div>
+    {#if p.mcVersion || p.loader}
+      <span class="tag">{loaderLabel(p.loader)}{p.mcVersion ? ` ${p.mcVersion}` : ""}</span>
+    {/if}
     <span class="ago">{timeAgo(p.updatedAt)}</span>
     {#if p.serverAddress}
       <button class="btn ghost sm" title="Copy server address" onclick={() => copyAddress(p.serverAddress!)}>
@@ -258,8 +324,21 @@
     font-size: 12px;
     color: var(--text-muted);
   }
-  .list-head .btn {
+  .filters {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .select.mini {
+    width: auto;
+    padding: 6px 28px 6px 10px;
+    font-size: 12px;
+    background-position: right 8px center;
+  }
+  .field.short {
+    flex: 0 0 130px;
+    min-width: 110px;
   }
   .players {
     list-style: none;
@@ -288,9 +367,20 @@
     border: 2px solid rgba(0, 0, 0, 0.3);
   }
   .body {
+    flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
+  }
+  .tag {
+    flex-shrink: 0;
+    font-family: var(--font-pixel);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
   }
   .name {
     font-weight: 600;

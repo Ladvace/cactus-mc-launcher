@@ -205,7 +205,7 @@
   }
 </script>
 
-<Modal title={hit?.title ?? "Project"} open={open && !!hit} onClose={close} width={560}>
+<Modal title={hit?.title ?? "Project"} open={open && !!hit} onClose={close} width={640}>
   {#if hit}
     <div class="head">
       {#if hit.iconUrl}

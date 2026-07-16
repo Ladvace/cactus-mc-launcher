@@ -10,10 +10,18 @@ interface Persisted {
   enabled: boolean;
   status: string;
   serverAddress: string;
+  mcVersion: string;
+  loader: string;
 }
 
 function load(): Persisted {
-  const base: Persisted = { enabled: false, status: "", serverAddress: "" };
+  const base: Persisted = {
+    enabled: false,
+    status: "",
+    serverAddress: "",
+    mcVersion: "",
+    loader: "",
+  };
   if (!browser) return base;
   try {
     return { ...base, ...JSON.parse(localStorage.getItem(KEY) || "{}") };
@@ -29,6 +37,8 @@ class PresenceStore {
   enabled = $state(false); // broadcast my presence to others
   status = $state("");
   serverAddress = $state("");
+  mcVersion = $state("");
+  loader = $state("");
   players = $state<PresencePlayer[]>([]);
   loading = $state(false);
   error = $state<string | null>(null);
@@ -40,6 +50,8 @@ class PresenceStore {
     this.enabled = p.enabled;
     this.status = p.status;
     this.serverAddress = p.serverAddress;
+    this.mcVersion = p.mcVersion;
+    this.loader = p.loader;
   }
 
   private persist() {
@@ -50,6 +62,8 @@ class PresenceStore {
         enabled: this.enabled,
         status: this.status,
         serverAddress: this.serverAddress,
+        mcVersion: this.mcVersion,
+        loader: this.loader,
       })
     );
   }
@@ -77,9 +91,16 @@ class PresenceStore {
   }
 
   /** Update the broadcast fields; re-heartbeats immediately when online. */
-  saveFields(status: string, serverAddress: string) {
-    this.status = status;
-    this.serverAddress = serverAddress;
+  saveFields(fields: {
+    status: string;
+    serverAddress: string;
+    mcVersion: string;
+    loader: string;
+  }) {
+    this.status = fields.status;
+    this.serverAddress = fields.serverAddress;
+    this.mcVersion = fields.mcVersion;
+    this.loader = fields.loader;
     this.persist();
     if (this.enabled) void this.heartbeat();
   }
@@ -90,6 +111,8 @@ class PresenceStore {
     await boardApi.setPresence(t, {
       status: this.status,
       serverAddress: this.serverAddress,
+      mcVersion: this.mcVersion,
+      loader: this.loader,
     });
   }
 

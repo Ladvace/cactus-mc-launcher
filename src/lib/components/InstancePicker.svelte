@@ -12,7 +12,25 @@
   let open = $state(false);
   let query = $state("");
   let rootEl = $state<HTMLElement>();
+  let triggerEl = $state<HTMLButtonElement>();
   let searchEl = $state<HTMLInputElement>();
+  // Fixed-position anchor for the dropdown so it doesn't inflate a scrollable
+  // parent (e.g. a modal body) and cause a second scrollbar.
+  let pos = $state<{ left: number; top: number; width: number } | null>(null);
+
+  function place() {
+    if (!triggerEl) return;
+    const r = triggerEl.getBoundingClientRect();
+    pos = { left: r.left, top: r.bottom + 4, width: r.width };
+  }
+  function toggle() {
+    if (open) {
+      open = false;
+    } else {
+      place();
+      open = true;
+    }
+  }
 
   const all = $derived(instancesStore.instances);
   const selected = $derived(all.find((i) => i.id === value) ?? null);
@@ -63,6 +81,7 @@
 <svelte:window
   onpointerdown={onWindowPointerDown}
   onkeydown={(e) => e.key === "Escape" && (open = false)}
+  onresize={() => (open = false)}
 />
 
 {#snippet row(i: Instance)}
@@ -74,7 +93,7 @@
 {/snippet}
 
 <div class="picker" bind:this={rootEl}>
-  <button type="button" class="trigger" class:open onclick={() => (open = !open)}>
+  <button type="button" class="trigger" class:open bind:this={triggerEl} onclick={toggle}>
     {#if selected}
       <InstanceIcon instance={selected} size={22} />
       <span class="t-name">{selected.name}</span>
@@ -85,8 +104,11 @@
     <span class="caret"></span>
   </button>
 
-  {#if open}
-    <div class="pop">
+  {#if open && pos}
+    <div
+      class="pop"
+      style="left:{pos.left}px; top:{pos.top}px; width:{pos.width}px;"
+    >
       <div class="search">
         <Icon name="search" size={14} />
         <input
@@ -163,11 +185,8 @@
   }
 
   .pop {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    z-index: 20;
+    position: fixed;
+    z-index: 200;
     background: var(--bg-raised);
     border: 2px solid var(--border);
     box-shadow: var(--shadow-md);

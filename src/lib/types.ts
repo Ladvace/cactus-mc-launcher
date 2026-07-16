@@ -63,6 +63,8 @@ export interface PresencePlayer {
   name: string;
   status: string;
   serverAddress: string | null;
+  mcVersion: string | null;
+  loader: string | null;
   updatedAt: string;
 }
 
