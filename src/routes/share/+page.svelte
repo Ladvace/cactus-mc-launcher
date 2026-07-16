@@ -126,14 +126,18 @@
     <button class="tab" class:on={active === "discover"} onclick={() => (active = "discover")}>
       Discover
     </button>
-    <button class="tab" class:on={active === "play"} onclick={() => (active = "play")}>
-      Play together
-    </button>
     {#each tabs as h (h)}
       <button class="tab" class:on={active === h} onclick={() => (active = h)}>
         @{h}
       </button>
     {/each}
+    <button
+      class="tab play"
+      class:on={active === "play"}
+      onclick={() => (active = "play")}
+    >
+      <Icon name="users" size={14} /> Play together
+    </button>
   </div>
 
   {#if active === "play"}
@@ -243,6 +247,30 @@
   .tab.on {
     color: var(--accent);
     border-bottom-color: var(--accent);
+  }
+  /* Play together stands out: pushed to the far right, filled accent chip. */
+  .tab.play {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    border-bottom-color: transparent;
+    align-self: center;
+    margin-bottom: 0;
+  }
+  .tab.play :global(.hn) {
+    color: var(--accent-contrast);
+  }
+  .tab.play:hover {
+    color: var(--accent-contrast);
+    background: var(--accent-hover);
+  }
+  .tab.play.on {
+    color: var(--accent-contrast);
+    border-bottom-color: transparent;
+    box-shadow: 0 0 0 2px var(--accent-soft);
   }
   .search {
     display: flex;
