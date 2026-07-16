@@ -1,15 +1,82 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import InstanceGrid from "$lib/components/InstanceGrid.svelte";
   import InstanceCardSkeleton from "$lib/components/InstanceCardSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import ContextMenu, { type MenuItem } from "$lib/components/ContextMenu.svelte";
+  import Modal from "$lib/components/Modal.svelte";
+  import { api } from "$lib/api";
+  import { boardApi } from "$lib/boardApi";
   import { MOD_LOADERS, type ModLoader } from "$lib/types";
 
   let query = $state("");
   let loaderFilter = $state<ModLoader | "all">("all");
   let arranging = $state(false);
   let grid = $state<InstanceGrid>();
+
+  // --- Import / share context menu ---
+  const online = boardApi.configured();
+  let fileInput = $state<HTMLInputElement>();
+  let homeMenu = $state<{ x: number; y: number } | null>(null);
+  let codeOpen = $state(false);
+  let code = $state("");
+  let importing = $state(false);
+  let importError = $state<string | null>(null);
+
+  const menuItems = $derived<MenuItem[]>([
+    { label: "New instance", icon: "plus", onSelect: () => ui.openCreateInstance() },
+    { separator: true },
+    { label: "Import setup file…", icon: "download", onSelect: () => fileInput?.click() },
+    ...(online
+      ? [{ label: "Import from a code…", icon: "share", onSelect: () => (codeOpen = true) }]
+      : []),
+  ]);
+
+  function openMenu(e: MouseEvent) {
+    e.preventDefault();
+    homeMenu = { x: e.clientX, y: e.clientY };
+  }
+
+  async function onImportFile(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    importing = true;
+    importError = null;
+    try {
+      const buf = await file.arrayBuffer();
+      const res = await api.importSetup(Array.from(new Uint8Array(buf)));
+      await instancesStore.refresh();
+      goto(`/instance/${res.instance.id}`);
+    } catch (err) {
+      importError = String(err);
+      setTimeout(() => (importError = null), 4000);
+    } finally {
+      importing = false;
+    }
+  }
+
+  async function importFromCode() {
+    const c = code.trim();
+    if (!c || importing) return;
+    importing = true;
+    importError = null;
+    try {
+      const { snapshotId } = await boardApi.resolveCode(c);
+      const res = await boardApi.importSnapshot(snapshotId);
+      await instancesStore.refresh();
+      codeOpen = false;
+      code = "";
+      goto(`/instance/${res.instance.id}`);
+    } catch (e) {
+      importError = String(e);
+    } finally {
+      importing = false;
+    }
+  }
 
   // Arranging reorders the whole collection, so it only makes sense on the
   // full, unfiltered list.
@@ -30,15 +97,21 @@
   );
 </script>
 
-<div class="page">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="page" oncontextmenu={openMenu}>
   <header class="hero">
     <div>
       <h1>Welcome back</h1>
       <p>Arrange your instances into a home screen that's yours.</p>
     </div>
-    <button class="btn primary" onclick={() => ui.openCreateInstance()}>
-      <Icon name="plus" size={16} /> New instance
-    </button>
+    <div class="hero-actions">
+      <button class="btn ghost" title="Import a shared setup" onclick={openMenu}>
+        <Icon name="download" size={15} /> Import
+      </button>
+      <button class="btn primary" onclick={() => ui.openCreateInstance()}>
+        <Icon name="plus" size={16} /> New instance
+      </button>
+    </div>
   </header>
 
   {#if instancesStore.instances.length > 0}
@@ -106,7 +179,67 @@
   {/if}
 </div>
 
+<input
+  bind:this={fileInput}
+  type="file"
+  accept=".drakepack,.mrpack,application/zip"
+  style="display:none"
+  onchange={onImportFile}
+/>
+
+{#if homeMenu}
+  <ContextMenu
+    x={homeMenu.x}
+    y={homeMenu.y}
+    items={menuItems}
+    onClose={() => (homeMenu = null)}
+  />
+{/if}
+
+{#if importing}
+  <div class="toast" role="status">Importing…</div>
+{:else if importError}
+  <div class="toast err" role="alert">{importError}</div>
+{/if}
+
+<Modal title="Import from a code" open={codeOpen} onClose={() => (codeOpen = false)} width={380}>
+  <input
+    class="input"
+    placeholder="Paste a share code…"
+    bind:value={code}
+    onkeydown={(e) => e.key === "Enter" && importFromCode()}
+  />
+  {#snippet footer()}
+    <button class="btn ghost" onclick={() => (codeOpen = false)}>Cancel</button>
+    <button class="btn primary" disabled={importing || !code.trim()} onclick={importFromCode}>
+      {importing ? "Importing…" : "Import"}
+    </button>
+  {/snippet}
+</Modal>
+
 <style>
+  .hero-actions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 300;
+    padding: 10px 16px;
+    background: var(--bg-raised);
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-size: 13px;
+    box-shadow: var(--shadow-md);
+  }
+  .toast.err {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
   .page {
     padding: 28px 32px;
     max-width: 1200px;

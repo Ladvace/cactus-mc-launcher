@@ -131,4 +131,10 @@ export const api = {
 
   importSetup: (bytes: number[]) =>
     invoke<ImportResult>("import_setup", { bytes }),
+
+  /** Whether an instance is shareable (all CurseForge items re-downloadable). */
+  instanceShareCheck: (instanceId: string) =>
+    invoke<{ ok: boolean; optOut: string[] }>("instance_share_check", {
+      instanceId,
+    }),
 };

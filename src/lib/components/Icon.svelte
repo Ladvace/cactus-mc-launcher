@@ -34,6 +34,7 @@
     download: "download",
     users: "users",
     video: "video-camera",
+    globe: "globe",
   };
 
   const cls = $derived(`hn hn-${MAP[name] ?? "grid"}`);

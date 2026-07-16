@@ -59,42 +59,51 @@ export interface ExportResult {
   skipped: string[];
 }
 
-// --- Streamer service DTOs (mirror server/src/types.ts) ---
-export interface StreamerCard {
+// --- Boards service DTOs (mirror server/src/types.ts) ---
+export type BoardKind = "streamer" | "creator" | "server";
+
+export interface BoardSession {
+  token: string;
+  uuid: string;
+  name: string;
+}
+
+export interface BoardCard {
   handle: string;
   displayName: string;
-  platform: "twitch" | "youtube";
-  isLive: boolean;
-  currentActivity: string | null;
+  kind: BoardKind;
+  ownerName: string;
 }
 
-export interface StreamerProfile extends StreamerCard {
-  currentSnapshotId: string | null;
-  serverInfo: { address: string; notes?: string; gated?: boolean } | null;
+export interface BoardInstance {
+  id: string;
+  name: string;
+  format: "drakepack" | "mrpack";
+  mcVersion: string | null;
+  modLoader: string | null;
+  changelog: string | null;
+  createdAt: string;
+}
+
+export interface BoardMessage {
+  id: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface Board extends BoardCard {
+  description: string | null;
+  streamUrl: string | null;
+  serverAddress: string | null;
   isPublic: boolean;
-}
-
-export interface StreamerSession {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number; // unix seconds
-  userId: string;
-  displayName: string;
-  provider: string;
-}
-
-export interface OwnedProfile {
-  handle: string;
-  displayName: string;
-  platform: "twitch" | "youtube";
-  isPublic: boolean;
-  currentSnapshotId: string | null;
-  serverInfo: { address: string; notes?: string; gated?: boolean } | null;
+  isOwner: boolean;
+  instances: BoardInstance[];
+  messages: BoardMessage[];
 }
 
 export interface SnapshotManifest {
   id: string;
-  streamerHandle: string;
+  name: string;
   format: "drakepack" | "mrpack";
   mcVersion: string | null;
   modLoader: string | null;

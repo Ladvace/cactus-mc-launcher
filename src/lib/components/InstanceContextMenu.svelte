@@ -1,21 +1,45 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import ContextMenu, { type MenuItem } from "./ContextMenu.svelte";
+  import Modal from "./Modal.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { accountsStore } from "$lib/stores/accounts.svelte";
+  import { boardAuth } from "$lib/stores/boardAuth.svelte";
+  import { boardApi } from "$lib/boardApi";
   import { api } from "$lib/api";
   import { fileToIconDataUri } from "$lib/image";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
+
+  const shareOnline = boardApi.configured();
 
   let fileInput = $state<HTMLInputElement>();
   let pendingId = $state<string | null>(null);
   let error = $state<string | null>(null);
   let toast = $state<string | null>(null);
+  let sharing = $state(false);
+  let sharedCode = $state<string | null>(null);
+  // Cache per-instance shareability (opt-out CurseForge mods block code sharing).
+  let shareChecks = $state<Record<string, { ok: boolean; optOut: string[] }>>({});
+
+  // When a menu opens, check whether the instance can be shared by code.
+  $effect(() => {
+    const m = ui.instanceMenu;
+    if (!m || !shareOnline || shareChecks[m.instance.id]) return;
+    api
+      .instanceShareCheck(m.instance.id)
+      .then((r) => (shareChecks = { ...shareChecks, [m.instance.id]: r }))
+      .catch(() => {});
+  });
 
   function flash(msg: string) {
     toast = msg;
     setTimeout(() => (toast = null), 4000);
+  }
+  function flashErr(msg: string) {
+    error = msg;
+    setTimeout(() => (error = null), 4000);
   }
 
   const menu = $derived(ui.instanceMenu);
@@ -59,9 +83,22 @@
         onSelect: () => instancesStore.resetIcon(inst.id),
       },
       { separator: true },
+      ...(shareOnline
+        ? [
+            {
+              label:
+                shareChecks[inst.id] && !shareChecks[inst.id].ok
+                  ? "Can't share (opt-out mods)"
+                  : "Share via code…",
+              icon: "share",
+              disabled: !!(shareChecks[inst.id] && !shareChecks[inst.id].ok),
+              onSelect: () => shareViaCode(inst.id, inst.name),
+            },
+          ]
+        : []),
       {
-        label: "Export setup…",
-        icon: "share",
+        label: "Export to file…",
+        icon: "download",
         onSelect: () => exportSetup(inst.id, "drakepack"),
       },
       {
@@ -71,6 +108,49 @@
       },
     ];
   });
+
+  async function shareViaCode(id: string, name: string) {
+    if (!shareOnline) {
+      flashErr("The boards service isn't set up in this build.");
+      return;
+    }
+    if (!boardAuth.signedIn && !accountsStore.active) {
+      flashErr("Add a Microsoft account first.");
+      return;
+    }
+    sharing = true;
+    try {
+      const check = await api.instanceShareCheck(id);
+      shareChecks = { ...shareChecks, [id]: check };
+      if (!check.ok) {
+        flashErr(`Can't share — these mods can't be re-downloaded: ${check.optOut.join(", ")}`);
+        return;
+      }
+      if (!boardAuth.signedIn) await boardAuth.login();
+      const token = boardAuth.token;
+      if (!token) {
+        flashErr(boardAuth.error ?? "Couldn't sign in.");
+        return;
+      }
+      const snapshotId = await boardApi.publish(id, "drakepack", token, { name });
+      const { code } = await boardApi.mintCode(token, snapshotId);
+      sharedCode = code;
+    } catch (e) {
+      flashErr(String(e));
+    } finally {
+      sharing = false;
+    }
+  }
+
+  async function copyCode() {
+    if (!sharedCode) return;
+    try {
+      await navigator.clipboard.writeText(sharedCode);
+      flash("Copied!");
+    } catch {
+      /* clipboard may be unavailable */
+    }
+  }
 
   function pickFile(id: string) {
     pendingId = id;
@@ -134,13 +214,52 @@
   {/key}
 {/if}
 
-{#if error}
+{#if sharing}
+  <div class="toast ok" role="status">Creating a share code…</div>
+{:else if error}
   <div class="toast" role="alert">{error}</div>
 {:else if toast}
   <div class="toast ok" role="status">{toast}</div>
 {/if}
 
+<Modal
+  title="Share this instance"
+  open={!!sharedCode}
+  onClose={() => (sharedCode = null)}
+  width={360}
+>
+  <p class="share-hint">
+    Anyone can import it from <strong>Home → Import → “from a code”</strong>:
+  </p>
+  <div class="codebox">
+    <span class="code">{sharedCode}</span>
+    <button class="btn ghost" onclick={copyCode}>Copy</button>
+  </div>
+</Modal>
+
 <style>
+  .share-hint {
+    margin: 0 0 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+  .codebox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .code {
+    flex: 1;
+    font-family: var(--font-pixel);
+    font-size: 24px;
+    letter-spacing: 0.08em;
+    text-align: center;
+    color: var(--accent);
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    padding: 10px;
+    user-select: all;
+  }
   .toast {
     position: fixed;
     bottom: 100px;

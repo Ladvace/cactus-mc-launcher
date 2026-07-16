@@ -168,16 +168,34 @@ pub struct ExportResult {
 
 type Zip = zip::ZipWriter<std::fs::File>;
 
-/// Add an instance's config `overrides/` tree to an open zip.
+// Keep shared packs small: configs are a convenience, not the point (the mods
+// are references). Skip any single override over 2 MB and stop once the bundled
+// configs pass ~12 MB total.
+const MAX_OVERRIDE_FILE: u64 = 2_000_000;
+const MAX_OVERRIDES_TOTAL: u64 = 12_000_000;
+
+/// Add an instance's config `overrides/` tree to an open zip (size-capped).
 fn add_overrides(
     zip: &mut Zip,
     opts: zip::write::SimpleFileOptions,
     game_dir: &Path,
 ) -> Result<()> {
+    let mut total: u64 = 0;
     for rel in override_files(game_dir) {
-        let Ok(data) = std::fs::read(game_dir.join(&rel)) else {
+        let full = game_dir.join(&rel);
+        let Ok(meta) = std::fs::metadata(&full) else {
             continue;
         };
+        if meta.len() > MAX_OVERRIDE_FILE {
+            continue;
+        }
+        if total + meta.len() > MAX_OVERRIDES_TOTAL {
+            break;
+        }
+        let Ok(data) = std::fs::read(&full) else {
+            continue;
+        };
+        total += data.len() as u64;
         let name = format!("overrides/{}", rel.to_string_lossy().replace('\\', "/"));
         zip.start_file(name, opts)
             .map_err(|e| AppError::Other(format!("zip: {e}")))?;
@@ -352,12 +370,15 @@ fn mrpack_loader_key(loader: ModLoader) -> Option<&'static str> {
 
 /// Export an instance and upload it to the hosted service as the caller's
 /// current snapshot. Returns the new snapshot id.
+#[allow(clippy::too_many_arguments)]
 pub async fn publish(
     app: &AppHandle,
     instance_id: &str,
     format: &str,
     api_base: &str,
     access_token: &str,
+    board_handle: Option<String>,
+    name: Option<String>,
     changelog: Option<String>,
 ) -> Result<String> {
     let instance = app
@@ -371,12 +392,17 @@ pub async fn publish(
     let base = api_base.trim_end_matches('/');
     let loader = loader_str(instance.loader);
     let loader_version = instance.loader_version.clone().unwrap_or_default();
+    let display_name = name.unwrap_or_else(|| instance.name.clone());
     let mut params: Vec<(&str, &str)> = vec![
         ("format", format),
+        ("name", &display_name),
         ("mcVersion", &instance.mc_version),
         ("modLoader", loader),
         ("modLoaderVersion", &loader_version),
     ];
+    if let Some(bh) = board_handle.as_deref().filter(|s| !s.is_empty()) {
+        params.push(("boardHandle", bh));
+    }
     if let Some(ch) = changelog.as_deref().filter(|c| !c.is_empty()) {
         params.push(("changelog", ch));
     }

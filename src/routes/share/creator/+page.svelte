@@ -1,201 +1,243 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
-  import { streamerApi, supabaseConfigured } from "$lib/streamerApi";
-  import { streamerAuth } from "$lib/stores/streamerAuth.svelte";
+  import { boardApi } from "$lib/boardApi";
+  import { boardAuth } from "$lib/stores/boardAuth.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
-  import type { OwnedProfile } from "$lib/types";
+  import { accountsStore } from "$lib/stores/accounts.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import type { BoardCard } from "$lib/types";
 
-  const ready = streamerApi.configured() && supabaseConfigured();
+  const ready = boardApi.configured();
 
-  let profile = $state<OwnedProfile | null>(null);
-  let loadingMe = $state(false);
+  // The board session is tied to the active Minecraft account — acquire it
+  // automatically (no separate login) and re-acquire if the account changes.
+  const account = $derived(accountsStore.active);
+  $effect(() => {
+    const a = account;
+    if (!ready || !a) return;
+    if (
+      !boardAuth.loggingIn &&
+      (!boardAuth.signedIn || boardAuth.session?.uuid !== a.uuid)
+    ) {
+      boardAuth.login();
+    }
+  });
 
-  // Claim form
+  let boards = $state<BoardCard[]>([]);
+  let loadingBoards = $state(false);
+
+  // New board form
   let handle = $state("");
   let displayName = $state("");
-  let claiming = $state(false);
-  let claimError = $state<string | null>(null);
+  let kind = $state<"creator" | "streamer" | "server">("creator");
+  let description = $state("");
+  let streamUrl = $state("");
+  let serverAddress = $state("");
+  let creating = $state(false);
+  let createError = $state<string | null>(null);
 
-  // Publish
-  let selectedId = $state("");
+  // Selected board + publish
+  let selected = $state<string>("");
+  let instanceId = $state("");
   let format = $state<"drakepack" | "mrpack">("drakepack");
   let changelog = $state("");
   let publishing = $state(false);
-  let publishError = $state<string | null>(null);
-  let publishedSnapshot = $state<string | null>(null);
+  let publishMsg = $state<string | null>(null);
 
-  // Share code
-  let code = $state<string | null>(null);
-  let codeBusy = $state(false);
+  // Message
+  let messageBody = $state("");
+  let postingMsg = $state(false);
 
   $effect(() => {
-    if (ready && streamerAuth.signedIn) loadMe();
+    if (ready && boardAuth.signedIn) loadBoards();
   });
 
-  async function loadMe() {
-    const token = streamerAuth.token;
+  async function loadBoards() {
+    const token = boardAuth.token;
     if (!token) return;
-    loadingMe = true;
+    loadingBoards = true;
     try {
-      profile = (await streamerApi.me(token)).profile;
+      boards = await boardApi.myBoards(token);
+      if (!selected && boards.length) selected = boards[0].handle;
     } catch {
-      profile = null;
+      boards = [];
     } finally {
-      loadingMe = false;
+      loadingBoards = false;
     }
   }
 
-  async function claim() {
-    const token = streamerAuth.token;
-    if (!token || claiming) return;
-    claiming = true;
-    claimError = null;
+  async function createBoard() {
+    const token = boardAuth.token;
+    if (!token || creating) return;
+    creating = true;
+    createError = null;
     try {
-      profile = await streamerApi.claimHandle(
-        token,
-        handle.trim().toLowerCase(),
-        displayName.trim() || handle.trim()
-      );
+      await boardApi.createBoard(token, {
+        handle: handle.trim().toLowerCase(),
+        displayName: displayName.trim() || handle.trim(),
+        kind,
+        description: description.trim() || undefined,
+        streamUrl: streamUrl.trim() || undefined,
+        serverAddress: serverAddress.trim() || undefined,
+      });
+      handle = "";
+      displayName = "";
+      description = "";
+      streamUrl = "";
+      serverAddress = "";
+      await loadBoards();
     } catch (e) {
-      claimError = String(e);
+      createError = String(e);
     } finally {
-      claiming = false;
+      creating = false;
     }
   }
 
   async function publish() {
-    const token = streamerAuth.token;
-    if (!token || !selectedId || publishing) return;
+    const token = boardAuth.token;
+    if (!token || !instanceId || publishing) return;
     publishing = true;
-    publishError = null;
-    publishedSnapshot = null;
+    publishMsg = null;
     try {
-      publishedSnapshot = await streamerApi.publish(
-        selectedId,
-        format,
-        token,
-        changelog
-      );
-      await loadMe();
+      await boardApi.publish(instanceId, format, token, {
+        boardHandle: selected || undefined,
+        changelog,
+      });
+      publishMsg = selected
+        ? "Published to your board."
+        : "Published (standalone).";
+      changelog = "";
     } catch (e) {
-      publishError = String(e);
+      publishMsg = String(e);
     } finally {
       publishing = false;
     }
   }
 
-  async function makeCode() {
-    const token = streamerAuth.token;
-    if (!token || codeBusy) return;
-    codeBusy = true;
+  async function postMessage() {
+    const token = boardAuth.token;
+    if (!token || !selected || !messageBody.trim() || postingMsg) return;
+    postingMsg = true;
     try {
-      code = (await streamerApi.mintCode(token)).code;
-    } catch (e) {
-      code = null;
-      publishError = String(e);
+      await boardApi.postMessage(token, selected, messageBody.trim());
+      messageBody = "";
+    } catch {
+      /* ignore */
     } finally {
-      codeBusy = false;
+      postingMsg = false;
     }
   }
 </script>
 
 <div class="page">
-  <button class="back" onclick={() => goto("/share")}>← Streamers</button>
-  <h1>Creator</h1>
+  <button class="back" onclick={() => goto("/share")}>← Community</button>
+  <h1>Create a board</h1>
 
   {#if !ready}
     <div class="panel">
-      <p class="muted">
-        The streamer service isn't configured in this build (set
-        <code>VITE_STREAMER_API_URL</code>, <code>VITE_SUPABASE_URL</code> and
-        <code>VITE_SUPABASE_ANON_KEY</code>).
-      </p>
+      <p class="muted">The boards service isn't configured in this build (set <code>VITE_STREAMER_API_URL</code>).</p>
     </div>
-  {:else if !streamerAuth.signedIn}
+  {:else if !account}
     <div class="panel">
-      <h3>Sign in to publish your setup</h3>
-      <p class="muted">Verify with the platform you stream on. This proves the profile is yours.</p>
-      <div class="signin">
-        <button class="btn primary" disabled={streamerAuth.loggingIn} onclick={() => streamerAuth.login("twitch")}>
-          <Icon name="video" size={15} /> Sign in with Twitch
-        </button>
-        <button class="btn ghost" disabled={streamerAuth.loggingIn} onclick={() => streamerAuth.login("google")}>
-          Sign in with YouTube
-        </button>
-      </div>
-      {#if streamerAuth.loggingIn}<p class="muted">Waiting for the browser…</p>{/if}
-      {#if streamerAuth.error}<p class="error">{streamerAuth.error}</p>{/if}
+      <h3>Add a Microsoft account</h3>
+      <p class="muted">Boards are tied to your Minecraft account. Add one to get started.</p>
+      <button class="btn primary" onclick={() => ui.openAccounts()}>
+        <Icon name="user" size={15} /> Add account
+      </button>
+    </div>
+  {:else if !boardAuth.signedIn || boardAuth.session?.uuid !== account.uuid}
+    <div class="panel">
+      <p class="muted">Preparing your creator session as <strong>{account.username}</strong>…</p>
+      {#if boardAuth.error}
+        <p class="err">{boardAuth.error}</p>
+        <button class="btn ghost" onclick={() => boardAuth.login()}>Retry</button>
+      {/if}
     </div>
   {:else}
     <div class="who">
-      <span>Signed in as <strong>{streamerAuth.session?.displayName || "streamer"}</strong></span>
-      <button class="link" onclick={() => streamerAuth.logout()}>Sign out</button>
+      <span>Creating as <strong>{boardAuth.session?.name}</strong></span>
+      <button class="link" onclick={() => ui.openAccounts()}>Switch account</button>
     </div>
 
-    {#if loadingMe}
-      <p class="muted">Loading…</p>
-    {:else if !profile}
-      <div class="panel">
-        <h3>Claim your handle</h3>
-        <p class="muted">This is your public URL, e.g. drake://ninja.</p>
-        <div class="form">
-          <input class="input" placeholder="handle (a–z, 0–9, _)" bind:value={handle} />
-          <input class="input" placeholder="Display name" bind:value={displayName} />
-          <button class="btn primary" disabled={claiming || !handle.trim()} onclick={claim}>
-            {claiming ? "Claiming…" : "Claim handle"}
-          </button>
+    <!-- Existing boards + create -->
+    <div class="panel">
+      <h3>Your boards</h3>
+      {#if loadingBoards}
+        <p class="muted">Loading…</p>
+      {:else if boards.length}
+        <div class="chips">
+          {#each boards as b (b.handle)}
+            <button class="chip" class:on={selected === b.handle} onclick={() => (selected = b.handle)}>
+              @{b.handle}
+            </button>
+          {/each}
         </div>
-        {#if claimError}<p class="error">{claimError}</p>{/if}
-      </div>
-    {:else}
-      <div class="panel">
-        <h3>Your profile</h3>
-        <p class="handle">@{profile.handle} · {profile.platform}{profile.isPublic ? "" : " · code-only"}</p>
-        {#if profile.currentSnapshotId}
-          <p class="muted">Current published setup: {profile.currentSnapshotId.slice(0, 8)}…</p>
-        {:else}
-          <p class="muted">No setup published yet.</p>
-        {/if}
-      </div>
+      {:else}
+        <p class="muted">No boards yet — create one below.</p>
+      {/if}
+    </div>
 
-      <div class="panel">
-        <h3>Publish a setup</h3>
-        <p class="muted">Snapshot one of your instances as your current setup for viewers to import.</p>
-        <div class="form">
-          <select class="select" bind:value={selectedId}>
-            <option value="" disabled>Choose an instance…</option>
-            {#each instancesStore.instances as i (i.id)}
-              <option value={i.id}>{i.name} · {i.loader} {i.mcVersion}</option>
-            {/each}
-          </select>
-          <select class="select" bind:value={format}>
-            <option value="drakepack">.drakepack (full)</option>
-            <option value="mrpack">.mrpack (Modrinth)</option>
-          </select>
-          <button class="btn primary" disabled={publishing || !selectedId} onclick={publish}>
-            {publishing ? "Publishing…" : "Publish"}
-          </button>
-        </div>
-        <input
-          class="input changelog"
-          placeholder="What changed? (shown to viewers, optional)"
-          bind:value={changelog}
-        />
-        {#if publishedSnapshot}
-          <p class="ok"><Icon name="check" size={14} /> Published as your current setup.</p>
-        {/if}
-        {#if publishError}<p class="error">{publishError}</p>{/if}
+    <div class="panel">
+      <h3>New board</h3>
+      <div class="form">
+        <input class="input" placeholder="handle (a–z, 0–9, _)" bind:value={handle} />
+        <input class="input" placeholder="Display name" bind:value={displayName} />
+        <select class="select" bind:value={kind}>
+          <option value="creator">Creator</option>
+          <option value="streamer">Streamer</option>
+          <option value="server">Server</option>
+        </select>
       </div>
+      <input class="input mt" placeholder="Short description (optional)" bind:value={description} />
+      {#if kind === "streamer"}
+        <input class="input mt" placeholder="Stream URL (twitch.tv/… or youtube.com/…)" bind:value={streamUrl} />
+      {/if}
+      {#if kind === "server"}
+        <input class="input mt" placeholder="Server address (play.example.net)" bind:value={serverAddress} />
+      {/if}
+      <button class="btn primary mt" disabled={creating || !handle.trim()} onclick={createBoard}>
+        {creating ? "Creating…" : "Create board"}
+      </button>
+      {#if createError}<p class="err">{createError}</p>{/if}
+    </div>
 
+    <!-- Publish an instance -->
+    <div class="panel">
+      <h3>Publish an instance</h3>
+      <p class="muted">Snapshot one of your instances{selected ? ` to @${selected}` : " as a standalone shareable code"}.</p>
+      <div class="form">
+        <select class="select" bind:value={selected}>
+          <option value="">Standalone (code only)</option>
+          {#each boards as b (b.handle)}
+            <option value={b.handle}>@{b.handle}</option>
+          {/each}
+        </select>
+        <select class="select" bind:value={instanceId}>
+          <option value="" disabled>Choose an instance…</option>
+          {#each instancesStore.instances as i (i.id)}
+            <option value={i.id}>{i.name} · {i.loader} {i.mcVersion}</option>
+          {/each}
+        </select>
+        <select class="select" bind:value={format}>
+          <option value="drakepack">.drakepack</option>
+          <option value="mrpack">.mrpack</option>
+        </select>
+      </div>
+      <input class="input mt" placeholder="What changed? (optional)" bind:value={changelog} />
+      <button class="btn primary mt" disabled={publishing || !instanceId} onclick={publish}>
+        {publishing ? "Publishing…" : "Publish"}
+      </button>
+      {#if publishMsg}<p class="ok">{publishMsg}</p>{/if}
+    </div>
+
+    <!-- Announcements -->
+    {#if selected}
       <div class="panel">
-        <h3>Share code</h3>
-        <p class="muted">A code viewers can paste — works even if your profile is private.</p>
-        {#if code}
-          <p class="code">{code}</p>
-        {/if}
-        <button class="btn ghost" disabled={codeBusy} onclick={makeCode}>
-          {codeBusy ? "…" : code ? "New code" : "Create share code"}
+        <h3>Post an announcement to @{selected}</h3>
+        <textarea class="input" rows="2" placeholder="Say something to your followers…" bind:value={messageBody}></textarea>
+        <button class="btn ghost mt" disabled={postingMsg || !messageBody.trim()} onclick={postMessage}>
+          {postingMsg ? "Posting…" : "Post"}
         </button>
       </div>
     {/if}
@@ -226,8 +268,6 @@
   .panel {
     background: var(--bg-card);
     border: 2px solid var(--border);
-    box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.04),
-      inset -2px -2px 0 rgba(0, 0, 0, 0.28);
     padding: 18px 20px;
     margin-bottom: 16px;
   }
@@ -245,15 +285,10 @@
     padding: 1px 5px;
     color: var(--accent);
   }
-  .signin {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
   .who {
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
     margin-bottom: 16px;
     font-size: 13px;
     color: var(--text-secondary);
@@ -271,40 +306,37 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    align-items: center;
   }
   .form .input,
   .form .select {
     flex: 1;
-    min-width: 160px;
+    min-width: 150px;
   }
-  .changelog {
+  .mt {
     margin-top: 10px;
   }
-  .handle {
-    font-family: var(--font-pixel);
-    color: var(--accent);
-    margin: 0 0 8px;
+  .chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
   }
-  .code {
-    font-family: var(--font-pixel);
-    font-size: 20px;
-    color: var(--accent);
+  .chip {
+    padding: 6px 12px;
     background: var(--bg-input);
     border: 2px solid var(--border);
-    padding: 10px 14px;
-    display: inline-block;
-    margin: 0 0 12px;
-    user-select: all;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+  }
+  .chip.on {
+    border-color: var(--accent);
+    color: var(--accent);
   }
   .ok {
-    display: flex;
-    align-items: center;
-    gap: 6px;
     color: var(--accent);
     font-size: 13px;
+    margin: 10px 0 0;
   }
-  .error {
+  .err {
     color: var(--danger);
     font-size: 13px;
     margin: 10px 0 0;

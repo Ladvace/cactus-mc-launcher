@@ -352,26 +352,73 @@ pub async fn import_setup(
 // Streamer service (sign-in + publish)
 // ---------------------------------------------------------------------------
 
-/// Sign in to the hosted streamer service via Supabase OAuth (loopback + PKCE).
+/// Sign in to the boards service using the player's Minecraft account
+/// (Mojang hasJoined handshake). Returns a backend session token.
 #[tauri::command]
-pub async fn streamer_login(
-    supabase_url: String,
-    anon_key: String,
-    provider: String,
-) -> Result<crate::streamer_auth::Session> {
-    crate::streamer_auth::login(&supabase_url, &anon_key, &provider).await
+pub async fn board_login(
+    app: AppHandle,
+    api_base: String,
+) -> Result<crate::board_auth::BoardSession> {
+    crate::board_auth::login(&app, &api_base).await
 }
 
-/// Export an instance and publish it as the signed-in streamer's current
-/// snapshot; returns the new snapshot id.
+/// Export an instance and publish it — to a board you own (when `board_handle`
+/// is set) or as a standalone shareable snapshot. Returns the snapshot id.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn publish_setup(
     app: AppHandle,
     instance_id: String,
     format: String,
     api_base: String,
     access_token: String,
+    board_handle: Option<String>,
+    name: Option<String>,
     changelog: Option<String>,
 ) -> Result<String> {
-    crate::snapshot::publish(&app, &instance_id, &format, &api_base, &access_token, changelog).await
+    crate::snapshot::publish(
+        &app,
+        &instance_id,
+        &format,
+        &api_base,
+        &access_token,
+        board_handle,
+        name,
+        changelog,
+    )
+    .await
+}
+
+/// Whether an instance can be shared by code — i.e. every CurseForge item can
+/// still be re-downloaded. Opt-out mods (no distributable file) can't, so a
+/// shared code would import broken; those titles are returned.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShareCheck {
+    ok: bool,
+    opt_out: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn instance_share_check(app: AppHandle, instance_id: String) -> Result<ShareCheck> {
+    let mut opt_out = Vec::new();
+    for item in content::list(&app, &instance_id)? {
+        // Only CurseForge content can be distribution-opted-out.
+        if item.source != "curseforge" {
+            continue;
+        }
+        if let Ok(version) = sources::get_version(Source::CurseForge, &item.version_id).await {
+            let downloadable = version
+                .primary_file()
+                .map(|f| !f.url.is_empty())
+                .unwrap_or(false);
+            if !downloadable {
+                opt_out.push(item.title);
+            }
+        }
+    }
+    Ok(ShareCheck {
+        ok: opt_out.is_empty(),
+        opt_out,
+    })
 }

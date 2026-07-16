@@ -28,6 +28,7 @@
 
   function contextMenu(e: MouseEvent) {
     e.preventDefault();
+    e.stopPropagation(); // don't also open the page-level menu
     ui.openInstanceMenu(instance, e.clientX, e.clientY);
   }
 

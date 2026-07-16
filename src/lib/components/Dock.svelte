@@ -28,7 +28,7 @@
   const items = $derived<Item[]>([
     { kind: "nav", href: "/", icon: "home", label: "Home" },
     { kind: "nav", href: "/browse", icon: "compass", label: "Browse" },
-    { kind: "nav", href: "/share", icon: "video", label: "Streamers" },
+    { kind: "nav", href: "/share", icon: "users", label: "Community" },
     { kind: "sep" },
     ...pinned.map(
       (i): Item => ({ kind: "instance", instance: i, label: i.name })
