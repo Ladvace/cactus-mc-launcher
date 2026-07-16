@@ -32,6 +32,8 @@ pub struct Settings {
     pub giphy_api_key: String,
     /// Where the dock sits: "bottom" | "top" | "left" | "right".
     pub dock_position: String,
+    /// Placed-sprite decoration theme id ("" = none).
+    pub decor_theme: String,
 }
 
 impl Default for Settings {
@@ -49,6 +51,7 @@ impl Default for Settings {
             ui_sounds: true,
             giphy_api_key: String::new(),
             dock_position: "bottom".into(),
+            decor_theme: String::new(),
         }
     }
 }

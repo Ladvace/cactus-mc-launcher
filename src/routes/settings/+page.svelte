@@ -14,7 +14,7 @@
     DEFAULT_COLOR,
   } from "$lib/background";
   import { fileToBackgroundDataUri } from "$lib/image";
-  import { THEME_PRESETS } from "$lib/themes";
+  import { THEME_PRESETS, DECOR_THEMES } from "$lib/themes";
   import { playClick } from "$lib/sound";
   import type { CacheStats, DockPosition, Settings } from "$lib/types";
 
@@ -271,11 +271,22 @@
       {#each THEME_PRESETS as t (t.name)}
         <button
           class="theme"
-          class:on={draft.background === t.bg}
-          onclick={() => (draft.background = t.bg)}
+          class:on={draft.background === t.bg && (draft.decorTheme ?? "") === (t.decor ?? "")}
+          onclick={() => {
+            draft.background = t.bg;
+            draft.decorTheme = t.decor ?? "";
+          }}
           title={t.name}
         >
-          <span class="theme-swatch" style="background: {backgroundCss(t.bg)};"></span>
+          <span class="theme-swatch" style="background: {backgroundCss(t.bg)};">
+            {#if t.decor}
+              <img
+                class="theme-decor"
+                src={DECOR_THEMES.find((d) => d.id === t.decor)?.placements[0].sprite}
+                alt=""
+              />
+            {/if}
+          </span>
           <span class="theme-name">{t.name}</span>
         </button>
       {/each}
@@ -729,8 +740,18 @@
     text-align: left;
   }
   .theme-swatch {
+    position: relative;
     height: 44px;
     border: 2px solid var(--border);
+    overflow: hidden;
+  }
+  .theme-decor {
+    position: absolute;
+    right: 3px;
+    bottom: 2px;
+    width: 26px;
+    height: auto;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
   }
   .theme:hover .theme-swatch {
     border-color: var(--accent);

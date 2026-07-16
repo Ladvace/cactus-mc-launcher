@@ -7,6 +7,7 @@
   import InstanceContextMenu from "$lib/components/InstanceContextMenu.svelte";
   import StickerPicker from "$lib/components/StickerPicker.svelte";
   import GroupPicker from "$lib/components/GroupPicker.svelte";
+  import DecorLayer from "$lib/components/DecorLayer.svelte";
   import Toaster from "$lib/components/Toaster.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
@@ -72,6 +73,7 @@
   <main class="content" style="{dockPad}: 90px;">
     {@render children()}
   </main>
+  <DecorLayer />
   <Dock onCreate={() => ui.openCreateInstance()} />
 </div>
 

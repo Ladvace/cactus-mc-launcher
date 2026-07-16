@@ -194,6 +194,7 @@ export interface Settings {
   uiSounds: boolean;
   giphyApiKey: string;
   dockPosition: DockPosition;
+  decorTheme: string;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";
