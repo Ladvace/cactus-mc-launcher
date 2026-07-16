@@ -1,6 +1,7 @@
 <script lang="ts">
   import Modal from "./Modal.svelte";
   import Icon from "./Icon.svelte";
+  import InstancePicker from "./InstancePicker.svelte";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { formatCount } from "$lib/format";
@@ -260,14 +261,8 @@
       {:else if instances.length === 0}
         <p class="muted">Create an instance first, then install content into it.</p>
       {:else}
-        <label class="field-label" for="pm-instance">Install to</label>
-        <select id="pm-instance" class="select" bind:value={selectedInstanceId}>
-          {#each instances as inst (inst.id)}
-            <option value={inst.id}>
-              {inst.name} ({inst.loader} {inst.mcVersion})
-            </option>
-          {/each}
-        </select>
+        <span class="field-label">Install to</span>
+        <InstancePicker bind:value={selectedInstanceId} />
         <div class="version-line">
           {#if loadingVersions}
             <span class="muted">Finding compatible version…</span>
