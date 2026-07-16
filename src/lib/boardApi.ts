@@ -11,6 +11,7 @@ import type {
   BoardSession,
   ImportResult,
   OwnedBoard,
+  PresencePlayer,
   SnapshotManifest,
 } from "$lib/types";
 
@@ -137,6 +138,14 @@ export const boardApi = {
       method: "POST",
       body: JSON.stringify({ targetHandle, reason }),
     }),
+
+  // --- Presence (opt-in "who's online") ---
+  listPresence: (token: string) =>
+    authed<{ players: PresencePlayer[] }>(`/v1/presence`, token).then((r) => r.players),
+  setPresence: (token: string, body: { status: string; serverAddress: string }) =>
+    authed<void>(`/v1/presence`, token, { method: "PUT", body: JSON.stringify(body) }),
+  clearPresence: (token: string) =>
+    authed<void>(`/v1/presence`, token, { method: "DELETE" }),
 
   /** Export an instance and publish it (to a board, or standalone). Returns id. */
   publish: (

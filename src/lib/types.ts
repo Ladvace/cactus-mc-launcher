@@ -58,6 +58,14 @@ export interface PlayerEntry {
   name: string;
 }
 
+export interface PresencePlayer {
+  uuid: string;
+  name: string;
+  status: string;
+  serverAddress: string | null;
+  updatedAt: string;
+}
+
 export interface WorldInfo {
   name: string;
   folder: string;

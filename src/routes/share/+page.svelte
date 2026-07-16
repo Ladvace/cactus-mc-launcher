@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
   import BoardView from "$lib/components/BoardView.svelte";
+  import PresencePanel from "$lib/components/PresencePanel.svelte";
   import { api } from "$lib/api";
   import { boardApi } from "$lib/boardApi";
   import { boardAuth } from "$lib/stores/boardAuth.svelte";
@@ -122,6 +123,9 @@
     <button class="tab" class:on={active === "discover"} onclick={() => (active = "discover")}>
       Discover
     </button>
+    <button class="tab" class:on={active === "play"} onclick={() => (active = "play")}>
+      Play together
+    </button>
     {#each tabs as h (h)}
       <button class="tab" class:on={active === h} onclick={() => (active = h)}>
         @{h}
@@ -129,7 +133,9 @@
     {/each}
   </div>
 
-  {#if active !== "discover"}
+  {#if active === "play"}
+    <PresencePanel />
+  {:else if active !== "discover"}
     <BoardView handle={active} />
   {:else}
     {#if online}
