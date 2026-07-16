@@ -5,6 +5,7 @@
   import { api } from "$lib/api";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { emojiToDataUri } from "$lib/image";
+  import { DECOR_SPRITES, spriteToSquareIcon } from "$lib/decor";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import type { Sticker } from "$lib/types";
 
@@ -14,7 +15,7 @@
   // Stickers are enabled only once the user provides a Giphy API key.
   const enabled = $derived(settingsStore.settings.giphyApiKey.trim().length > 0);
 
-  let tab = $state<"stickers" | "emoji">("emoji");
+  let tab = $state<"stickers" | "emoji" | "decor">("decor");
   let keyDraft = $state("");
   let savingKey = $state(false);
   let editingKey = $state(false); // re-entering a key even though one is set
@@ -43,9 +44,23 @@
   // switching tabs while it's open).
   let wasOpen = false;
   $effect(() => {
-    if (open && !wasOpen) tab = enabled ? "stickers" : "emoji";
+    if (open && !wasOpen) tab = "decor";
     wasOpen = open;
   });
+
+  async function chooseDecor(url: string) {
+    const onPick = picker?.onPick;
+    if (!onPick || applying) return;
+    applying = true;
+    try {
+      onPick(await spriteToSquareIcon(url));
+      ui.closeStickerPicker();
+    } catch (e) {
+      error = String(e);
+    } finally {
+      applying = false;
+    }
+  }
 
   async function saveKey() {
     const k = keyDraft.trim();
@@ -181,6 +196,9 @@
 >
   {#if picker}
     <div class="tabs">
+      <button class="tab" class:active={tab === "decor"} onclick={() => (tab = "decor")}>
+        Cactus
+      </button>
       <button
         class="tab"
         class:active={tab === "stickers"}
@@ -197,7 +215,15 @@
       </button>
     </div>
 
-    {#if tab === "stickers"}
+    {#if tab === "decor"}
+      <div class="decor-grid" class:busy={applying}>
+        {#each DECOR_SPRITES as url (url)}
+          <button class="decor-cell" disabled={applying} onclick={() => chooseDecor(url)}>
+            <img src={url} alt="decoration" loading="lazy" />
+          </button>
+        {/each}
+      </div>
+    {:else if tab === "stickers"}
       {#if !enabled || editingKey}
         <div class="notice">
           <p>
@@ -550,5 +576,40 @@
   }
   .emoji:active {
     transform: scale(0.94);
+  }
+
+  .decor-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .decor-grid.busy {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .decor-cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    transition: border-color 0.1s, transform 0.08s;
+  }
+  .decor-cell:hover {
+    border-color: var(--accent);
+    transform: scale(1.05);
+  }
+  .decor-cell:active {
+    transform: scale(0.96);
+  }
+  .decor-cell img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
   }
 </style>
