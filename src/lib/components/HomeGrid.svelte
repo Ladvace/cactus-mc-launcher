@@ -32,6 +32,17 @@
   const iconFor = (w: number, h: number) =>
     Math.min(w, h) >= 2 ? 120 : Math.max(w, h) >= 2 ? 84 : 60;
 
+  // Preview icon size for a folder tile of `w`×`h` cells. The 2×2 preview grid
+  // grows with the tile so the contained instances scale up when it's resized.
+  const CELL = 168;
+  function folderIcon(w: number, h: number): number {
+    const availW = w * CELL + (w - 1) * GAP - 28; // folder + preview padding/border
+    const availH = h * CELL + (h - 1) * GAP - 60; // + meta row & gaps
+    const perW = (availW - 4) / 2; // 2 columns, one 4px gap
+    const perH = (availH - 4) / 2; // up to 2 rows
+    return clamp(Math.floor(Math.min(perW, perH)), 28, 148);
+  }
+
   const ordered = $derived(
     [...entries].sort((a, b) => cellOf(a.id).order - cellOf(b.id).order)
   );
@@ -334,7 +345,7 @@
         >
           <div class="folder-preview">
             {#each entry.instances.slice(0, 4) as inst (inst.id)}
-              <InstanceIcon instance={inst} size={Math.min(58, Math.round(iconFor(c.w, c.h) / 1.4))} />
+              <InstanceIcon instance={inst} size={folderIcon(c.w, c.h)} />
             {/each}
           </div>
           <div class="folder-meta">
@@ -460,6 +471,7 @@
     background: var(--bg-input);
     border: 2px solid var(--border-subtle);
     padding: 4px;
+    overflow: hidden;
   }
   .folder-meta {
     display: flex;

@@ -7,7 +7,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
-use crate::instance::{Instance, ModLoader};
+use crate::instance::{Instance, InstanceKind, ModLoader};
 use crate::launch::download::{download_one, DownloadTask};
 
 pub mod cache;
@@ -347,7 +347,7 @@ pub async fn install_modpack(
         Some(url) => fetch_icon_data_uri(&client, url).await,
         None => None,
     };
-    let instance = Instance::new(name, mc_version, loader, loader_version, icon);
+    let instance = Instance::new(name, InstanceKind::Client, mc_version, loader, loader_version, icon);
     app.state::<InstanceStore>().save(app, &instance)?;
 
     // Download the pack's files (client-relevant only).
@@ -448,7 +448,7 @@ pub async fn install_ftb_modpack(
         Some(url) => fetch_icon_data_uri(&client, url).await,
         None => None,
     };
-    let instance = Instance::new(name, mc_version, loader, loader_version, icon);
+    let instance = Instance::new(name, InstanceKind::Client, mc_version, loader, loader_version, icon);
     app.state::<InstanceStore>().save(app, &instance)?;
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
 

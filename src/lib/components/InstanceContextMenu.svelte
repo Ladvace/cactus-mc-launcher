@@ -11,6 +11,7 @@
   import { api } from "$lib/api";
   import { fileToIconDataUri } from "$lib/image";
   import { toast } from "$lib/stores/toast.svelte";
+  import { localServerAddress } from "$lib/serverAddress";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
   const shareOnline = boardApi.configured();
@@ -49,6 +50,15 @@
           running ? launchStore.stop(inst.id) : launchStore.launch(inst.id),
       },
       { label: "Open", icon: "folder", onSelect: () => goto(`/instance/${inst.id}`) },
+      ...(inst.kind === "server"
+        ? [
+            {
+              label: "Copy server address",
+              icon: "copy",
+              onSelect: () => copyServerAddress(inst.id),
+            },
+          ]
+        : []),
       {
         label: inst.group ? `Group: ${inst.group}…` : "Move to group…",
         icon: "folder",
@@ -144,6 +154,16 @@
       toast.success("Copied!");
     } catch {
       /* clipboard may be unavailable */
+    }
+  }
+
+  async function copyServerAddress(id: string) {
+    try {
+      const addr = await localServerAddress(id);
+      await navigator.clipboard.writeText(addr);
+      toast.success(`Copied ${addr}`);
+    } catch (e) {
+      toast.error(String(e));
     }
   }
 

@@ -2,6 +2,9 @@
 
 export type ModLoader = "vanilla" | "fabric" | "quilt" | "forge" | "neoforge";
 
+/// A normal game client or a dedicated server.
+export type InstanceKind = "client" | "server";
+
 export const MOD_LOADERS: { value: ModLoader; label: string }[] = [
   { value: "vanilla", label: "Vanilla" },
   { value: "fabric", label: "Fabric" },
@@ -13,6 +16,7 @@ export const MOD_LOADERS: { value: ModLoader; label: string }[] = [
 export interface Instance {
   id: string;
   name: string;
+  kind: InstanceKind;
   icon: string | null;
   mcVersion: string;
   loader: ModLoader;
@@ -22,14 +26,38 @@ export interface Instance {
   lastPlayed: string | null;
   totalPlaytimeSeconds: number;
   coverImage: boolean;
+  /** Max heap (MB) for a server; null = use the global memory setting. */
+  serverMemoryMb: number | null;
 }
 
 export interface CreateInstance {
   name: string;
+  kind?: InstanceKind;
   mcVersion: string;
   loader?: ModLoader;
   loaderVersion?: string | null;
   icon?: string | null;
+}
+
+export interface OpEntry {
+  uuid: string;
+  name: string;
+  level: number;
+  bypassesPlayerLimit: boolean;
+}
+
+export interface PlayerEntry {
+  uuid: string;
+  name: string;
+}
+
+export interface WorldInfo {
+  name: string;
+  folder: string;
+  path: string;
+  sizeBytes: number;
+  lastModified: string | null;
+  location: "saves" | "server";
 }
 
 export interface UpdateInstance {
@@ -40,6 +68,8 @@ export interface UpdateInstance {
   loader?: ModLoader;
   loaderVersion?: string;
   coverImage?: boolean;
+  /** Max heap (MB) for a server; 0 clears the override. */
+  serverMemoryMb?: number;
 }
 
 export interface Sticker {
@@ -137,6 +167,7 @@ export interface Settings {
   gameHeight: number;
   offlineUsername: string;
   background: string;
+  uiSounds: boolean;
 }
 
 // --- Launch events (mirror the Rust payloads in src-tauri/src/launch) ---

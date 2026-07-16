@@ -25,6 +25,8 @@ pub struct Settings {
     /// App background. Empty = default; otherwise `color:#rrggbb`,
     /// `pattern:<name>`, or `image:<data-uri>`.
     pub background: String,
+    /// Play subtle UI click sounds on buttons.
+    pub ui_sounds: bool,
 }
 
 impl Default for Settings {
@@ -39,6 +41,7 @@ impl Default for Settings {
             game_height: 480,
             offline_username: "Player".into(),
             background: String::new(),
+            ui_sounds: true,
         }
     }
 }

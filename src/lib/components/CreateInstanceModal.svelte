@@ -5,9 +5,11 @@
   import { randomInstanceName } from "$lib/funnyNames";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import {
     MOD_LOADERS,
     SUPPORTED_LOADERS,
+    type InstanceKind,
     type ModLoader,
     type MinecraftVersion,
     type LoaderVersion,
@@ -21,6 +23,8 @@
   let { open, onClose }: Props = $props();
 
   let name = $state("");
+  let kind = $state<InstanceKind>("client");
+  let eulaAccepted = $state(false);
   let loader = $state<ModLoader>("vanilla");
   let selectedVersion = $state("");
   let showSnapshots = $state(false);
@@ -105,6 +109,8 @@
       supportedLoader &&
       // a modded loader needs at least one compatible build
       (!needsLoaderVersion || (!loaderVersionsLoading && loaderVersions.length > 0)) &&
+      // dedicated servers require accepting the Minecraft EULA
+      (kind === "client" || eulaAccepted) &&
       !creating
   );
 
@@ -114,6 +120,7 @@
     try {
       const inst = await instancesStore.create({
         name: name.trim(),
+        kind,
         mcVersion: selectedVersion,
         loader,
         loaderVersion:
@@ -131,6 +138,8 @@
 
   function reset() {
     name = "";
+    kind = "client";
+    eulaAccepted = false;
     loader = "vanilla";
     showSnapshots = false;
     loaderVersions = [];
@@ -146,6 +155,29 @@
 
 <Modal title="Create instance" {open} onClose={close}>
   <div class="form">
+    <div class="kind-toggle" role="tablist" aria-label="Instance type">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={kind === "client"}
+        class="kind-btn"
+        class:active={kind === "client"}
+        onclick={() => (kind = "client")}
+      >
+        <Icon name="cube" size={16} /> Client
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={kind === "server"}
+        class="kind-btn"
+        class:active={kind === "server"}
+        onclick={() => (kind = "server")}
+      >
+        <Icon name="globe" size={16} /> Server
+      </button>
+    </div>
+
     <div>
       <label class="field-label" for="ci-name">Name</label>
       <div class="name-row">
@@ -241,6 +273,27 @@
         </select>
       {/if}
     </div>
+
+    {#if kind === "server"}
+      <div class="eula">
+        <label class="eula-check">
+          <input type="checkbox" bind:checked={eulaAccepted} />
+          <span>
+            I agree to the
+            <button
+              type="button"
+              class="link"
+              onclick={() => openUrl("https://www.minecraft.net/eula")}
+              >Minecraft EULA</button
+            >.
+          </span>
+        </label>
+        <p class="hint">
+          Servers run headless — start, stop and type console commands from the
+          instance's <strong>Console</strong> tab.
+        </p>
+      </div>
+    {/if}
   </div>
 
   {#snippet footer()}
@@ -256,6 +309,59 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+  .kind-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .kind-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.22);
+    transition: all 0.12s;
+  }
+  .kind-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .kind-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .eula {
+    padding: 12px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+  }
+  .eula-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .eula .link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer;
+    font: inherit;
+  }
+  .eula .hint {
+    margin: 8px 0 0;
   }
   .name-row {
     display: flex;

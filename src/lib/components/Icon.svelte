@@ -29,6 +29,7 @@
     expand: "expand",
     refresh: "refresh",
     check: "check",
+    copy: "copy",
     share: "share",
     upload: "upload",
     download: "download",

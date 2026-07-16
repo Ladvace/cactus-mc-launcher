@@ -10,13 +10,15 @@ mod modrinth;
 mod paths;
 mod board_auth;
 mod settings;
+mod players;
 mod snapshot;
 mod sources;
 mod stickers;
+mod worlds;
 
 use auth::AccountStore;
 use instance::store::InstanceStore;
-use launch::LaunchState;
+use launch::{LaunchState, ServerState};
 use settings::SettingsStore;
 use tauri::Manager;
 
@@ -27,6 +29,7 @@ pub fn run() {
         .manage(InstanceStore::default())
         .manage(SettingsStore::default())
         .manage(LaunchState::default())
+        .manage(ServerState::default())
         .manage(AccountStore::default())
         .setup(|app| {
             let handle = app.handle().clone();
@@ -47,7 +50,20 @@ pub fn run() {
             commands::get_loader_versions,
             commands::launch_instance,
             commands::stop_instance,
+            commands::send_server_command,
             commands::is_instance_running,
+            commands::read_server_properties,
+            commands::write_server_properties,
+            commands::list_worlds,
+            commands::backup_world,
+            commands::delete_world,
+            commands::get_local_ip,
+            commands::read_ops,
+            commands::read_whitelist,
+            commands::add_op,
+            commands::remove_op,
+            commands::add_whitelist,
+            commands::remove_whitelist,
             commands::setup_java,
             commands::login_microsoft,
             commands::get_accounts,

@@ -15,6 +15,7 @@
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { backgroundCss } from "$lib/background";
+  import { playClick } from "$lib/sound";
   import type { Snippet } from "svelte";
 
   let { children }: { children: Snippet } = $props();
@@ -42,9 +43,21 @@
     if (tag === "INPUT" || tag === "TEXTAREA" || t?.isContentEditable) return;
     e.preventDefault();
   }
+
+  // Subtle click sound on any button (capture phase so it fires even when a
+  // handler stops propagation). Gated by the uiSounds setting.
+  function onGlobalClick(e: MouseEvent) {
+    if (!settingsStore.settings.uiSounds) return;
+    const t = e.target as HTMLElement | null;
+    const btn = t?.closest?.("button, .btn") as HTMLElement | null;
+    if (!btn) return;
+    if ((btn as HTMLButtonElement).disabled) return;
+    if (btn.getAttribute("aria-disabled") === "true") return;
+    playClick();
+  }
 </script>
 
-<svelte:window oncontextmenu={onContextMenu} />
+<svelte:window oncontextmenu={onContextMenu} onclickcapture={onGlobalClick} />
 
 <div class="app">
   <div class="bg-layer" style="background: {bg};"></div>

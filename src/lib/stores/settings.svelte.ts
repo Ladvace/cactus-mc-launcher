@@ -11,6 +11,7 @@ const DEFAULTS: Settings = {
   gameHeight: 480,
   offlineUsername: "Player",
   background: "",
+  uiSounds: true,
 };
 
 /// Reactive settings store, persisted through the Rust backend.

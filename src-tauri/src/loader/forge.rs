@@ -148,6 +148,103 @@ pub async fn apply(
     Ok(ver)
 }
 
+/// Install a Forge/NeoForge **server** into `run_dir` (running the official
+/// installer with `--installServer`), then return the loader-specific launch
+/// arguments to append after the JVM/memory args (run with cwd = `run_dir`).
+///
+/// Handles both layouts: modern (1.17+) installers drop an args file under
+/// `libraries/.../<id>/unix_args.txt`; older installers drop a runnable
+/// `forge-<mc>-<ver>.jar` universal server jar.
+pub async fn install_server(
+    client: &reqwest::Client,
+    java: &Path,
+    loader: ModLoader,
+    mc: &str,
+    requested: Option<&str>,
+    run_dir: &Path,
+) -> Result<Vec<String>> {
+    let ver = resolve_version(loader, mc, requested).await?;
+
+    // If a previous run already installed the server, reuse it.
+    if let Ok(args) = server_launch_args(loader, mc, &ver, run_dir) {
+        return Ok(args);
+    }
+
+    // Download the installer into the run directory.
+    let installer = run_dir.join(".server-installer.jar");
+    let bytes = client
+        .get(installer_url(loader, mc, &ver))
+        .send()
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    std::fs::write(&installer, &bytes)?;
+
+    // Modern installers refuse to run without a launcher_profiles.json present.
+    let profiles = run_dir.join("launcher_profiles.json");
+    if !profiles.exists() {
+        std::fs::write(&profiles, "{\"profiles\":{}}")?;
+    }
+
+    let output = tokio::process::Command::new(java)
+        .arg("-jar")
+        .arg(&installer)
+        .arg("--installServer")
+        .current_dir(run_dir)
+        .output()
+        .await
+        .map_err(|e| AppError::Other(format!("failed to run {loader:?} server installer: {e}")))?;
+
+    let _ = std::fs::remove_file(&installer);
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        let tail: String = err.chars().rev().take(800).collect::<String>().chars().rev().collect();
+        return Err(AppError::Other(format!(
+            "{loader:?} server installer failed: {tail}"
+        )));
+    }
+
+    server_launch_args(loader, mc, &ver, run_dir)
+}
+
+/// Work out how to launch the installed server, based on what the installer
+/// produced under `run_dir`.
+fn server_launch_args(loader: ModLoader, mc: &str, ver: &str, run_dir: &Path) -> Result<Vec<String>> {
+    let argfile = if cfg!(windows) { "win_args.txt" } else { "unix_args.txt" };
+    let rel_dir = match loader {
+        ModLoader::Forge => format!("libraries/net/minecraftforge/forge/{mc}-{ver}"),
+        _ => format!("libraries/net/neoforged/neoforge/{ver}"),
+    };
+    // Modern: an args file with the full classpath/module args + main class.
+    if run_dir.join(&rel_dir).join(argfile).exists() {
+        return Ok(vec![format!("@{rel_dir}/{argfile}"), "nogui".into()]);
+    }
+    // Legacy: a runnable universal/server jar dropped in the run dir.
+    if let Some(jar) = find_forge_jar(run_dir) {
+        return Ok(vec!["-jar".into(), jar, "nogui".into()]);
+    }
+    Err(AppError::Other(
+        "could not find the installed server launch files".into(),
+    ))
+}
+
+/// Find a legacy runnable forge jar in `dir` (excluding the installer).
+fn find_forge_jar(dir: &Path) -> Option<String> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with("forge-")
+            && name.ends_with(".jar")
+            && !name.contains("installer")
+        {
+            return Some(name);
+        }
+    }
+    None
+}
+
 /// Cached profile id (also the installer's `versions/<id>` folder name).
 fn profile_id(loader: ModLoader, mc: &str, ver: &str) -> String {
     match loader {

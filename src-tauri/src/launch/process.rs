@@ -4,10 +4,10 @@ use std::time::Instant;
 
 use chrono::Utc;
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::oneshot;
 
-use super::{LaunchState, LogEvent, EVENT_LOG};
+use super::{LaunchState, LogEvent, ServerMsg, ServerState, EVENT_LOG};
 use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
 use crate::paths;
@@ -185,4 +185,128 @@ pub fn spawn_and_monitor(
     });
 
     Ok(())
+}
+
+/// Spawn a dedicated server and monitor it. Unlike the game client, the server
+/// keeps stdin open so console commands can be piped in, and "stop" is issued
+/// gracefully before falling back to a hard kill.
+pub fn spawn_server(
+    app: AppHandle,
+    java: PathBuf,
+    args: Vec<String>,
+    run_dir: PathBuf,
+    instance_id: String,
+) -> Result<()> {
+    eprintln!(
+        "[server] {} {}\n[server] cwd: {}",
+        java.display(),
+        concise_args(&args),
+        run_dir.display()
+    );
+
+    let mut cmd = tokio::process::Command::new(&java);
+    cmd.args(&args)
+        .current_dir(&run_dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    for (key, _) in std::env::vars() {
+        if key.starts_with("DYLD_") {
+            cmd.env_remove(key);
+        }
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Other(format!("failed to start server process: {e}")))?;
+
+    emit_status(&app, &instance_id, "running", None);
+
+    // Stream stdout and stderr both into the console log.
+    for pipe in [child.stdout.take().map(Pipe::Out), child.stderr.take().map(Pipe::Err)]
+        .into_iter()
+        .flatten()
+    {
+        let app = app.clone();
+        let id = instance_id.clone();
+        tokio::spawn(async move {
+            match pipe {
+                Pipe::Out(o) => {
+                    let mut lines = BufReader::new(o).lines();
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        emit_log(&app, &id, line);
+                    }
+                }
+                Pipe::Err(e) => {
+                    let mut lines = BufReader::new(e).lines();
+                    while let Ok(Some(line)) = lines.next_line().await {
+                        emit_log(&app, &id, line);
+                    }
+                }
+            }
+        });
+    }
+
+    let mut stdin = child.stdin.take();
+
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<ServerMsg>();
+    app.state::<ServerState>().register(instance_id.clone(), tx);
+
+    let started = Instant::now();
+    tokio::spawn(async move {
+        let exit_message = loop {
+            tokio::select! {
+                status = child.wait() => {
+                    break match status {
+                        Ok(s) => describe_exit(&s),
+                        Err(e) => format!("Process error: {e}"),
+                    };
+                }
+                msg = rx.recv() => {
+                    match msg {
+                        Some(ServerMsg::Line(line)) => {
+                            if let Some(si) = stdin.as_mut() {
+                                let _ = si.write_all(format!("{line}\n").as_bytes()).await;
+                                let _ = si.flush().await;
+                            }
+                        }
+                        Some(ServerMsg::Stop) => {
+                            if let Some(si) = stdin.as_mut() {
+                                let _ = si.write_all(b"stop\n").await;
+                                let _ = si.flush().await;
+                            }
+                            // Let the server shut itself down; child.wait() above
+                            // resolves once it exits.
+                        }
+                        None => {
+                            let _ = child.start_kill();
+                            let _ = child.wait().await;
+                            break "Stopped".to_string();
+                        }
+                    }
+                }
+            }
+        };
+
+        eprintln!("[server] instance {instance_id} {exit_message}");
+
+        let elapsed = started.elapsed().as_secs();
+        let store = app.state::<InstanceStore>();
+        if let Some(mut inst) = store.get(&instance_id) {
+            inst.total_playtime_seconds += elapsed;
+            inst.last_played = Some(Utc::now());
+            let _ = store.save(&app, &inst);
+        }
+
+        app.state::<ServerState>().unregister(&instance_id);
+        emit_status(&app, &instance_id, "exited", Some(exit_message));
+    });
+
+    Ok(())
+}
+
+enum Pipe {
+    Out(tokio::process::ChildStdout),
+    Err(tokio::process::ChildStderr),
 }

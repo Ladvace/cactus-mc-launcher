@@ -128,6 +128,16 @@ async fn resolve_version(
         })
 }
 
+/// Resolve the loader build to use (requested, else newest stable, else newest).
+/// Public wrapper used by the server-install path.
+pub async fn resolve_loader_version(
+    loader: ModLoader,
+    mc_version: &str,
+    requested: Option<&str>,
+) -> Result<String> {
+    resolve_version(loader, mc_version, requested).await
+}
+
 /// Merge a loader profile into the vanilla version detail: swap the main class,
 /// prepend the loader libraries, and append its extra JVM/game arguments.
 /// Returns the resolved loader version that was applied.

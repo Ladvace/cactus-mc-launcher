@@ -174,13 +174,6 @@
           onpointerdown={(e) => onCardPointerDown(e, inst.id)}
         >
           <InstanceCard instance={inst} iconSize={64} fill />
-          <button
-            class="pop"
-            title="Remove from folder"
-            onclick={() => removeFromFolder(inst.id)}
-          >
-            <Icon name="trash" size={12} />
-          </button>
         </div>
       {/each}
     </div>
@@ -222,29 +215,6 @@
   .cell.dragging {
     opacity: 0.28;
     filter: grayscale(0.4);
-  }
-  .pop {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    z-index: 2;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-raised);
-    border: 2px solid var(--border);
-    color: var(--text-secondary);
-    opacity: 0;
-    transition: opacity 0.12s;
-  }
-  .cell:hover .pop {
-    opacity: 1;
-  }
-  .pop:hover {
-    border-color: var(--danger);
-    color: var(--danger);
   }
   .cell {
     cursor: grab;

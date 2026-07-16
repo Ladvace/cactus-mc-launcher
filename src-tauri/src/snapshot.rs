@@ -19,7 +19,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::content::{self, ContentItem};
 use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
-use crate::instance::{Instance, ModLoader};
+use crate::instance::{Instance, InstanceKind, ModLoader};
 use crate::launch::download::DownloadTask;
 use crate::paths;
 use crate::sources::Source;
@@ -467,6 +467,7 @@ async fn import_drakepack(app: &AppHandle, pack_path: &Path) -> Result<ImportRes
 
     let instance = Instance::new(
         index.name.clone(),
+        InstanceKind::Client,
         index.mc_version.clone(),
         parse_loader(&index.loader),
         index.loader_version.clone(),
@@ -520,7 +521,7 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     let (loader, loader_version) = mr_loader_from_deps(&index.dependencies);
     let name = index.name.clone().unwrap_or_else(|| "Imported pack".into());
 
-    let instance = Instance::new(name, mc, loader, loader_version, None);
+    let instance = Instance::new(name, InstanceKind::Client, mc, loader, loader_version, None);
     app.state::<InstanceStore>().save(app, &instance)?;
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
 

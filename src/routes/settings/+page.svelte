@@ -11,6 +11,7 @@
     DEFAULT_COLOR,
   } from "$lib/background";
   import { fileToBackgroundDataUri } from "$lib/image";
+  import { playClick } from "$lib/sound";
   import type { CacheStats, Settings } from "$lib/types";
 
   // Local editable copy; committed on "Save".
@@ -171,6 +172,24 @@
         bind:value={draft.offlineUsername}
         autocomplete="off"
       />
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3>Interface</h3>
+    <div class="setting">
+      <div class="label">
+        <span>Button sounds</span>
+        <small>Play a soft click when you press buttons.</small>
+      </div>
+      <label class="switch">
+        <input
+          type="checkbox"
+          bind:checked={draft.uiSounds}
+          onchange={() => draft.uiSounds && playClick()}
+        />
+        <span class="track"><span class="thumb"></span></span>
+      </label>
     </div>
   </section>
 
@@ -451,6 +470,45 @@
     color: var(--text-muted);
     max-width: 420px;
     line-height: 1.4;
+  }
+  /* Toggle switch */
+  .switch {
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .switch .track {
+    display: inline-flex;
+    align-items: center;
+    width: 44px;
+    height: 24px;
+    padding: 2px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .switch .thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--text-muted);
+    transition: transform 0.14s ease, background 0.12s;
+  }
+  .switch input:checked + .track {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .switch input:checked + .track .thumb {
+    transform: translateX(20px);
+    background: var(--accent);
+  }
+  .switch input:focus-visible + .track {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   .stats {
     display: flex;

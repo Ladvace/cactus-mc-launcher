@@ -4,16 +4,51 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
   import { api } from "$lib/api";
+  import { toast } from "$lib/stores/toast.svelte";
   import { MOD_LOADERS, type ContentItem, type Source } from "$lib/types";
   import Icon from "$lib/components/Icon.svelte";
   import InstanceIcon from "$lib/components/InstanceIcon.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import ServerProperties from "$lib/components/ServerProperties.svelte";
+  import ServerAddress from "$lib/components/ServerAddress.svelte";
+  import PlayersList from "$lib/components/PlayersList.svelte";
+  import WorldsList from "$lib/components/WorldsList.svelte";
 
   const id = $derived($page.params.id ?? "");
   const instance = $derived(instancesStore.get(id));
 
-  const tabs = ["Content", "Worlds", "Screenshots", "Logs", "Settings"];
+  const isServer = $derived(instance?.kind === "server");
+  const tabs = $derived(
+    isServer
+      ? ["Content", "Worlds", "Console", "Players", "Properties", "Settings"]
+      : ["Content", "Worlds", "Screenshots", "Logs", "Settings"]
+  );
   let activeTab = $state("Content");
+  // Keep the active tab valid when switching between client/server instances.
+  $effect(() => {
+    if (!tabs.includes(activeTab)) activeTab = "Content";
+  });
+
+  // --- Server console input ---
+  let command = $state("");
+  let logEl = $state<HTMLPreElement>();
+
+  async function sendCommand() {
+    const c = command.trim();
+    if (!c || !launchRunning) return;
+    try {
+      await api.sendServerCommand(id, c);
+      command = "";
+    } catch (e) {
+      toast.error(String(e));
+    }
+  }
+
+  // Auto-scroll the console to the newest line.
+  $effect(() => {
+    void runtime.logs.length;
+    if (logEl) logEl.scrollTop = logEl.scrollHeight;
+  });
 
   // --- Launch state ---
   const runtime = $derived(launchStore.get(id));
@@ -120,6 +155,37 @@
   let renameValue = $state("");
   let busy = $state(false);
 
+  // --- Per-server memory (max heap, MB). null = use the global setting. ---
+  let serverMem = $state<number | null>(null);
+  let memInstanceId = "";
+  let savingMem = $state(false);
+  $effect(() => {
+    if (instance && instance.id !== memInstanceId) {
+      memInstanceId = instance.id;
+      serverMem = instance.serverMemoryMb;
+    }
+  });
+
+  async function saveServerMem(value: number | null) {
+    if (!instance) return;
+    savingMem = true;
+    try {
+      await instancesStore.update(instance.id, {
+        serverMemoryMb: value && value > 0 ? value : 0,
+      });
+      serverMem = value && value > 0 ? value : null;
+      toast.success(
+        value && value > 0
+          ? `Server memory set to ${(value / 1024).toFixed(value % 1024 ? 1 : 0)} GB.`
+          : "Using the global memory setting."
+      );
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      savingMem = false;
+    }
+  }
+
   const loaderLabel = $derived(
     instance
       ? MOD_LOADERS.find((l) => l.value === instance.loader)?.label ??
@@ -195,6 +261,9 @@
         <div class="titles">
           <h1>{instance.name}</h1>
           <div class="badges">
+            {#if isServer}
+              <span class="badge server-badge">Server</span>
+            {/if}
             <span class="badge">{loaderLabel}</span>
             <span class="badge">{instance.mcVersion}</span>
             {#if instance.loaderVersion}
@@ -218,7 +287,13 @@
               onclick={() => launchStore.launch(id)}
             >
               <Icon name="play" size={16} />
-              {launchBusy ? "Preparing…" : "Play"}
+              {launchBusy
+                ? isServer
+                  ? "Starting…"
+                  : "Preparing…"
+                : isServer
+                  ? "Start server"
+                  : "Play"}
             </button>
           {/if}
           <button class="btn ghost" onclick={openRename} aria-label="Rename">
@@ -246,6 +321,10 @@
           <strong>Launch failed.</strong>
           {runtime.message}
         </div>
+      {/if}
+
+      {#if isServer}
+        <ServerAddress {id} />
       {/if}
     </div>
 
@@ -285,6 +364,53 @@
               <strong>{fmtDate(instance.created)}</strong>
             </div>
           </section>
+
+          {#if isServer}
+            <section class="card-block">
+              <h3>Server memory</h3>
+              <p class="block-hint">
+                Max heap for this server. Leave on the global default unless the
+                pack needs more.
+              </p>
+              <div class="mem-presets">
+                {#each [2048, 4096, 6144, 8192] as mb (mb)}
+                  <button
+                    class="mem-chip"
+                    class:active={serverMem === mb}
+                    disabled={savingMem}
+                    onclick={() => saveServerMem(mb)}
+                  >
+                    {mb / 1024} GB
+                  </button>
+                {/each}
+                <button
+                  class="mem-chip"
+                  class:active={!serverMem}
+                  disabled={savingMem}
+                  onclick={() => saveServerMem(null)}
+                >
+                  Global default
+                </button>
+              </div>
+              <div class="mem-custom">
+                <input
+                  class="input"
+                  type="number"
+                  min="512"
+                  step="512"
+                  placeholder="Custom (MB)"
+                  bind:value={serverMem}
+                />
+                <button
+                  class="btn ghost sm"
+                  disabled={savingMem}
+                  onclick={() => saveServerMem(serverMem)}
+                >
+                  Save
+                </button>
+              </div>
+            </section>
+          {/if}
 
           <section class="card-block danger-zone">
             <h3>Danger zone</h3>
@@ -383,7 +509,7 @@
             </div>
           {/if}
         </div>
-      {:else if activeTab === "Logs"}
+      {:else if activeTab === "Logs" || activeTab === "Console"}
         <div class="logs">
           <div class="logs-head">
             <span class="state-pill state-{runtime.state}">{runtime.state}</span>
@@ -391,12 +517,41 @@
           </div>
           {#if runtime.logs.length === 0}
             <p class="muted logs-empty">
-              No output yet. Press Play to launch — game logs stream here live.
+              {isServer
+                ? "No output yet. Start the server — console output streams here live."
+                : "No output yet. Press Play to launch — game logs stream here live."}
             </p>
           {:else}
-            <pre class="log-view">{runtime.logs.join("\n")}</pre>
+            <pre class="log-view" bind:this={logEl}>{runtime.logs.join("\n")}</pre>
+          {/if}
+          {#if isServer}
+            <div class="console-input">
+              <span class="prompt">&gt;</span>
+              <input
+                class="cmd"
+                placeholder={launchRunning
+                  ? "Type a command (e.g. say hello, op <player>, whitelist add <player>)…"
+                  : "Start the server to send commands"}
+                bind:value={command}
+                disabled={!launchRunning}
+                onkeydown={(e) => e.key === "Enter" && sendCommand()}
+              />
+              <button
+                class="btn primary sm"
+                disabled={!launchRunning || !command.trim()}
+                onclick={sendCommand}
+              >
+                Send
+              </button>
+            </div>
           {/if}
         </div>
+      {:else if activeTab === "Properties"}
+        <ServerProperties {id} running={launchRunning} />
+      {:else if activeTab === "Players"}
+        <PlayersList {id} running={launchRunning} />
+      {:else if activeTab === "Worlds"}
+        <WorldsList {id} running={launchRunning} />
       {:else}
         <div class="tab-placeholder">
           <div class="mark"><Icon name="package" size={34} /></div>
@@ -502,6 +657,11 @@
   .badge.subtle {
     color: var(--text-muted);
   }
+  .badge.server-badge {
+    color: var(--bg-app);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
   .stats {
     display: flex;
     gap: 16px;
@@ -584,6 +744,44 @@
   .card-block h3 {
     font-size: 14px;
     margin-bottom: 14px;
+  }
+  .block-hint {
+    margin: -6px 0 12px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    max-width: 60ch;
+  }
+  .mem-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .mem-chip {
+    padding: 7px 12px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: all 0.12s;
+  }
+  .mem-chip:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .mem-chip.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .mem-custom {
+    display: flex;
+    gap: 8px;
+    max-width: 320px;
+  }
+  .mem-custom .input {
+    flex: 1;
   }
   .row {
     display: flex;
@@ -712,6 +910,36 @@
     color: var(--text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
+  }
+  /* Server console command bar */
+  .console-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    padding: 0 10px;
+  }
+  .console-input .prompt {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .console-input .cmd {
+    flex: 1;
+    padding: 10px 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  .console-input .cmd:focus {
+    outline: none;
+  }
+  .console-input .cmd:disabled {
+    color: var(--text-muted);
   }
 
   /* Content tab */

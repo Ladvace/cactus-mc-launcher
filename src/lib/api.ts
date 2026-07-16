@@ -11,6 +11,8 @@ import type {
   LoaderVersion,
   ModLoader,
   ModrinthVersion,
+  OpEntry,
+  PlayerEntry,
   SearchParams,
   SearchResults,
   Settings,
@@ -18,6 +20,7 @@ import type {
   Sticker,
   UpdateInstance,
   VersionList,
+  WorldInfo,
 } from "./types";
 
 /// Thin typed wrapper around the Rust command layer.
@@ -47,6 +50,35 @@ export const api = {
   launchInstance: (id: string) => invoke<void>("launch_instance", { id }),
 
   stopInstance: (id: string) => invoke<void>("stop_instance", { id }),
+
+  sendServerCommand: (id: string, command: string) =>
+    invoke<void>("send_server_command", { id, command }),
+
+  readServerProperties: (id: string) =>
+    invoke<string>("read_server_properties", { id }),
+
+  writeServerProperties: (id: string, content: string) =>
+    invoke<void>("write_server_properties", { id, content }),
+
+  listWorlds: (id: string) => invoke<WorldInfo[]>("list_worlds", { id }),
+
+  backupWorld: (id: string, folder: string) =>
+    invoke<string>("backup_world", { id, folder }),
+
+  deleteWorld: (id: string, folder: string) =>
+    invoke<void>("delete_world", { id, folder }),
+
+  getLocalIp: () => invoke<string | null>("get_local_ip"),
+
+  readOps: (id: string) => invoke<OpEntry[]>("read_ops", { id }),
+  readWhitelist: (id: string) => invoke<PlayerEntry[]>("read_whitelist", { id }),
+  addOp: (id: string, name: string, level = 4) =>
+    invoke<void>("add_op", { id, name, level }),
+  removeOp: (id: string, name: string) => invoke<void>("remove_op", { id, name }),
+  addWhitelist: (id: string, name: string) =>
+    invoke<void>("add_whitelist", { id, name }),
+  removeWhitelist: (id: string, name: string) =>
+    invoke<void>("remove_whitelist", { id, name }),
 
   isInstanceRunning: (id: string) =>
     invoke<boolean>("is_instance_running", { id }),

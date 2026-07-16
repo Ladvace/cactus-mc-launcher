@@ -93,6 +93,9 @@
       <span class="dl-msg">{installMsg || "Downloading…"}</span>
     </div>
   {/if}
+  {#if instance.kind === "server"}
+    <span class="kind-badge" title="Dedicated server">SERVER</span>
+  {/if}
   {#if cover}
     <img class="cover-img" src={instance.icon} alt={instance.name} />
     <div class="cover-scrim"></div>
@@ -101,8 +104,8 @@
   {:else}
     <div class="art">
       <InstanceIcon {instance} size={iconSize} />
-      {@render playButton()}
     </div>
+    {@render playButton()}
     <div class="meta">{@render meta()}</div>
   {/if}
 </div>
@@ -125,6 +128,20 @@
     border-color: var(--accent);
     background: var(--bg-hover);
     transform: translateY(-2px);
+  }
+  /* Marks a dedicated-server tile. */
+  .kind-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 3;
+    padding: 2px 6px;
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    color: var(--bg-app);
+    background: var(--accent);
+    pointer-events: none;
   }
   /* When filling a grid tile, grow the art to center the (larger) icon and
      keep the meta pinned to the bottom. */
@@ -174,12 +191,6 @@
     color: rgba(255, 255, 255, 0.85);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   }
-  /* In cover mode the play button sits top-right so it doesn't cover the label. */
-  .card.cover .play {
-    top: 8px;
-    right: 8px;
-    bottom: auto;
-  }
   /* Modpack download overlay — visible on the tile while installing. */
   .install-overlay {
     position: absolute;
@@ -224,8 +235,9 @@
   }
   .play {
     position: absolute;
-    right: 0;
-    bottom: 0;
+    top: 8px;
+    right: 8px;
+    z-index: 4;
     width: 34px;
     height: 34px;
     border-radius: 0;

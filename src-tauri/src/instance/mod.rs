@@ -15,6 +15,15 @@ pub enum ModLoader {
     NeoForge,
 }
 
+/// Whether an instance is a normal game client or a dedicated server.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum InstanceKind {
+    #[default]
+    Client,
+    Server,
+}
+
 /// A single game installation the user can configure and launch.
 ///
 /// Persisted as `instance.json` inside the instance's own folder. Game files
@@ -24,6 +33,10 @@ pub enum ModLoader {
 pub struct Instance {
     pub id: String,
     pub name: String,
+    /// Client (playable game) or a dedicated server. Defaults to client so that
+    /// instances created before this field existed still deserialize.
+    #[serde(default)]
+    pub kind: InstanceKind,
     /// Optional icon: a filename relative to the instance folder, or a data URI.
     pub icon: Option<String>,
     pub mc_version: String,
@@ -39,11 +52,16 @@ pub struct Instance {
     /// of as a small centered thumbnail.
     #[serde(default)]
     pub cover_image: bool,
+    /// Max heap (MB) for a dedicated server. `None` falls back to the global
+    /// memory setting. Only meaningful for `kind == Server`.
+    #[serde(default)]
+    pub server_memory_mb: Option<u32>,
 }
 
 impl Instance {
     pub fn new(
         name: String,
+        kind: InstanceKind,
         mc_version: String,
         loader: ModLoader,
         loader_version: Option<String>,
@@ -52,6 +70,7 @@ impl Instance {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             name,
+            kind,
             icon,
             mc_version,
             loader,
@@ -61,6 +80,7 @@ impl Instance {
             last_played: None,
             total_playtime_seconds: 0,
             cover_image: false,
+            server_memory_mb: None,
         }
     }
 }
@@ -70,6 +90,8 @@ impl Instance {
 #[serde(rename_all = "camelCase")]
 pub struct CreateInstance {
     pub name: String,
+    #[serde(default)]
+    pub kind: InstanceKind,
     pub mc_version: String,
     #[serde(default)]
     pub loader: ModLoader,
@@ -90,4 +112,6 @@ pub struct UpdateInstance {
     pub loader: Option<ModLoader>,
     pub loader_version: Option<String>,
     pub cover_image: Option<bool>,
+    /// Max heap (MB) for a server; 0 clears the override (use the global setting).
+    pub server_memory_mb: Option<u32>,
 }

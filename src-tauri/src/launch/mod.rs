@@ -5,13 +5,14 @@ pub mod java;
 pub mod libraries;
 pub mod process;
 pub mod rules;
+pub mod server;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 
 use crate::error::{AppError, Result};
 use crate::instance::Instance;
@@ -40,6 +41,48 @@ impl LaunchState {
     pub fn kill(&self, id: &str) {
         if let Some(tx) = self.running.lock().unwrap().remove(id) {
             let _ = tx.send(());
+        }
+    }
+}
+
+/// A message to a running server's control task.
+pub enum ServerMsg {
+    /// Write a console command line to the server's stdin.
+    Line(String),
+    /// Ask the server to shut down gracefully (`stop`), then exit.
+    Stop,
+}
+
+/// Tracks running dedicated servers so console commands can be sent and the
+/// process stopped. Separate from `LaunchState` because servers have stdin.
+#[derive(Default)]
+pub struct ServerState {
+    running: Mutex<HashMap<String, mpsc::UnboundedSender<ServerMsg>>>,
+}
+
+impl ServerState {
+    pub fn register(&self, id: String, tx: mpsc::UnboundedSender<ServerMsg>) {
+        self.running.lock().unwrap().insert(id, tx);
+    }
+    pub fn unregister(&self, id: &str) {
+        self.running.lock().unwrap().remove(id);
+    }
+    pub fn is_running(&self, id: &str) -> bool {
+        self.running.lock().unwrap().contains_key(id)
+    }
+    /// Send a console command line to the server. No-op if not running.
+    pub fn send(&self, id: &str, line: String) {
+        if let Some(tx) = self.running.lock().unwrap().get(id) {
+            let _ = tx.send(ServerMsg::Line(line));
+        }
+    }
+    /// Ask the server to stop gracefully. Returns true if it was a live server.
+    pub fn stop(&self, id: &str) -> bool {
+        if let Some(tx) = self.running.lock().unwrap().get(id) {
+            let _ = tx.send(ServerMsg::Stop);
+            true
+        } else {
+            false
         }
     }
 }

@@ -28,6 +28,10 @@ pub struct ClientDownload {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Downloads {
     pub client: ClientDownload,
+    /// Vanilla dedicated-server jar. Present for most releases from 1.2.5 on,
+    /// absent for very old versions and some snapshots.
+    #[serde(default)]
+    pub server: Option<ClientDownload>,
 }
 
 /// OS/feature constraint. `action` is "allow" or "disallow".

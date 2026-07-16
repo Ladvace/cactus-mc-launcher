@@ -5,9 +5,9 @@ use crate::auth::{self, AccountInfo, AccountStore, AccountsState};
 use crate::content::{self, ContentItem};
 use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
-use crate::instance::{CreateInstance, Instance, UpdateInstance};
+use crate::instance::{CreateInstance, Instance, InstanceKind, UpdateInstance};
 use crate::instance::ModLoader;
-use crate::launch::{self, LaunchState};
+use crate::launch::{self, LaunchState, ServerState};
 use crate::loader::{self, LoaderVersion};
 use crate::minecraft::{self, VersionList};
 use crate::modrinth::{SearchParams, SearchResults, Version as ModrinthVersion};
@@ -36,6 +36,7 @@ pub fn create_instance(
 ) -> Result<Instance> {
     let instance = Instance::new(
         payload.name,
+        payload.kind,
         payload.mc_version,
         payload.loader,
         payload.loader_version,
@@ -76,6 +77,10 @@ pub fn update_instance(
     }
     if let Some(cover_image) = patch.cover_image {
         instance.cover_image = cover_image;
+    }
+    if let Some(mem) = patch.server_memory_mb {
+        // 0 = clear the override and fall back to the global memory setting.
+        instance.server_memory_mb = if mem == 0 { None } else { Some(mem) };
     }
 
     store.save(&app, &instance)?;
@@ -140,18 +145,126 @@ pub async fn launch_instance(
 ) -> Result<()> {
     let instance = instances.get(&id).ok_or(AppError::InstanceNotFound(id))?;
     let settings = settings.get();
-    launch::launch(app, instance, settings).await
+    match instance.kind {
+        InstanceKind::Server => launch::server::launch(app, instance, settings).await,
+        InstanceKind::Client => launch::launch(app, instance, settings).await,
+    }
 }
 
 #[tauri::command]
-pub fn stop_instance(state: State<'_, LaunchState>, id: String) -> Result<()> {
-    state.kill(&id);
+pub fn stop_instance(
+    launch: State<'_, LaunchState>,
+    servers: State<'_, ServerState>,
+    id: String,
+) -> Result<()> {
+    // Servers stop gracefully (issue `stop`); clients are killed.
+    if !servers.stop(&id) {
+        launch.kill(&id);
+    }
+    Ok(())
+}
+
+/// Send a line to a running server's console (stdin). No-op if not running.
+#[tauri::command]
+pub fn send_server_command(
+    servers: State<'_, ServerState>,
+    id: String,
+    command: String,
+) -> Result<()> {
+    servers.send(&id, command);
     Ok(())
 }
 
 #[tauri::command]
-pub fn is_instance_running(state: State<'_, LaunchState>, id: String) -> bool {
-    state.is_running(&id)
+pub fn is_instance_running(
+    launch: State<'_, LaunchState>,
+    servers: State<'_, ServerState>,
+    id: String,
+) -> bool {
+    launch.is_running(&id) || servers.is_running(&id)
+}
+
+// ---------------------------------------------------------------------------
+// Server configuration (server.properties)
+// ---------------------------------------------------------------------------
+
+/// Read a server's `server.properties` (empty string if it doesn't exist yet).
+#[tauri::command]
+pub fn read_server_properties(app: AppHandle, id: String) -> Result<String> {
+    let file = crate::paths::instance_game_dir(&app, &id)?.join("server.properties");
+    Ok(std::fs::read_to_string(file).unwrap_or_default())
+}
+
+/// Overwrite a server's `server.properties`.
+#[tauri::command]
+pub fn write_server_properties(app: AppHandle, id: String, content: String) -> Result<()> {
+    let file = crate::paths::instance_game_dir(&app, &id)?.join("server.properties");
+    std::fs::write(file, content)?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Worlds
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn list_worlds(app: AppHandle, id: String) -> Result<Vec<crate::worlds::WorldInfo>> {
+    crate::worlds::list(&app, &id)
+}
+
+/// Zip a world into the instance's `backups/` folder; returns the zip path.
+#[tauri::command]
+pub fn backup_world(app: AppHandle, id: String, folder: String) -> Result<String> {
+    crate::worlds::backup(&app, &id, &folder)
+}
+
+#[tauri::command]
+pub fn delete_world(app: AppHandle, id: String, folder: String) -> Result<()> {
+    crate::worlds::delete(&app, &id, &folder)
+}
+
+/// Best-effort primary LAN IPv4 of this machine (for sharing a server address).
+/// Opens a UDP socket toward a public IP to learn the outbound interface — no
+/// packets are actually sent. Returns None if it can't be determined.
+#[tauri::command]
+pub fn get_local_ip() -> Option<String> {
+    let sock = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    sock.connect("8.8.8.8:80").ok()?;
+    sock.local_addr().ok().map(|a| a.ip().to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Server players (ops / whitelist)
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn read_ops(app: AppHandle, id: String) -> Result<Vec<crate::players::OpEntry>> {
+    crate::players::read_ops(&app, &id)
+}
+
+#[tauri::command]
+pub fn read_whitelist(app: AppHandle, id: String) -> Result<Vec<crate::players::PlayerEntry>> {
+    crate::players::read_whitelist(&app, &id)
+}
+
+#[tauri::command]
+pub async fn add_op(app: AppHandle, id: String, name: String, level: u8) -> Result<()> {
+    crate::players::add_op(&app, &id, &name, level).await
+}
+
+#[tauri::command]
+pub fn remove_op(app: AppHandle, id: String, name: String) -> Result<()> {
+    crate::players::remove_op(&app, &id, &name)
+}
+
+#[tauri::command]
+pub async fn add_whitelist(app: AppHandle, id: String, name: String) -> Result<()> {
+    crate::players::add_whitelist(&app, &id, &name).await
+}
+
+#[tauri::command]
+pub fn remove_whitelist(app: AppHandle, id: String, name: String) -> Result<()> {
+    crate::players::remove_whitelist(&app, &id, &name)
 }
 
 // ---------------------------------------------------------------------------
