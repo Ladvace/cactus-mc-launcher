@@ -238,10 +238,21 @@ fn safe_rel(path: &str) -> Option<PathBuf> {
     Some(PathBuf::from(path))
 }
 
-fn emit_progress(app: &AppHandle, current: usize, total: usize, message: &str) {
+fn emit_progress(
+    app: &AppHandle,
+    instance_id: Option<&str>,
+    current: usize,
+    total: usize,
+    message: &str,
+) {
     let _ = app.emit(
         "modpack-progress",
-        serde_json::json!({ "current": current, "total": total, "message": message }),
+        serde_json::json!({
+            "instanceId": instance_id,
+            "current": current,
+            "total": total,
+            "message": message,
+        }),
     );
 }
 
@@ -278,7 +289,7 @@ pub async fn install_modpack(
     version_id: &str,
     icon_url: Option<String>,
 ) -> Result<Instance> {
-    emit_progress(app, 0, 0, "Downloading modpack…");
+    emit_progress(app, None, 0, 0, "Downloading modpack…");
     let version = modrinth::get_version(version_id).await?;
     let file = version
         .primary_file()
@@ -365,18 +376,19 @@ pub async fn install_modpack(
 
     {
         let app_cb = app.clone();
+        let id = instance.id.clone();
         cache::install_all(&client, app, tasks, 12, move |cur, total| {
-            emit_progress(&app_cb, cur, total, "Downloading mods…");
+            emit_progress(&app_cb, Some(&id), cur, total, "Downloading mods…");
         })
         .await?;
     }
 
     // Apply overrides (files bundled directly in the pack).
-    emit_progress(app, 0, 0, "Applying overrides…");
+    emit_progress(app, Some(&instance.id), 0, 0, "Applying overrides…");
     apply_overrides(&mrpack, &game_dir)?;
 
     let _ = std::fs::remove_file(&mrpack);
-    emit_progress(app, 1, 1, "Done");
+    emit_progress(app, Some(&instance.id), 1, 1, "Done");
     Ok(instance)
 }
 
@@ -393,7 +405,7 @@ pub async fn install_ftb_modpack(
         .and_then(|(p, v)| Some((p.parse::<u64>().ok()?, v.parse::<u64>().ok()?)))
         .ok_or_else(|| AppError::Other("invalid FTB modpack id".into()))?;
 
-    emit_progress(app, 0, 0, "Reading FTB pack…");
+    emit_progress(app, None, 0, 0, "Reading FTB pack…");
     let manifest = crate::sources::ftb::fetch_manifest(pack_id, version_id).await?;
 
     // Resolve Minecraft version + loader from the pack targets.
@@ -457,7 +469,7 @@ pub async fn install_ftb_modpack(
     }
 
     if !cf_jobs.is_empty() {
-        emit_progress(app, 0, 0, "Resolving mods from CurseForge…");
+        emit_progress(app, Some(&instance.id), 0, 0, "Resolving mods from CurseForge…");
         use futures::stream::{self, StreamExt};
         let resolved: Vec<Option<DownloadTask>> = stream::iter(cf_jobs)
             .map(|(project, file, dest, sha1)| async move {
@@ -472,16 +484,17 @@ pub async fn install_ftb_modpack(
     }
 
     // Download everything.
-    emit_progress(app, 0, tasks.len(), "Downloading modpack…");
+    emit_progress(app, Some(&instance.id), 0, tasks.len(), "Downloading modpack…");
     {
         let app_cb = app.clone();
+        let id = instance.id.clone();
         cache::install_all(&client, app, tasks, 12, move |cur, total| {
-            emit_progress(&app_cb, cur, total, "Downloading modpack…");
+            emit_progress(&app_cb, Some(&id), cur, total, "Downloading modpack…");
         })
         .await?;
     }
 
-    emit_progress(app, 1, 1, "Done");
+    emit_progress(app, Some(&instance.id), 1, 1, "Done");
     Ok(instance)
 }
 

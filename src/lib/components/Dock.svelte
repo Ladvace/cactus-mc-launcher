@@ -4,6 +4,7 @@
   import Icon from "./Icon.svelte";
   import InstanceIcon from "./InstanceIcon.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { installStore } from "$lib/stores/install.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { skinFace } from "$lib/skin";
   import { ui } from "$lib/stores/ui.svelte";
@@ -143,6 +144,14 @@
               <Icon name="plus" size={22} />
             {:else if item.kind === "instance"}
               <InstanceIcon instance={item.instance} size={40} />
+              {#if installStore.isInstalling(item.instance.id)}
+                <span class="dock-dl">
+                  <span class="dock-spinner"></span>
+                  {#if installStore.pct(item.instance.id) !== null}
+                    <span class="dock-pct">{installStore.pct(item.instance.id)}%</span>
+                  {/if}
+                </span>
+              {/if}
             {:else if item.kind === "account"}
               {#if accountsStore.active}
                 <img
@@ -237,6 +246,34 @@
     object-fit: cover;
     image-rendering: pixelated;
     border: 2px solid rgba(0, 0, 0, 0.3);
+  }
+  .dock-dl {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    background: rgba(10, 9, 8, 0.78);
+  }
+  .dock-spinner {
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: dock-spin 0.7s linear infinite;
+  }
+  .dock-pct {
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    color: var(--accent);
+  }
+  @keyframes dock-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
   .dot {
     position: absolute;

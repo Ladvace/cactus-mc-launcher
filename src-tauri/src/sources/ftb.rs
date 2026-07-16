@@ -10,7 +10,7 @@ use crate::error::{AppError, Result};
 use crate::modrinth::{SearchHit, SearchParams, SearchResults, Version, VersionHashes, VersionFile};
 
 pub const API_BASE: &str = "https://api.modpacks.ch/public";
-const USER_AGENT: &str = concat!("drake-launcher/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("cactus-launcher/", env!("CARGO_PKG_VERSION"));
 
 pub fn client() -> Result<reqwest::Client> {
     Ok(reqwest::Client::builder().user_agent(USER_AGENT).build()?)

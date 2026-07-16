@@ -17,7 +17,7 @@ use crate::modrinth::{
 
 const API_BASE: &str = "https://api.curseforge.com";
 const GAME_ID: u64 = 432; // Minecraft
-const USER_AGENT: &str = concat!("drake-launcher/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!("cactus-launcher/", env!("CARGO_PKG_VERSION"));
 
 const CF_API_KEY: &str = match option_env!("CURSEFORGE_API_KEY") {
     Some(k) => k,

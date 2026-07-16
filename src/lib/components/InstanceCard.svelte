@@ -4,6 +4,7 @@
   import InstanceIcon from "./InstanceIcon.svelte";
   import LoaderIcon from "./LoaderIcon.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { installStore } from "$lib/stores/install.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { MOD_LOADERS, type Instance } from "$lib/types";
 
@@ -21,6 +22,10 @@
   const running = $derived(launchStore.isRunning(instance.id));
   // Cover mode: the icon fills the whole tile behind the label.
   const cover = $derived(instance.coverImage && !!instance.icon);
+  // Modpack download in progress.
+  const installing = $derived(installStore.isInstalling(instance.id));
+  const installPct = $derived(installStore.pct(instance.id));
+  const installMsg = $derived(installStore.progressFor(instance.id)?.message ?? "");
 
   function open() {
     goto(`/instance/${instance.id}`);
@@ -79,6 +84,15 @@
   oncontextmenu={contextMenu}
   onkeydown={(e) => e.key === "Enter" && open()}
 >
+  {#if installing}
+    <div class="install-overlay">
+      <span class="dl-spinner"></span>
+      {#if installPct !== null}
+        <span class="dl-pct">{installPct}%</span>
+      {/if}
+      <span class="dl-msg">{installMsg || "Downloading…"}</span>
+    </div>
+  {/if}
   {#if cover}
     <img class="cover-img" src={instance.icon} alt={instance.name} />
     <div class="cover-scrim"></div>
@@ -165,6 +179,41 @@
     top: 8px;
     right: 8px;
     bottom: auto;
+  }
+  /* Modpack download overlay — visible on the tile while installing. */
+  .install-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(10, 9, 8, 0.82);
+    text-align: center;
+  }
+  .dl-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  .dl-pct {
+    font-family: var(--font-pixel);
+    font-size: 16px;
+    color: var(--accent);
+  }
+  .dl-msg {
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
   }
   .art {
     position: relative;

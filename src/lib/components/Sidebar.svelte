@@ -30,7 +30,8 @@
 
 <aside class="sidebar">
   <div class="brand">
-    <img src="/drake-logo.png" alt="Drake" class="brand-logo" />
+    <img src="/cactus-text.png" alt="Cactus Launcher" class="brand-logo" />
+    <span class="tagline">spiky but not spooky</span>
   </div>
 
   <nav class="nav">
@@ -109,13 +110,21 @@
 
   .brand {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    gap: 2px;
     padding: 8px 8px 12px;
   }
   .brand-logo {
     width: 100%;
     max-width: 176px;
     height: auto;
+  }
+  .tagline {
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
   }
 
   .nav {

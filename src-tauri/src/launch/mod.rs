@@ -117,7 +117,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     emit_status(app, id, "preparing", Some("Resolving version…".into()));
 
     let client = reqwest::Client::builder()
-        .user_agent(concat!("rust-mc-launcher/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("cactus-launcher/", env!("CARGO_PKG_VERSION")))
         .build()?;
 
     // Find the manifest entry for this instance's Minecraft version.

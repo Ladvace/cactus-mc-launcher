@@ -10,6 +10,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { installStore } from "$lib/stores/install.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { backgroundCss } from "$lib/background";
@@ -19,11 +20,15 @@
 
   const bg = $derived(backgroundCss(settingsStore.settings.background ?? ""));
 
+  // Brief branded splash on launch, then it fades and unmounts.
+  let splash = $state(true);
+
   // Load core data and subscribe to events once on startup.
   $effect(() => {
     instancesStore.ensureLoaded();
     settingsStore.ensureLoaded();
     launchStore.init();
+    installStore.init();
     accountsStore.init();
   });
 
@@ -59,7 +64,55 @@
 <StickerPicker />
 <GroupPicker />
 
+{#if splash}
+  <div
+    class="splash"
+    onanimationend={(e) => {
+      if (e.animationName === "splash-fade") splash = false;
+    }}
+  >
+    <img src="/cactus-logo.png" alt="Cactus Launcher" class="splash-logo" />
+  </div>
+{/if}
+
 <style>
+  /* Launch splash: centered logo on top of everything, fades out. */
+  .splash {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-app);
+    animation: splash-fade 1.8s ease forwards;
+  }
+  @keyframes splash-fade {
+    0%,
+    68% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+  .splash-logo {
+    width: min(60%, 380px);
+    height: auto;
+    image-rendering: pixelated;
+    animation: splash-pop 0.5s ease both;
+  }
+  @keyframes splash-pop {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
   .app {
     position: relative;
     height: 100vh;

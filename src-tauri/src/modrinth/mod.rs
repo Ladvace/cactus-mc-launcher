@@ -4,7 +4,7 @@ use crate::error::Result;
 
 const API_BASE: &str = "https://api.modrinth.com/v2";
 const USER_AGENT: &str = concat!(
-    "rust-mc-launcher/",
+    "cactus-launcher/",
     env!("CARGO_PKG_VERSION"),
     " (tauri desktop launcher)"
 );

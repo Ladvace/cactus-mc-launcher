@@ -174,7 +174,7 @@ impl AccountStore {
 
 fn http_client() -> Result<reqwest::Client> {
     Ok(reqwest::Client::builder()
-        .user_agent(concat!("rust-mc-launcher/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("cactus-launcher/", env!("CARGO_PKG_VERSION")))
         .build()?)
 }
 

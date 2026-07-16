@@ -171,7 +171,7 @@ struct JavaSetupEvent {
 #[tauri::command]
 pub async fn setup_java(app: AppHandle) -> Result<Vec<String>> {
     let client = reqwest::Client::builder()
-        .user_agent(concat!("rust-mc-launcher/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("cactus-launcher/", env!("CARGO_PKG_VERSION")))
         .build()?;
 
     let app_cb = app.clone();

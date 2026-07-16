@@ -6,7 +6,7 @@ use md5::{Digest, Md5};
 use super::rules::rules_allow;
 use crate::minecraft::version::{ArgValue, Argument, VersionDetail};
 
-const LAUNCHER_NAME: &str = "rust-mc-launcher";
+const LAUNCHER_NAME: &str = "cactus-launcher";
 const LAUNCHER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Everything needed to render a version's launch command for one instance.
