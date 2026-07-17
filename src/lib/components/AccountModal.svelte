@@ -130,6 +130,15 @@
       /* user can copy the link manually */
     }
   }
+
+  async function copyCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      toast.success("Code copied.");
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
 </script>
 
 <Modal title="Accounts" {open} {onClose} width={460}>
@@ -258,7 +267,18 @@
         <p class="dc-instructions">
           Open the link and enter this code:
         </p>
-        <div class="code">{deviceCode.userCode}</div>
+        <div class="code-row">
+          <button
+            class="code"
+            title="Click to copy"
+            onclick={() => copyCode(deviceCode.userCode)}
+          >
+            {deviceCode.userCode}
+          </button>
+          <button class="btn ghost sm" onclick={() => copyCode(deviceCode.userCode)}>
+            <Icon name="copy" size={14} /> Copy
+          </button>
+        </div>
         <button class="btn primary" onclick={() => openLink(deviceCode.verificationUri)}>
           Open {deviceCode.verificationUri}
         </button>
@@ -525,6 +545,11 @@
     color: var(--text-secondary);
     font-size: 13px;
   }
+  .code-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
   .code {
     font-family: var(--font-pixel), "SF Mono", Menlo, monospace;
     font-size: 28px;
@@ -536,6 +561,11 @@
     border-radius: 0;
     box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
     padding: 10px 20px;
+    cursor: pointer;
+    user-select: all;
+  }
+  .code:hover {
+    border-color: var(--accent);
   }
   .dc-status {
     display: flex;
