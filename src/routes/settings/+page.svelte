@@ -10,6 +10,7 @@
     bgKind,
     parsePattern,
     parseImage,
+    parseTexture,
     PATTERNS,
     DEFAULT_COLOR,
   } from "$lib/background";
@@ -73,6 +74,9 @@
   const imageColor = $derived(
     kind === "image" ? (parseImage(draft.background).color ?? DEFAULT_COLOR) : DEFAULT_COLOR
   );
+  const textureOpacity = $derived(
+    kind === "texture" ? parseTexture(draft.background).opacity : 0.5
+  );
 
   let bgFileInput = $state<HTMLInputElement>();
 
@@ -91,6 +95,11 @@
   function setImageColor(color: string) {
     const { uri } = parseImage(draft.background);
     if (uri) draft.background = `image:${color}|${uri}`;
+  }
+  function setTextureOpacity(v: number) {
+    const { uri, color } = parseTexture(draft.background);
+    const c = color ? `${color}|` : "";
+    draft.background = `texture:${v}|${c}${uri}`;
   }
   async function onBgFile(e: Event) {
     const input = e.currentTarget as HTMLInputElement;
@@ -400,6 +409,20 @@
           oninput={(e) => setImageColor(e.currentTarget.value)}
         />
         <span class="hex">{imageColor}</span>
+      </div>
+    {:else if kind === "texture"}
+      <div class="bg-detail bg-color">
+        <span class="bg-color-label">Texture opacity</span>
+        <input
+          type="range"
+          class="opacity-range"
+          min="0.1"
+          max="1"
+          step="0.05"
+          value={textureOpacity}
+          oninput={(e) => setTextureOpacity(parseFloat(e.currentTarget.value))}
+        />
+        <span class="hex">{Math.round(textureOpacity * 100)}%</span>
       </div>
     {/if}
     <input
@@ -807,6 +830,11 @@
   .bg-color-label {
     font-size: 13px;
     color: var(--text-secondary);
+  }
+  .opacity-range {
+    flex: 1;
+    cursor: pointer;
+    accent-color: var(--accent);
   }
   /* Segmented control (dock position). */
   .seg {

@@ -29,6 +29,34 @@ export function parseTile(bg: string): { uri: string; color: string | null } {
   return parsePrefixed(bg, "tile:");
 }
 
+/**
+ * Split `texture:[<opacity>|][#color|]<uri>` — a repeating texture shown at
+ * `opacity` (0–1) over a colour overlay that fills the rest. Opacity defaults
+ * to 0.5 when the leading number is absent.
+ */
+export function parseTexture(bg: string): {
+  uri: string;
+  color: string | null;
+  opacity: number;
+} {
+  let rest = bg.slice("texture:".length);
+  let opacity = 0.5;
+  const m = /^(0(?:\.\d+)?|1(?:\.0+)?)\|/.exec(rest);
+  if (m) {
+    opacity = parseFloat(m[1]);
+    rest = rest.slice(m[0].length);
+  }
+  let color: string | null = null;
+  if (rest.startsWith("#")) {
+    const i = rest.indexOf("|");
+    if (i > 0) {
+      color = rest.slice(0, i);
+      rest = rest.slice(i + 1);
+    }
+  }
+  return { uri: rest, color, opacity };
+}
+
 function parsePrefixed(bg: string, prefix: string): { uri: string; color: string | null } {
   const rest = bg.slice(prefix.length);
   if (rest.startsWith("#")) {
@@ -85,15 +113,26 @@ export function backgroundCss(bg: string): string {
     // A decor sprite repeated as sparse wallpaper over a base colour.
     return `url("${uri}") 0 0 / 140px repeat, ${base}`;
   }
+  if (bg.startsWith("texture:")) {
+    const { uri, color, opacity } = parseTexture(bg);
+    // A full texture tiled as wallpaper. A colour overlay fills whatever the
+    // texture's opacity leaves, so it reads as a subtle surface rather than a
+    // busy image. Tiled at the image's intrinsic size (no fractional scaling)
+    // so the repeats meet without a subpixel seam.
+    const a = Math.max(0, Math.min(1, 1 - opacity));
+    const scrim = color ? hexToRgba(color, a) : `rgba(23, 22, 26, ${a})`;
+    return `linear-gradient(${scrim}, ${scrim}), url("${uri}") repeat`;
+  }
   return "var(--bg-app)";
 }
 
-export type BgKind = "default" | "color" | "pattern" | "image" | "tile";
+export type BgKind = "default" | "color" | "pattern" | "image" | "tile" | "texture";
 
 export function bgKind(bg: string): BgKind {
   if (bg.startsWith("color:")) return "color";
   if (bg.startsWith("pattern:")) return "pattern";
   if (bg.startsWith("image:")) return "image";
   if (bg.startsWith("tile:")) return "tile";
+  if (bg.startsWith("texture:")) return "texture";
   return "default";
 }

@@ -77,6 +77,8 @@ export const THEME_PRESETS: ThemePreset[] = [
   { name: "Sunset", bg: "color:linear-gradient(160deg, #d98a2b 0%, #8a4a2a 45%, #3a2340 100%)" },
   { name: "Orchid", bg: "color:linear-gradient(160deg, #b63a86 0%, #5a2456 55%, #2a1830 100%)" },
   { name: "Aurora", bg: "color:linear-gradient(155deg, #1fb38f 0%, #157a6e 45%, #10233a 100%)" },
+  // Tiled stone-block texture at 50% over a warm overlay (opacity is adjustable).
+  { name: "Ruins", bg: "texture:0.5|#211c17|/textures/stone-blocks.png" },
   // Decor themes: vibrant solid base + placed sprites.
   { name: "Desert", bg: "color:#c9a866", decor: "desert" },
   { name: "Bloom", bg: "color:#c85a92", decor: "bloom" },
