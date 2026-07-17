@@ -1,6 +1,6 @@
 import { browser } from "$app/environment";
 
-const KEY = "drake:followedBoards";
+const KEY = "cactus:followedBoards";
 
 function load(): string[] {
   if (!browser) return [];

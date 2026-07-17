@@ -2,7 +2,7 @@ import { browser } from "$app/environment";
 import { boardApi } from "$lib/boardApi";
 import type { BoardSession } from "$lib/types";
 
-const KEY = "drake:boardSession";
+const KEY = "cactus:boardSession";
 
 function load(): BoardSession | null {
   if (!browser) return null;

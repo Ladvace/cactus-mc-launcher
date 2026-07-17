@@ -152,7 +152,7 @@ export const boardApi = {
   /** Export an instance and publish it (to a board, or standalone). Returns id. */
   publish: (
     instanceId: string,
-    format: "drakepack" | "mrpack",
+    format: "cactuspack" | "mrpack",
     token: string,
     opts: { boardHandle?: string; name?: string; changelog?: string } = {}
   ) =>

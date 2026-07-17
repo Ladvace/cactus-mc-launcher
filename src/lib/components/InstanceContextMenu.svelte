@@ -104,7 +104,7 @@
       {
         label: "Export to file…",
         icon: "download",
-        onSelect: () => exportSetup(inst.id, "drakepack"),
+        onSelect: () => exportSetup(inst.id, "cactuspack"),
       },
       {
         label: "Export as .mrpack…",
@@ -137,7 +137,7 @@
         toast.error(boardAuth.error ?? "Couldn't sign in.");
         return;
       }
-      const snapshotId = await boardApi.publish(id, "drakepack", token, { name });
+      const snapshotId = await boardApi.publish(id, "cactuspack", token, { name });
       const { code } = await boardApi.mintCode(token, snapshotId);
       sharedCode = code;
     } catch (e) {
@@ -172,7 +172,7 @@
     fileInput?.click();
   }
 
-  async function exportSetup(id: string, format: "drakepack" | "mrpack") {
+  async function exportSetup(id: string, format: "cactuspack" | "mrpack") {
     try {
       const res = await api.exportSetup(id, format);
       toast.success(

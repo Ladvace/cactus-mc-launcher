@@ -151,7 +151,7 @@ export const api = {
   // Snapshots (share / export-import)
   exportSetup: (
     instanceId: string,
-    format: "drakepack" | "mrpack" = "drakepack",
+    format: "cactuspack" | "mrpack" = "cactuspack",
     note?: string | null
   ) =>
     invoke<ExportResult>("export_setup", {

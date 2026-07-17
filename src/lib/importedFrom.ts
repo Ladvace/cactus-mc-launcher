@@ -2,7 +2,7 @@
 // can be told "the streamer updated their setup" instead of silently drifting.
 import { browser } from "$app/environment";
 
-const KEY = "drake:importedFrom";
+const KEY = "cactus:importedFrom";
 
 export interface ImportRecord {
   handle: string | null;

@@ -132,7 +132,7 @@ export interface BoardCard {
 export interface BoardInstance {
   id: string;
   name: string;
-  format: "drakepack" | "mrpack";
+  format: "cactuspack" | "mrpack";
   mcVersion: string | null;
   modLoader: string | null;
   changelog: string | null;
@@ -166,7 +166,7 @@ export interface Board extends BoardCard {
 export interface SnapshotManifest {
   id: string;
   name: string;
-  format: "drakepack" | "mrpack";
+  format: "cactuspack" | "mrpack";
   mcVersion: string | null;
   modLoader: string | null;
   changelog: string | null;

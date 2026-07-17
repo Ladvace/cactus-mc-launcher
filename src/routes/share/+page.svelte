@@ -185,7 +185,7 @@
       {:else}
         <div class="share-row">
           <button class="btn ghost" onclick={() => fileInput?.click()}>
-            <Icon name="download" size={15} /> Import a file (.drakepack / .mrpack)
+            <Icon name="download" size={15} /> Import a file (.cactuspack / .mrpack)
           </button>
           {#if online}
             <div class="code">
@@ -195,7 +195,7 @@
           {/if}
         </div>
       {/if}
-      <input bind:this={fileInput} type="file" accept=".drakepack,.mrpack,application/zip" style="display:none" onchange={onFile} />
+      <input bind:this={fileInput} type="file" accept=".cactuspack,.drakepack,.mrpack,application/zip" style="display:none" onchange={onFile} />
     </section>
 
     <p class="tip"><Icon name="share" size={13} /> Export a setup from any instance's right-click menu → <strong>Export setup…</strong></p>

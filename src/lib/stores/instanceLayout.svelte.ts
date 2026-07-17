@@ -8,7 +8,7 @@ export interface Cell {
   order: number;
 }
 
-const KEY = "drake:instanceLayout";
+const KEY = "cactus:instanceLayout";
 
 // Legacy size-label → span, for migrating older saved layouts.
 const LEGACY: Record<string, [number, number]> = {

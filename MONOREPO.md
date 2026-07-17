@@ -3,10 +3,10 @@
 This repo holds the launcher and its backend service.
 
 ```
-/                 Drake Launcher — Tauri v2 + SvelteKit + Rust (the desktop app)
+/                 Cactus Launcher — Tauri v2 + SvelteKit + Rust (the desktop app)
   src/            launcher frontend (SvelteKit)
   src-tauri/      launcher backend (Rust)
-server/           Drake Streamer API — Cloudflare Worker + Supabase + R2
+server/           Cactus Launcher API — Cloudflare Worker + Supabase + R2
 ```
 
 The two are independent projects with their own toolchains — the launcher
@@ -16,7 +16,7 @@ together.
 
 ## How they connect
 
-The launcher's **Streamers** tab works offline today via `.drakepack` /
+The launcher's **Streamers** tab works offline today via `.cactuspack` /
 `.mrpack` file export/import. The `server/` service adds the hosted layer:
 searchable streamer profiles, short share codes, live status, and snapshot
 hosting. When it's live, the launcher will call `server`'s `/v1/*` API; a

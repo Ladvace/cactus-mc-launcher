@@ -457,7 +457,7 @@ pub fn content_cache_stats(app: AppHandle) -> Result<content::CacheStats> {
 // Snapshots (share / export-import)
 // ---------------------------------------------------------------------------
 
-/// Export an instance's full setup to a `.drakepack` or `.mrpack` file.
+/// Export an instance's full setup to a `.cactuspack` or `.mrpack` file.
 #[tauri::command]
 pub async fn export_setup(
     app: AppHandle,
@@ -468,7 +468,7 @@ pub async fn export_setup(
     crate::snapshot::export(&app, &instance_id, &format, note).await
 }
 
-/// Import a snapshot (raw `.drakepack` bytes) as a new instance.
+/// Import a snapshot (raw `.cactuspack` bytes) as a new instance.
 #[tauri::command]
 pub async fn import_setup(
     app: AppHandle,

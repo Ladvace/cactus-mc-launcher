@@ -3,7 +3,7 @@
 //! backend-free foundation of the streamer share feature: a snapshot is exactly
 //! what a hosted profile will later store and serve.
 //!
-//! Format `.drakepack` (a zip):
+//! Format `.cactuspack` (a zip):
 //!   - `index.json`   — loader + content refs (source/project/version) for BOTH
 //!                       Modrinth and CurseForge, so mixed packs survive.
 //!   - `overrides/…`  — bundled config files (options.txt, keybinds, config/…).
@@ -46,7 +46,7 @@ fn default_true() -> bool {
     true
 }
 
-/// The `index.json` of a `.drakepack`.
+/// The `index.json` of a `.cactuspack`.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotIndex {
@@ -204,7 +204,7 @@ fn add_overrides(
     Ok(())
 }
 
-/// Export an instance's setup. `format` is `"drakepack"` (native, full fidelity)
+/// Export an instance's setup. `format` is `"cactuspack"` (native, full fidelity)
 /// or `"mrpack"` (Modrinth interop; Modrinth-hosted content only).
 pub async fn export(
     app: &AppHandle,
@@ -234,8 +234,8 @@ pub async fn export(
             skipped,
         })
     } else {
-        let out_path = exports.join(format!("{base}-{ts}.drakepack"));
-        export_drakepack(&instance, items, &game_dir, &out_path, opts, note)?;
+        let out_path = exports.join(format!("{base}-{ts}.cactuspack"));
+        export_cactuspack(&instance, items, &game_dir, &out_path, opts, note)?;
         Ok(ExportResult {
             path: out_path.to_string_lossy().to_string(),
             skipped: Vec::new(),
@@ -243,7 +243,7 @@ pub async fn export(
     }
 }
 
-fn export_drakepack(
+fn export_cactuspack(
     instance: &Instance,
     items: Vec<ContentItem>,
     game_dir: &Path,
@@ -430,7 +430,7 @@ pub async fn publish(
 
 // --- Import -----------------------------------------------------------------
 
-/// Import a snapshot (raw bytes of a `.drakepack` or `.mrpack`) as a new
+/// Import a snapshot (raw bytes of a `.cactuspack` or `.mrpack`) as a new
 /// instance. The format is detected from the archive contents.
 pub async fn import(app: &AppHandle, bytes: Vec<u8>) -> Result<ImportResult> {
     // Stash the upload so we can open it as a zip (and re-open for overrides).
@@ -441,12 +441,12 @@ pub async fn import(app: &AppHandle, bytes: Vec<u8>) -> Result<ImportResult> {
     std::fs::write(&pack_path, &bytes)?;
 
     let result = if has_entry(&pack_path, "index.json")? {
-        import_drakepack(app, &pack_path).await
+        import_cactuspack(app, &pack_path).await
     } else if has_entry(&pack_path, "modrinth.index.json")? {
         import_mrpack(app, &pack_path).await
     } else {
         Err(AppError::Other(
-            "unrecognized pack — expected a .drakepack or .mrpack".into(),
+            "unrecognized pack — expected a .cactuspack or .mrpack".into(),
         ))
     };
 
@@ -462,7 +462,7 @@ fn has_entry(pack: &Path, name: &str) -> Result<bool> {
     Ok(found)
 }
 
-async fn import_drakepack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult> {
+async fn import_cactuspack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult> {
     let index = read_index(pack_path)?;
 
     let instance = Instance::new(

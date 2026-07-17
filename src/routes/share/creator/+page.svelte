@@ -53,7 +53,7 @@
   // Publish target: "" = standalone (code only), or the board handle.
   let publishTo = $state<string>("");
   let instanceId = $state("");
-  let format = $state<"drakepack" | "mrpack">("drakepack");
+  let format = $state<"cactuspack" | "mrpack">("cactuspack");
   let changelog = $state("");
   let publishing = $state(false);
 
@@ -328,7 +328,7 @@
           {/each}
         </select>
         <select class="select" bind:value={format}>
-          <option value="drakepack">.drakepack</option>
+          <option value="cactuspack">.cactuspack</option>
           <option value="mrpack">.mrpack</option>
         </select>
       </div>

@@ -204,7 +204,7 @@
 <input
   bind:this={fileInput}
   type="file"
-  accept=".drakepack,.mrpack,application/zip"
+  accept=".cactuspack,.drakepack,.mrpack,application/zip"
   style="display:none"
   onchange={onImportFile}
 />
