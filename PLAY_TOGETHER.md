@@ -63,114 +63,60 @@ alternative to the DO.
 
 ---
 
+## Implementation (already in the repo)
+
+| Piece | Where |
+| --- | --- |
+| Relay Durable Object (`LinkRoom`) | `server/src/link.ts` |
+| Upgrade route `GET /v1/link/:code` + DO export | `server/src/index.ts` |
+| DO binding + SQLite migration | `server/wrangler.toml` |
+| Client tunnel (host/guest bridge) | `src-tauri/src/link.rs` |
+| Tauri commands `link_host` / `link_join` / `link_stop` | registered in `src-tauri/src/lib.rs` |
+| UI ("Host a session" / "Join with a code") | `src/lib/components/CactusLink.svelte` (in the Play Together panel) |
+
+`LinkRoom` keeps the host's control socket and, for each guest, buffers bytes
+until the host opens its paired data socket, then relays raw bytes between the
+two. One WebSocket carries exactly one Minecraft TCP connection. The Rust client
+(`link.rs`) bridges each WebSocket to a local TCP socket with
+`tokio-tungstenite`.
+
 ## Deploying the relay
 
-The relay is a Durable Object added to the existing Worker in `server/`.
-
-### 1. Add the Durable Object + route
-
-Create `server/src/link.ts` — the room that pairs the two sockets:
-
-```ts
-// One instance per session code. Pairs a host socket with guest sockets and
-// relays raw bytes between them. Each WebSocket carries exactly one TCP stream.
-export class LinkRoom {
-  private host?: WebSocket;
-  private waitingGuests: WebSocket[] = [];
-
-  constructor(private state: DurableObjectState) {}
-
-  async fetch(req: Request): Promise<Response> {
-    const role = new URL(req.url).searchParams.get("role");
-    const pair = new WebSocketPair();
-    const [client, server] = [pair[0], pair[1]];
-    server.accept();
-
-    if (role === "host") {
-      this.host = server;
-      server.addEventListener("close", () => (this.host = undefined));
-    } else {
-      // A guest stream: pair it with a fresh host-side stream. In practice the
-      // host opens its own paired WS on demand; here we relay 1:1 once both ends
-      // are present. Buffer until the host stream for this guest arrives.
-      this.waitingGuests.push(server);
-      // ...relay logic: forward server messages to the paired host socket and
-      // vice-versa; close both when either closes.
-    }
-    return new Response(null, { status: 101, webSocket: client });
-  }
-}
-```
-
-> The full pairing/relay implementation (matching a guest WS to a host WS per
-> stream, back-pressure, and close propagation) lives in `server/src/link.ts`
-> when the client side lands. The sketch above shows the shape.
-
-Mount an upgrade route in `server/src/index.ts`:
-
-```ts
-app.get("/v1/link/:code", (c) => {
-  if (c.req.header("Upgrade") !== "websocket")
-    return c.text("expected websocket", 426);
-  const id = c.env.LINK.idFromName(c.req.param("code"));
-  return c.env.LINK.get(id).fetch(c.req.raw);
-});
-```
-
-Export the class from the Worker entry (`server/src/index.ts`):
-
-```ts
-export { LinkRoom } from "./link";
-```
-
-### 2. Bind the Durable Object in `server/wrangler.toml`
-
-```toml
-[[durable_objects.bindings]]
-name = "LINK"
-class_name = "LinkRoom"
-
-# SQLite-backed DO (free-plan eligible). New-class migration:
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["LinkRoom"]
-```
-
-Add `LINK: DurableObjectNamespace` to the `Env` interface in `server/src/types.ts`.
-
-### 3. Deploy
+The relay ships inside the existing Worker in `server/`, so deploying is just:
 
 ```bash
 cd server
-wrangler deploy          # registers the DO class + migration and the route
+wrangler deploy   # registers the LinkRoom DO class, its v1 migration, and the route
 ```
 
-No new secrets are required — the relay is unauthenticated per code, and the
-code itself is the capability (like the share-code flow). If you want to gate it,
-require a boards session token on the upgrade request.
+Notes:
+- The DO binding (`LINK`) and the `[[migrations]]` block are already in
+  `wrangler.toml`; the first `wrangler deploy` after this change creates the
+  SQLite-backed class.
+- No new secrets. The relay is unauthenticated per code — the code itself is the
+  capability (like the share-code flow). To gate it, require a boards session
+  token on the upgrade request in `server/src/index.ts`.
+- The launcher derives `wss://…/v1/link/<code>` from the same
+  `VITE_STREAMER_API_URL` base it already uses (`src/lib/boardApi.ts`), so no
+  extra client config.
 
-### 4. Point the launcher at it
+## How a session goes
 
-The launcher already reads the API base from `VITE_STREAMER_API_URL`
-(see `src/lib/boardApi.ts`). The tunnel client derives the `wss://…/v1/link/<code>`
-URL from that same base — no extra config.
+1. Host opens the **Play Together** panel → *Host a session* → gets a code (their
+   server must be running, default port 25565).
+2. Host shares the code. Guests enter it under *Join* → the launcher returns a
+   local port.
+3. Guest opens Minecraft → Multiplayer → Direct Connect → `127.0.0.1:<port>`.
 
----
+## Testing / caveats
 
-## Client side (in the launcher — no user download)
-
-Implemented in the Tauri Rust backend so it ships with the app:
-
-- **`link::host(code)`** — connect the control WebSocket; for each new guest
-  stream, `TcpStream::connect(("127.0.0.1", 25565))` and copy bytes both ways
-  (`tokio::io::copy_bidirectional`) between the TCP socket and the WS.
-- **`link::join(code) -> u16`** — bind `TcpListener` on `127.0.0.1:0`, return the
-  port; on each inbound TCP connection open a guest WS and bridge it. The UI then
-  tells the player to Direct Connect to `127.0.0.1:<port>` (or auto-fills it).
-- Surface both in the existing **Play Together** panel: "Host a session" (shows
-  the code) and "Join with a code".
-
-Tauri commands to add: `link_host(code)`, `link_join(code) -> port`, `link_stop()`.
-WebSocket in Rust via `tokio-tungstenite` (already compatible with the tokio
-runtime Tauri uses).
+This is real networking that can't be exercised from a single machine's unit
+tests — verify with two machines on different networks:
+- The host's server must actually be listening on the port passed to
+  *Host a session*.
+- rustls needs a crypto provider at runtime; if `connect_async` ever panics with
+  "no process-level CryptoProvider", install one at startup
+  (`rustls::crypto::ring::default_provider().install_default()`).
+- Latency = round-trip through the relay. A later optimization is opportunistic
+  P2P (hole-punch) with the relay as fallback.
 ```

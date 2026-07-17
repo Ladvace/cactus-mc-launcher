@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import CactusLink from "./CactusLink.svelte";
   import { boardApi } from "$lib/boardApi";
   import { boardAuth } from "$lib/stores/boardAuth.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
@@ -101,6 +102,7 @@
     <Icon name="user" size={13} /> Add a Microsoft account to see who's online.
   </p>
 {:else}
+  <CactusLink />
   <section class="me">
     <label class="switch-row">
       <input
