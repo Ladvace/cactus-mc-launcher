@@ -1,12 +1,20 @@
 <script lang="ts">
   import { api } from "$lib/api";
-  import type { ServerStatus } from "$lib/types";
+  import { boardApi } from "$lib/boardApi";
+  import Sparkline from "./Sparkline.svelte";
+  import type { ServerStatus, ServerSample } from "$lib/types";
 
   let { address }: { address: string } = $props();
 
   let status = $state<ServerStatus | null>(null);
   let loading = $state(false);
   let failed = $state(false);
+  let history = $state<ServerSample[]>([]);
+
+  // Peak of the 24h window — the "how busy does it usually get" reference.
+  const peak = $derived(
+    history.reduce((most, sample) => Math.max(most, sample.online ?? 0), 0)
+  );
 
   async function refresh() {
     if (!address) return;
@@ -22,10 +30,21 @@
     }
   }
 
-  // Re-ping whenever the address changes (read it synchronously so the effect tracks it).
+  async function loadHistory() {
+    if (!address || !boardApi.configured()) return;
+    try {
+      history = await boardApi.serverHistory(address, 24);
+    } catch {
+      history = [];
+    }
+  }
+
+  // Re-ping and reload history whenever the address changes (read it
+  // synchronously so the effect tracks it).
   $effect(() => {
     void address;
     refresh();
+    loadHistory();
   });
 </script>
 
@@ -53,6 +72,16 @@
     ↻
   </button>
 </div>
+
+{#if history.length > 1}
+  <div class="history">
+    <Sparkline values={history.map((sample) => sample.online)} />
+    <div class="history-meta">
+      <span>last 24h</span>
+      <span>peak {peak}</span>
+    </div>
+  </div>
+{/if}
 
 <style>
   .weather {
@@ -115,5 +144,15 @@
   .refresh:disabled {
     opacity: 0.4;
     cursor: default;
+  }
+  .history {
+    margin-top: 8px;
+  }
+  .history-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+    font-size: 10.5px;
+    color: var(--text-muted);
   }
 </style>

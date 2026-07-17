@@ -12,6 +12,7 @@ import type {
   ImportResult,
   OwnedBoard,
   PresencePlayer,
+  ServerSample,
   SnapshotManifest,
 } from "$lib/types";
 
@@ -165,4 +166,10 @@ export const boardApi = {
       name: opts.name ?? null,
       changelog: opts.changelog?.trim() || null,
     }),
+
+  /** Player-count history for a server board's address (default last 24h). */
+  serverHistory: (address: string, hours = 24) =>
+    get<{ samples: ServerSample[] }>(
+      `/v1/servers/history?address=${encodeURIComponent(address)}&hours=${hours}`
+    ).then((res) => res.samples),
 };
