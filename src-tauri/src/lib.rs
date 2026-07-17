@@ -47,6 +47,7 @@ pub fn run() {
             commands::create_instance,
             commands::update_instance,
             commands::delete_instance,
+            commands::instance_folder,
             commands::get_settings,
             commands::save_settings,
             commands::get_minecraft_versions,

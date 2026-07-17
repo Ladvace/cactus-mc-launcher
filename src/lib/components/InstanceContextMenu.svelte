@@ -49,6 +49,7 @@
           running ? launchStore.stop(inst.id) : launchStore.launch(inst.id),
       },
       { label: "Open", icon: "folder", onSelect: () => goto(`/instance/${inst.id}`) },
+      { label: "Open folder", icon: "archive", onSelect: () => openFolder(inst.id) },
       ...(inst.kind === "server"
         ? [
             {
@@ -153,6 +154,14 @@
       toast.success("Copied!");
     } catch {
       /* clipboard may be unavailable */
+    }
+  }
+
+  async function openFolder(id: string) {
+    try {
+      await revealItemInDir(await api.instanceFolder(id));
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 

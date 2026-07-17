@@ -38,6 +38,9 @@ export const api = {
 
   deleteInstance: (id: string) => invoke<void>("delete_instance", { id }),
 
+  /** The instance's game folder path (for revealing it in the file manager). */
+  instanceFolder: (id: string) => invoke<string>("instance_folder", { id }),
+
   getSettings: () => invoke<Settings>("get_settings"),
 
   saveSettings: (settings: Settings) =>

@@ -115,6 +115,14 @@ pub fn delete_instance(
     store.delete(&app, &id)
 }
 
+/// The instance's game directory, for revealing it in the file manager.
+#[tauri::command]
+pub fn instance_folder(app: AppHandle, id: String) -> Result<String> {
+    let dir = crate::paths::instance_game_dir(&app, &id)?;
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
 // ---------------------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------------------
