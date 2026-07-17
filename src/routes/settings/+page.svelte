@@ -15,6 +15,7 @@
   } from "$lib/background";
   import { fileToBackgroundDataUri } from "$lib/image";
   import { THEME_PRESETS, DECOR_THEMES } from "$lib/themes";
+  import { LINKS } from "$lib/links";
   import { playClick } from "$lib/sound";
   import type { CacheStats, DockPosition, Settings } from "$lib/types";
 
@@ -538,6 +539,31 @@
     {/if}
   </section>
 
+  <section class="card-block">
+    <h3>About</h3>
+    <p class="about-app">Cactus Launcher — spiky but not spooky.</p>
+    <div class="about-links">
+      {#if LINKS.github}
+        <button class="btn ghost sm" onclick={() => openUrl(LINKS.github)}>
+          <Icon name="cube" size={14} /> GitHub
+        </button>
+      {/if}
+      {#if LINKS.discord}
+        <button class="btn ghost sm" onclick={() => openUrl(LINKS.discord)}>
+          <Icon name="users" size={14} /> Discord
+        </button>
+      {/if}
+    </div>
+    <p class="about-credit">
+      Created by
+      {#if LINKS.website}
+        <button class="linkish" onclick={() => openUrl(LINKS.website)}>{LINKS.authorName}</button>
+      {:else}
+        <strong>{LINKS.authorName}</strong>
+      {/if}
+    </p>
+  </section>
+
   <div class="save-bar">
     {#if saved}<span class="saved">Saved ✓</span>{/if}
     <button class="btn primary" onclick={save} disabled={saving}>
@@ -817,6 +843,22 @@
     justify-content: flex-end;
     gap: 12px;
     padding-top: 4px;
+  }
+  .about-app {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .about-links {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .about-credit {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-muted);
   }
   .swatch {
     width: 56px;
