@@ -26,6 +26,11 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ngrok (aws-lc-rs) and reqwest (ring) both pull in rustls 0.23, so no
+    // single crypto provider is chosen automatically. Pick one explicitly before
+    // any TLS is used, otherwise rustls panics on the first connection.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

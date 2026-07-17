@@ -4500,6 +4500,7 @@ dependencies = [
  "md-5",
  "ngrok",
  "reqwest 0.12.28",
+ "rustls",
  "serde",
  "serde_json",
  "sha1",
