@@ -11,8 +11,8 @@
   }
   let { title, open, onClose, children, footer, width = 480 }: Props = $props();
 
-  function onKey(e: KeyboardEvent) {
-    if (e.key === "Escape") onClose();
+  function onKey(event: KeyboardEvent) {
+    if (event.key === "Escape") onClose();
   }
 </script>
 
@@ -33,7 +33,7 @@
       aria-label={title}
       tabindex="-1"
       style="max-width:{width}px;"
-      onclick={(e) => e.stopPropagation()}
+      onclick={(event) => event.stopPropagation()}
       onkeydown={() => {}}
     >
       <header class="modal-head">

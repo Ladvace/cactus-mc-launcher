@@ -21,8 +21,8 @@ class InstallStore {
       current: number;
       total: number;
       message: string;
-    }>("modpack-progress", (e) => {
-      const { instanceId, current, total, message } = e.payload;
+    }>("modpack-progress", (event) => {
+      const { instanceId, current, total, message } = event.payload;
       if (!instanceId) return; // pre-creation phase (no instance yet)
 
       if (message === "Done") {
@@ -47,8 +47,10 @@ class InstallStore {
     return this.progress[id];
   }
   pct(id: string): number | null {
-    const p = this.progress[id];
-    return p && p.total > 0 ? Math.round((p.current / p.total) * 100) : null;
+    const progress = this.progress[id];
+    return progress && progress.total > 0
+      ? Math.round((progress.current / progress.total) * 100)
+      : null;
   }
 }
 

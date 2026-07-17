@@ -50,7 +50,7 @@
   const showLoader = $derived(activeType === "mod" || activeType === "modpack");
   // FTB only has modpacks — restrict the tabs and force the type.
   const visibleTabs = $derived(
-    source === "ftb" ? tabs.filter((t) => t.type === "modpack") : tabs
+    source === "ftb" ? tabs.filter((tab) => tab.type === "modpack") : tabs
   );
   $effect(() => {
     if (source === "ftb" && activeType !== "modpack") activeType = "modpack";
@@ -58,9 +58,9 @@
 
   // Debounce the search text.
   $effect(() => {
-    const q = query;
-    const t = setTimeout(() => (debounced = q), 350);
-    return () => clearTimeout(t);
+    const currentQuery = query;
+    const timer = setTimeout(() => (debounced = currentQuery), 350);
+    return () => clearTimeout(timer);
   });
 
   // Which sources are available (CurseForge only if its API key is set).
@@ -69,7 +69,7 @@
       .listSources()
       .then((list) => {
         const map: Record<string, boolean> = {};
-        for (const s of list) map[s.id] = s.enabled;
+        for (const sourceInfo of list) map[sourceInfo.id] = sourceInfo.enabled;
         sourceEnabled = map;
       })
       .catch(() => {});
@@ -82,8 +82,8 @@
         .getMinecraftVersions()
         .then((list) => {
           gameVersions = list.versions
-            .filter((v) => v.type === "release")
-            .map((v) => v.id);
+            .filter((version) => version.type === "release")
+            .map((version) => version.id);
         })
         .catch(() => {});
     }
@@ -116,8 +116,8 @@
       const res = await api.searchContent(source, searchParams(0));
       hits = res.hits;
       totalHits = res.totalHits;
-    } catch (e) {
-      error = String(e);
+    } catch (err) {
+      error = String(err);
       hits = [];
     } finally {
       loading = false;
@@ -131,8 +131,8 @@
       const res = await api.searchContent(source, searchParams(next));
       hits = [...hits, ...res.hits];
       offset = next;
-    } catch (e) {
-      error = String(e);
+    } catch (err) {
+      error = String(err);
     } finally {
       loadingMore = false;
     }
@@ -150,22 +150,22 @@
   </header>
 
   <div class="tabs">
-    {#each visibleTabs as t}
+    {#each visibleTabs as tab}
       <button
         class="tab"
-        class:active={activeType === t.type}
-        onclick={() => (activeType = t.type)}
+        class:active={activeType === tab.type}
+        onclick={() => (activeType = tab.type)}
       >
-        {t.label}
+        {tab.label}
       </button>
     {/each}
   </div>
 
   <div class="toolbar">
     <select class="select filter" bind:value={source} title="Content source">
-      {#each SOURCES as s}
-        <option value={s.value} disabled={!sourceEnabled[s.value]}>
-          {s.label}{sourceEnabled[s.value] ? "" : " (add API key)"}
+      {#each SOURCES as sourceOption}
+        <option value={sourceOption.value} disabled={!sourceEnabled[sourceOption.value]}>
+          {sourceOption.label}{sourceEnabled[sourceOption.value] ? "" : " (add API key)"}
         </option>
       {/each}
     </select>
@@ -175,20 +175,20 @@
     </div>
     <select class="select filter" bind:value={gameVersion}>
       <option value="">Any version</option>
-      {#each gameVersions as v}
-        <option value={v}>{v}</option>
+      {#each gameVersions as version}
+        <option value={version}>{version}</option>
       {/each}
     </select>
     {#if showLoader}
       <select class="select filter" bind:value={loader}>
-        {#each loaders as l}
-          <option value={l}>{l === "" ? "Any loader" : l}</option>
+        {#each loaders as loaderOption}
+          <option value={loaderOption}>{loaderOption === "" ? "Any loader" : loaderOption}</option>
         {/each}
       </select>
     {/if}
     <select class="select filter" bind:value={sort}>
-      {#each sorts as s}
-        <option value={s.value}>{s.label}</option>
+      {#each sorts as sortOption}
+        <option value={sortOption.value}>{sortOption.label}</option>
       {/each}
     </select>
   </div>
@@ -201,7 +201,7 @@
     </div>
   {:else if loading}
     <div class="results">
-      {#each Array(8) as _, i (i)}
+      {#each Array(8) as _, index (index)}
         <div class="card skel">
           <span class="skeleton" style="width:56px;height:56px"></span>
           <div class="card-body">

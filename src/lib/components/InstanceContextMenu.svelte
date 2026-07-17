@@ -23,22 +23,21 @@
   // Cache per-instance shareability (opt-out CurseForge mods block code sharing).
   let shareChecks = $state<Record<string, { ok: boolean; optOut: string[] }>>({});
 
-  // When a menu opens, check whether the instance can be shared by code.
   $effect(() => {
-    const m = ui.instanceMenu;
-    if (!m || !shareOnline || shareChecks[m.instance.id]) return;
+    const activeMenu = ui.instanceMenu;
+    if (!activeMenu || !shareOnline || shareChecks[activeMenu.instance.id]) return;
     api
-      .instanceShareCheck(m.instance.id)
-      .then((r) => (shareChecks = { ...shareChecks, [m.instance.id]: r }))
+      .instanceShareCheck(activeMenu.instance.id)
+      .then((result) => (shareChecks = { ...shareChecks, [activeMenu.instance.id]: result }))
       .catch(() => {});
   });
 
   const menu = $derived(ui.instanceMenu);
 
   const items = $derived.by<MenuItem[]>(() => {
-    const m = ui.instanceMenu;
-    if (!m) return [];
-    const inst = m.instance;
+    const activeMenu = ui.instanceMenu;
+    if (!activeMenu) return [];
+    const inst = activeMenu.instance;
     const running = launchStore.isRunning(inst.id);
     const busy = launchStore.isBusy(inst.id);
     return [
@@ -140,8 +139,8 @@
       const snapshotId = await boardApi.publish(id, "cactuspack", token, { name });
       const { code } = await boardApi.mintCode(token, snapshotId);
       sharedCode = code;
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     } finally {
       sharing = false;
     }
@@ -162,8 +161,8 @@
       const addr = await localServerAddress(id);
       await navigator.clipboard.writeText(addr);
       toast.success(`Copied ${addr}`);
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 
@@ -190,8 +189,8 @@
     }
   }
 
-  async function onFile(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
+  async function onFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = ""; // allow re-picking the same file later
     if (!file || !pendingId) return;

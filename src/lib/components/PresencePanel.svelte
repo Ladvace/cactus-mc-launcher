@@ -13,11 +13,11 @@
 
   // Sign in with the active Minecraft account (no separate login).
   $effect(() => {
-    const a = account;
-    if (!online || !a) return;
+    const activeAccount = account;
+    if (!online || !activeAccount) return;
     if (
       !boardAuth.loggingIn &&
-      (!boardAuth.signedIn || boardAuth.session?.uuid !== a.uuid)
+      (!boardAuth.signedIn || boardAuth.session?.uuid !== activeAccount.uuid)
     ) {
       boardAuth.login();
     }
@@ -43,24 +43,24 @@
   let filterLoader = $state("");
 
   const myUuid = $derived(boardAuth.session?.uuid ?? "");
-  const me = $derived(presence.players.find((p) => p.uuid === myUuid) ?? null);
+  const me = $derived(presence.players.find((player) => player.uuid === myUuid) ?? null);
 
   // Versions actually present online, for the version filter dropdown.
   const versionsOnline = $derived(
-    [...new Set(presence.players.map((p) => p.mcVersion).filter(Boolean))].sort() as string[]
+    [...new Set(presence.players.map((player) => player.mcVersion).filter(Boolean))].sort() as string[]
   );
 
-  function passes(p: import("$lib/types").PresencePlayer): boolean {
-    if (filterLoader && (p.loader ?? "") !== filterLoader) return false;
-    if (filterVersion && (p.mcVersion ?? "") !== filterVersion) return false;
+  function passes(player: import("$lib/types").PresencePlayer): boolean {
+    if (filterLoader && (player.loader ?? "") !== filterLoader) return false;
+    if (filterVersion && (player.mcVersion ?? "") !== filterVersion) return false;
     return true;
   }
   const others = $derived(
-    presence.players.filter((p) => p.uuid !== myUuid && passes(p))
+    presence.players.filter((player) => player.uuid !== myUuid && passes(player))
   );
 
-  function loaderLabel(l: string | null): string {
-    return MOD_LOADERS.find((m) => m.value === l)?.label ?? (l ?? "");
+  function loaderLabel(loaderValue: string | null): string {
+    return MOD_LOADERS.find((option) => option.value === loaderValue)?.label ?? (loaderValue ?? "");
   }
 
   async function toggleOnline() {
@@ -79,16 +79,16 @@
     try {
       await navigator.clipboard.writeText(addr);
       toast.success(`Copied ${addr}`);
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 
   function timeAgo(iso: string): string {
-    const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
-    if (s < 30) return "now";
-    if (s < 90) return "just now";
-    return `${Math.round(s / 60)}m ago`;
+    const seconds = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    if (seconds < 30) return "now";
+    if (seconds < 90) return "just now";
+    return `${Math.round(seconds / 60)}m ago`;
   }
 </script>
 
@@ -125,7 +125,7 @@
             maxlength="120"
             bind:value={status}
             onblur={saveFields}
-            onkeydown={(e) => e.key === "Enter" && saveFields()}
+            onkeydown={(event) => event.key === "Enter" && saveFields()}
           />
         </label>
         <label class="field short">
@@ -136,15 +136,15 @@
             maxlength="32"
             bind:value={mcVersion}
             onblur={saveFields}
-            onkeydown={(e) => e.key === "Enter" && saveFields()}
+            onkeydown={(event) => event.key === "Enter" && saveFields()}
           />
         </label>
         <label class="field short">
           <span>Loader</span>
           <select class="select" bind:value={loader} onchange={saveFields}>
             <option value="">Any</option>
-            {#each MOD_LOADERS as l}
-              <option value={l.value}>{l.label}</option>
+            {#each MOD_LOADERS as loaderOption}
+              <option value={loaderOption.value}>{loaderOption.label}</option>
             {/each}
           </select>
         </label>
@@ -156,7 +156,7 @@
             maxlength="80"
             bind:value={address}
             onblur={saveFields}
-            onkeydown={(e) => e.key === "Enter" && saveFields()}
+            onkeydown={(event) => event.key === "Enter" && saveFields()}
           />
         </label>
       </div>
@@ -173,14 +173,14 @@
     <div class="filters">
       <select class="select mini" bind:value={filterLoader} aria-label="Filter by loader">
         <option value="">Any loader</option>
-        {#each MOD_LOADERS as l}
-          <option value={l.value}>{l.label}</option>
+        {#each MOD_LOADERS as loaderOption}
+          <option value={loaderOption.value}>{loaderOption.label}</option>
         {/each}
       </select>
       <select class="select mini" bind:value={filterVersion} aria-label="Filter by version">
         <option value="">Any version</option>
-        {#each versionsOnline as v}
-          <option value={v}>{v}</option>
+        {#each versionsOnline as version}
+          <option value={version}>{version}</option>
         {/each}
       </select>
       <button class="btn ghost sm" onclick={() => presence.poll()} disabled={presence.loading}>
@@ -203,27 +203,27 @@
       {#if me}
         {@render row(me, true)}
       {/if}
-      {#each others as p (p.uuid)}
-        {@render row(p, false)}
+      {#each others as player (player.uuid)}
+        {@render row(player, false)}
       {/each}
     </ul>
   {/if}
 {/if}
 
-{#snippet row(p: import("$lib/types").PresencePlayer, isMe: boolean)}
+{#snippet row(player: import("$lib/types").PresencePlayer, isMe: boolean)}
   <li class="player" class:me-row={isMe}>
-    <img class="face" src={skinFace(p.uuid, 32)} alt={p.name} />
+    <img class="face" src={skinFace(player.uuid, 32)} alt={player.name} />
     <div class="body">
-      <span class="name">{p.name}{#if isMe} <span class="you">you</span>{/if}</span>
-      <span class="status">{p.status || "online"}</span>
+      <span class="name">{player.name}{#if isMe} <span class="you">you</span>{/if}</span>
+      <span class="status">{player.status || "online"}</span>
     </div>
-    {#if p.mcVersion || p.loader}
-      <span class="tag">{loaderLabel(p.loader)}{p.mcVersion ? ` ${p.mcVersion}` : ""}</span>
+    {#if player.mcVersion || player.loader}
+      <span class="tag">{loaderLabel(player.loader)}{player.mcVersion ? ` ${player.mcVersion}` : ""}</span>
     {/if}
-    <span class="ago">{timeAgo(p.updatedAt)}</span>
-    {#if p.serverAddress}
-      <button class="btn ghost sm" title="Copy server address" onclick={() => copyAddress(p.serverAddress!)}>
-        <Icon name="copy" size={13} /> {p.serverAddress}
+    <span class="ago">{timeAgo(player.updatedAt)}</span>
+    {#if player.serverAddress}
+      <button class="btn ghost sm" title="Copy server address" onclick={() => copyAddress(player.serverAddress!)}>
+        <Icon name="copy" size={13} /> {player.serverAddress}
       </button>
     {/if}
   </li>

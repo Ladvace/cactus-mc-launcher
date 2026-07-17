@@ -23,8 +23,8 @@
   async function load() {
     try {
       [ops, whitelist] = await Promise.all([api.readOps(id), api.readWhitelist(id)]);
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 
@@ -35,31 +35,31 @@
     try {
       if (running) {
         await api.sendServerCommand(id, consoleCmd);
-        await new Promise((r) => setTimeout(r, 700));
+        await new Promise((resolve) => setTimeout(resolve, 700));
       } else {
         await edit();
       }
       await load();
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     } finally {
       busy = false;
     }
   }
 
   async function addOp() {
-    const n = opName.trim();
-    if (!n) return;
-    await run(`op ${n}`, () => api.addOp(id, n));
+    const name = opName.trim();
+    if (!name) return;
+    await run(`op ${name}`, () => api.addOp(id, name));
     opName = "";
   }
   async function removeOp(name: string) {
     await run(`deop ${name}`, () => api.removeOp(id, name));
   }
   async function addWl() {
-    const n = wlName.trim();
-    if (!n) return;
-    await run(`whitelist add ${n}`, () => api.addWhitelist(id, n));
+    const name = wlName.trim();
+    if (!name) return;
+    await run(`whitelist add ${name}`, () => api.addWhitelist(id, name));
     wlName = "";
   }
   async function removeWl(name: string) {
@@ -95,11 +95,11 @@
     </div>
     {#if ops.length}
       <ul class="rows">
-        {#each ops as o (o.uuid)}
+        {#each ops as op (op.uuid)}
           <li class="row">
-            <span class="name">{o.name}</span>
-            <span class="lvl">level {o.level}</span>
-            <button class="del" title="Remove op" disabled={busy} onclick={() => removeOp(o.name)}>
+            <span class="name">{op.name}</span>
+            <span class="lvl">level {op.level}</span>
+            <button class="del" title="Remove op" disabled={busy} onclick={() => removeOp(op.name)}>
               <Icon name="trash" size={13} />
             </button>
           </li>
@@ -130,10 +130,10 @@
     </div>
     {#if whitelist.length}
       <ul class="rows">
-        {#each whitelist as p (p.uuid)}
+        {#each whitelist as player (player.uuid)}
           <li class="row">
-            <span class="name">{p.name}</span>
-            <button class="del" title="Remove" disabled={busy} onclick={() => removeWl(p.name)}>
+            <span class="name">{player.name}</span>
+            <button class="del" title="Remove" disabled={busy} onclick={() => removeWl(player.name)}>
               <Icon name="trash" size={13} />
             </button>
           </li>

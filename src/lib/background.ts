@@ -14,9 +14,9 @@ export const DEFAULT_COLOR = "#17161a";
 /** Split `pattern:<name>[|#color]` into its parts. */
 export function parsePattern(bg: string): { name: string; color: string | null } {
   const rest = bg.slice("pattern:".length);
-  const i = rest.indexOf("|");
-  if (i < 0) return { name: rest, color: null };
-  return { name: rest.slice(0, i), color: rest.slice(i + 1) || null };
+  const separatorIndex = rest.indexOf("|");
+  if (separatorIndex < 0) return { name: rest, color: null };
+  return { name: rest.slice(0, separatorIndex), color: rest.slice(separatorIndex + 1) || null };
 }
 
 /** Split `image:[#color|]<uri>` into its parts. Data URIs/URLs never start with `#`. */
@@ -41,17 +41,17 @@ export function parseTexture(bg: string): {
 } {
   let rest = bg.slice("texture:".length);
   let opacity = 0.5;
-  const m = /^(0(?:\.\d+)?|1(?:\.0+)?)\|/.exec(rest);
-  if (m) {
-    opacity = parseFloat(m[1]);
-    rest = rest.slice(m[0].length);
+  const match = /^(0(?:\.\d+)?|1(?:\.0+)?)\|/.exec(rest);
+  if (match) {
+    opacity = parseFloat(match[1]);
+    rest = rest.slice(match[0].length);
   }
   let color: string | null = null;
   if (rest.startsWith("#")) {
-    const i = rest.indexOf("|");
-    if (i > 0) {
-      color = rest.slice(0, i);
-      rest = rest.slice(i + 1);
+    const separatorIndex = rest.indexOf("|");
+    if (separatorIndex > 0) {
+      color = rest.slice(0, separatorIndex);
+      rest = rest.slice(separatorIndex + 1);
     }
   }
   return { uri: rest, color, opacity };
@@ -60,17 +60,18 @@ export function parseTexture(bg: string): {
 function parsePrefixed(bg: string, prefix: string): { uri: string; color: string | null } {
   const rest = bg.slice(prefix.length);
   if (rest.startsWith("#")) {
-    const i = rest.indexOf("|");
-    if (i > 0) return { color: rest.slice(0, i), uri: rest.slice(i + 1) };
+    const separatorIndex = rest.indexOf("|");
+    if (separatorIndex > 0)
+      return { color: rest.slice(0, separatorIndex), uri: rest.slice(separatorIndex + 1) };
   }
   return { uri: rest, color: null };
 }
 
-function hexToRgba(hex: string, a: number): string {
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!m) return `rgba(23, 22, 26, ${a})`;
-  const n = parseInt(m[1], 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+function hexToRgba(hex: string, alpha: number): string {
+  const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!match) return `rgba(23, 22, 26, ${alpha})`;
+  const rgb = parseInt(match[1], 16);
+  return `rgba(${(rgb >> 16) & 255}, ${(rgb >> 8) & 255}, ${rgb & 255}, ${alpha})`;
 }
 
 function patternCss(name: string, color: string | null): string {
@@ -119,8 +120,8 @@ export function backgroundCss(bg: string): string {
     // texture's opacity leaves, so it reads as a subtle surface rather than a
     // busy image. Tiled at the image's intrinsic size (no fractional scaling)
     // so the repeats meet without a subpixel seam.
-    const a = Math.max(0, Math.min(1, 1 - opacity));
-    const scrim = color ? hexToRgba(color, a) : `rgba(23, 22, 26, ${a})`;
+    const overlayAlpha = Math.max(0, Math.min(1, 1 - opacity));
+    const scrim = color ? hexToRgba(color, overlayAlpha) : `rgba(23, 22, 26, ${overlayAlpha})`;
     return `linear-gradient(${scrim}, ${scrim}), url("${uri}") repeat`;
   }
   return "var(--bg-app)";

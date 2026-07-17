@@ -80,18 +80,18 @@ pub struct SearchParams {
 /// Search Modrinth projects, translating the params into labrinth facets.
 pub async fn search(params: SearchParams) -> Result<SearchResults> {
     let mut facets: Vec<Vec<String>> = vec![vec![format!("project_type:{}", params.project_type)]];
-    if let Some(v) = params.game_version.as_deref().filter(|s| !s.is_empty()) {
-        facets.push(vec![format!("versions:{v}")]);
+    if let Some(version) = params.game_version.as_deref().filter(|value| !value.is_empty()) {
+        facets.push(vec![format!("versions:{version}")]);
     }
-    if let Some(l) = params.loader.as_deref().filter(|s| !s.is_empty()) {
-        facets.push(vec![format!("categories:{l}")]);
+    if let Some(loader) = params.loader.as_deref().filter(|value| !value.is_empty()) {
+        facets.push(vec![format!("categories:{loader}")]);
     }
 
     let facets_json = serde_json::to_string(&facets)?;
     let index = params.sort.unwrap_or_else(|| "relevance".into());
     let limit = if params.limit == 0 { 20 } else { params.limit.min(100) };
     let offset = params.offset.to_string();
-    let limit_s = limit.to_string();
+    let limit_str = limit.to_string();
 
     let resp = client()?
         .get(format!("{API_BASE}/search"))
@@ -100,7 +100,7 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
             ("facets", facets_json.as_str()),
             ("index", index.as_str()),
             ("offset", offset.as_str()),
-            ("limit", limit_s.as_str()),
+            ("limit", limit_str.as_str()),
         ])
         .send()
         .await?;
@@ -173,11 +173,11 @@ pub async fn get_versions(
     game_version: Option<&str>,
 ) -> Result<Vec<Version>> {
     let mut req = client()?.get(format!("{API_BASE}/project/{project_id}/version"));
-    if let Some(l) = loader.filter(|s| !s.is_empty()) {
-        req = req.query(&[("loaders", format!("[\"{l}\"]"))]);
+    if let Some(loader) = loader.filter(|value| !value.is_empty()) {
+        req = req.query(&[("loaders", format!("[\"{loader}\"]"))]);
     }
-    if let Some(v) = game_version.filter(|s| !s.is_empty()) {
-        req = req.query(&[("game_versions", format!("[\"{v}\"]"))]);
+    if let Some(version) = game_version.filter(|value| !value.is_empty()) {
+        req = req.query(&[("game_versions", format!("[\"{version}\"]"))]);
     }
     Ok(req.send().await?.error_for_status()?.json().await?)
 }
@@ -198,7 +198,7 @@ impl Version {
     pub fn primary_file(&self) -> Option<&VersionFile> {
         self.files
             .iter()
-            .find(|f| f.primary)
+            .find(|file| file.primary)
             .or_else(|| self.files.first())
     }
 }

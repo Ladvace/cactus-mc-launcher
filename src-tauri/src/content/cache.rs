@@ -15,9 +15,9 @@ use crate::paths;
 
 /// Path of the cached blob for a given SHA-1 (sharded by the first two chars).
 pub fn blob_path(app: &AppHandle, sha1: &str) -> Result<PathBuf> {
-    let h = sha1.to_lowercase();
-    let shard = if h.len() >= 2 { &h[..2] } else { "00" };
-    Ok(paths::content_cache_dir(app)?.join(shard).join(&h))
+    let sha1_lower = sha1.to_lowercase();
+    let shard = if sha1_lower.len() >= 2 { &sha1_lower[..2] } else { "00" };
+    Ok(paths::content_cache_dir(app)?.join(shard).join(&sha1_lower))
 }
 
 /// Ensure the file is in the cache and return its blob path. Skips the download
@@ -29,10 +29,10 @@ pub async fn fetch(
     url: &str,
     sha1: Option<&str>,
 ) -> Result<PathBuf> {
-    if let Some(h) = sha1 {
-        let p = blob_path(app, h)?;
-        if p.exists() {
-            return Ok(p);
+    if let Some(hash) = sha1 {
+        let path = blob_path(app, hash)?;
+        if path.exists() {
+            return Ok(path);
         }
     }
 
@@ -156,7 +156,7 @@ pub fn stats(app: &AppHandle) -> Result<CacheStats> {
     let cache = paths::content_cache_dir(app)?;
     collect_inodes(&cache, &mut blob_size);
 
-    let mut s = CacheStats {
+    let mut cache_stats = CacheStats {
         files: blob_size.len() as u64,
         bytes: blob_size.values().sum(),
         ..Default::default()
@@ -171,13 +171,13 @@ pub fn stats(app: &AppHandle) -> Result<CacheStats> {
             for sub in ["mods", "resourcepacks", "shaderpacks", "datapacks"] {
                 let mut sizes: HashMap<u64, u64> = HashMap::new();
                 collect_inodes(&game.join(sub), &mut sizes);
-                s.linked_bytes += sizes.values().sum::<u64>();
+                cache_stats.linked_bytes += sizes.values().sum::<u64>();
             }
         }
     }
 
-    s.saved_bytes = s.linked_bytes.saturating_sub(s.bytes);
-    Ok(s)
+    cache_stats.saved_bytes = cache_stats.linked_bytes.saturating_sub(cache_stats.bytes);
+    Ok(cache_stats)
 }
 
 /// Record each file's (inode -> size) under `dir`, deduplicating shared inodes.

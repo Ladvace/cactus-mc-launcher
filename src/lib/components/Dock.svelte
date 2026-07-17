@@ -23,7 +23,7 @@
   const magnify = $derived(settingsStore.settings.dockMagnify ?? true);
   // A themed sprite perched on the dock's corner, from the active decor theme.
   const peek = $derived(
-    DECOR_THEMES.find((t) => t.id === (settingsStore.settings.decorTheme ?? ""))?.peek
+    DECOR_THEMES.find((decorTheme) => decorTheme.id === (settingsStore.settings.decorTheme ?? ""))?.peek
   );
 
   const path = $derived($page.url.pathname);
@@ -54,23 +54,23 @@
   $effect(() => {
     if (overflow === 0) overflowMenu = null;
   });
-  function toggleOverflow(e: MouseEvent) {
+  function toggleOverflow(event: MouseEvent) {
     if (overflowMenu) {
       overflowMenu = null;
       return;
     }
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
     const gap = 10;
     if (pos === "bottom")
-      overflowMenu = `left:${cx}px; bottom:${window.innerHeight - r.top + gap}px; transform:translateX(-50%);`;
+      overflowMenu = `left:${cx}px; bottom:${window.innerHeight - rect.top + gap}px; transform:translateX(-50%);`;
     else if (pos === "top")
-      overflowMenu = `left:${cx}px; top:${r.bottom + gap}px; transform:translateX(-50%);`;
+      overflowMenu = `left:${cx}px; top:${rect.bottom + gap}px; transform:translateX(-50%);`;
     else if (pos === "left")
-      overflowMenu = `left:${r.right + gap}px; top:${cy}px; transform:translateY(-50%);`;
+      overflowMenu = `left:${rect.right + gap}px; top:${cy}px; transform:translateY(-50%);`;
     else
-      overflowMenu = `right:${window.innerWidth - r.left + gap}px; top:${cy}px; transform:translateY(-50%);`;
+      overflowMenu = `right:${window.innerWidth - rect.left + gap}px; top:${cy}px; transform:translateY(-50%);`;
   }
 
   type Item =
@@ -88,7 +88,7 @@
     { kind: "nav", href: "/share", icon: "users", label: "Community" },
     { kind: "sep" },
     ...pinned.map(
-      (i): Item => ({ kind: "instance", instance: i, label: i.name })
+      (instance): Item => ({ kind: "instance", instance: instance, label: instance.name })
     ),
     ...(overflow > 0
       ? [
@@ -116,13 +116,13 @@
   // Resting center X of each item, relative to the dock's content start.
   const centers = $derived.by(() => {
     let cx = 0;
-    const arr: number[] = [];
-    for (const it of items) {
-      const w = it.kind === "sep" ? SEP : ITEM;
-      arr.push(cx + w / 2);
-      cx += w + GAP;
+    const positions: number[] = [];
+    for (const item of items) {
+      const width = item.kind === "sep" ? SEP : ITEM;
+      positions.push(cx + width / 2);
+      cx += width + GAP;
     }
-    return arr;
+    return positions;
   });
 
   let dockEl = $state<HTMLElement>();
@@ -144,21 +144,21 @@
     }
     const base = dockStart + PAD;
     const pointer = horizontal ? mouseX : mouseY;
-    scales = centers.map((c) => {
-      const d = Math.abs(pointer - (base + c));
-      return d > RANGE ? 1 : 1 + (MAX - 1) * (1 - d / RANGE);
+    scales = centers.map((center) => {
+      const distance = Math.abs(pointer - (base + center));
+      return distance > RANGE ? 1 : 1 + (MAX - 1) * (1 - distance / RANGE);
     });
   }
   function onEnter() {
     if (dockEl) {
-      const r = dockEl.getBoundingClientRect();
-      dockStart = horizontal ? r.left : r.top;
+      const rect = dockEl.getBoundingClientRect();
+      dockStart = horizontal ? rect.left : rect.top;
     }
     inside = true;
   }
-  function onMove(e: MouseEvent) {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
+  function onMove(event: MouseEvent) {
+    mouseX = event.clientX;
+    mouseY = event.clientY;
     if (!rafId) rafId = requestAnimationFrame(apply);
   }
   function reset() {
@@ -173,10 +173,10 @@
   function isActive(href: string) {
     return href === "/" ? path === "/" : path.startsWith(href);
   }
-  function activate(item: Item, e: MouseEvent) {
+  function activate(item: Item, event: MouseEvent) {
     if (item.kind === "nav" || item.kind === "settings") goto(item.href);
     else if (item.kind === "instance") goto(`/instance/${item.instance.id}`);
-    else if (item.kind === "overflow") toggleOverflow(e);
+    else if (item.kind === "overflow") toggleOverflow(event);
     else if (item.kind === "add") onCreate();
     else if (item.kind === "account") ui.openAccounts();
   }
@@ -198,7 +198,7 @@
     onmousemove={onMove}
     onmouseleave={reset}
   >
-    {#each items as item, i (i)}
+    {#each items as item, index (index)}
       {#if item.kind === "sep"}
         <div class="dock-sep"></div>
       {:else}
@@ -210,8 +210,8 @@
         <button
           class="dock-item"
           class:active={active || activeInstance}
-          style="--s:{scales[i] ?? 1}"
-          onclick={(e) => activate(item, e)}
+          style="--s:{scales[index] ?? 1}"
+          onclick={(event) => activate(item, event)}
           aria-label={item.label}
         >
           <span class="tip">{item.label}</span>
@@ -258,7 +258,7 @@
 </div>
 
 <svelte:window
-  onkeydown={(e) => e.key === "Escape" && (overflowMenu = null)}
+  onkeydown={(event) => event.key === "Escape" && (overflowMenu = null)}
   onresize={() => {
     winH = window.innerHeight;
     overflowMenu = null;

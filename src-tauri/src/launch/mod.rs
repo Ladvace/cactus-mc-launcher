@@ -148,9 +148,9 @@ fn emit_progress(app: &AppHandle, id: &str, stage: &str, current: usize, total: 
 pub async fn launch(app: AppHandle, instance: Instance, settings: Settings) -> Result<()> {
     let id = instance.id.clone();
     let result = prepare_and_spawn(&app, &instance, &settings).await;
-    if let Err(e) = &result {
-        eprintln!("[launch] error for instance {id}: {e}");
-        emit_status(&app, &id, "error", Some(e.to_string()));
+    if let Err(error) = &result {
+        eprintln!("[launch] error for instance {id}: {error}");
+        emit_status(&app, &id, "error", Some(error.to_string()));
     }
     result
 }
@@ -163,12 +163,11 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         .user_agent(concat!("cactus-launcher/", env!("CARGO_PKG_VERSION")))
         .build()?;
 
-    // Find the manifest entry for this instance's Minecraft version.
     let manifest = minecraft::fetch_versions().await?;
     let entry = manifest
         .versions
         .iter()
-        .find(|v| v.id == instance.mc_version)
+        .find(|version| version.id == instance.mc_version)
         .ok_or_else(|| {
             AppError::Other(format!("Minecraft version '{}' not found", instance.mc_version))
         })?;
@@ -240,12 +239,10 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         }
     }
 
-    // Paths.
     let version_jar = paths::version_dir(app, &detail.id)?.join(format!("{}.jar", detail.id));
     let natives_dir = paths::natives_dir(app, id)?;
     let game_dir = paths::instance_game_dir(app, id)?;
 
-    // Resolve libraries and assets.
     let libs = libraries::resolve(app, &detail.libraries)?;
     let assets = assets::resolve(app, &client, &detail.asset_index, &game_dir).await?;
 
@@ -267,7 +264,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         .await?;
     }
 
-    // --- Download assets ---
     emit_status(app, id, "downloading", Some("Downloading assets…".into()));
     {
         let app = app.clone();
@@ -279,7 +275,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     }
     assets.materialize_virtual()?;
 
-    // --- Extract natives ---
     for (jar, exclude) in &libs.natives {
         libraries::extract_natives(jar, &natives_dir, exclude)?;
     }
@@ -299,7 +294,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
             }
         };
 
-    // --- Build the command ---
     let mut classpath = libs.classpath.clone();
     classpath.push(version_jar);
 
@@ -328,7 +322,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     };
     let command_args = args::build(&detail, &ctx);
 
-    // --- Spawn + monitor ---
     emit_status(app, id, "launching", Some("Starting Minecraft…".into()));
     process::spawn_and_monitor(app.clone(), java, command_args, game_dir, id.clone())?;
 
@@ -343,20 +336,20 @@ fn macos_needs_rosetta(detail: &version::VersionDetail) -> bool {
         return false;
     }
     for lib in &detail.libraries {
-        if let Some(ver) = lib.name.strip_prefix("org.lwjgl:lwjgl:") {
-            return lwjgl_below_331(ver);
+        if let Some(version) = lib.name.strip_prefix("org.lwjgl:lwjgl:") {
+            return lwjgl_below_331(version);
         }
     }
     false
 }
 
-fn lwjgl_below_331(ver: &str) -> bool {
-    let parts: Vec<u32> = ver.split('.').filter_map(|s| s.parse().ok()).collect();
+fn lwjgl_below_331(version: &str) -> bool {
+    let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
     let target = [3u32, 3, 1];
-    for i in 0..3 {
-        let a = parts.get(i).copied().unwrap_or(0);
-        if a != target[i] {
-            return a < target[i];
+    for index in 0..3 {
+        let part = parts.get(index).copied().unwrap_or(0);
+        if part != target[index] {
+            return part < target[index];
         }
     }
     false // equal to 3.3.1 → has arm64 natives

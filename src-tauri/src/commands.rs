@@ -83,23 +83,23 @@ pub fn update_instance(
         instance.server_memory_mb = if mem == 0 { None } else { Some(mem) };
     }
     // Per-instance overrides: 0 / empty string clears back to the global value.
-    if let Some(v) = patch.max_memory_mb {
-        instance.max_memory_mb = (v != 0).then_some(v);
+    if let Some(value) = patch.max_memory_mb {
+        instance.max_memory_mb = (value != 0).then_some(value);
     }
-    if let Some(v) = patch.min_memory_mb {
-        instance.min_memory_mb = (v != 0).then_some(v);
+    if let Some(value) = patch.min_memory_mb {
+        instance.min_memory_mb = (value != 0).then_some(value);
     }
-    if let Some(v) = patch.jvm_args {
-        instance.jvm_args = (!v.trim().is_empty()).then_some(v);
+    if let Some(value) = patch.jvm_args {
+        instance.jvm_args = (!value.trim().is_empty()).then_some(value);
     }
-    if let Some(v) = patch.java_path {
-        instance.java_path = (!v.trim().is_empty()).then_some(v);
+    if let Some(value) = patch.java_path {
+        instance.java_path = (!value.trim().is_empty()).then_some(value);
     }
-    if let Some(v) = patch.game_width {
-        instance.game_width = (v != 0).then_some(v);
+    if let Some(value) = patch.game_width {
+        instance.game_width = (value != 0).then_some(value);
     }
-    if let Some(v) = patch.game_height {
-        instance.game_height = (v != 0).then_some(v);
+    if let Some(value) = patch.game_height {
+        instance.game_height = (value != 0).then_some(value);
     }
 
     store.save(&app, &instance)?;
@@ -249,7 +249,7 @@ pub fn delete_world(app: AppHandle, id: String, folder: String) -> Result<()> {
 pub fn get_local_ip() -> Option<String> {
     let sock = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
     sock.connect("8.8.8.8:80").ok()?;
-    sock.local_addr().ok().map(|a| a.ip().to_string())
+    sock.local_addr().ok().map(|addr| addr.ip().to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -539,7 +539,7 @@ pub async fn instance_share_check(app: AppHandle, instance_id: String) -> Result
         if let Ok(version) = sources::get_version(Source::CurseForge, &item.version_id).await {
             let downloadable = version
                 .primary_file()
-                .map(|f| !f.url.is_empty())
+                .map(|file| !file.url.is_empty())
                 .unwrap_or(false);
             if !downloadable {
                 opt_out.push(item.title);
@@ -621,21 +621,21 @@ pub async fn get_capes(store: State<'_, AccountStore>) -> Result<Vec<Cape>> {
 
     let capes = profile
         .get("capes")
-        .and_then(|c| c.as_array())
+        .and_then(|value| value.as_array())
         .cloned()
         .unwrap_or_default();
     let out = capes
         .iter()
-        .filter_map(|c| {
+        .filter_map(|cape| {
             Some(Cape {
-                id: c.get("id")?.as_str()?.to_string(),
-                alias: c
+                id: cape.get("id")?.as_str()?.to_string(),
+                alias: cape
                     .get("alias")
-                    .and_then(|a| a.as_str())
+                    .and_then(|alias| alias.as_str())
                     .unwrap_or("Cape")
                     .to_string(),
-                url: c.get("url")?.as_str()?.to_string(),
-                active: c.get("state").and_then(|s| s.as_str()) == Some("ACTIVE"),
+                url: cape.get("url")?.as_str()?.to_string(),
+                active: cape.get("state").and_then(|state| state.as_str()) == Some("ACTIVE"),
             })
         })
         .collect();

@@ -27,13 +27,15 @@ pub struct WorldInfo {
     pub location: String,
 }
 
-fn dir_size(p: &Path) -> u64 {
+fn dir_size(path: &Path) -> u64 {
     let mut total = 0;
-    if let Ok(rd) = std::fs::read_dir(p) {
-        for e in rd.flatten() {
-            match e.file_type() {
-                Ok(ft) if ft.is_dir() => total += dir_size(&e.path()),
-                Ok(ft) if ft.is_file() => total += e.metadata().map(|m| m.len()).unwrap_or(0),
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            match entry.file_type() {
+                Ok(file_type) if file_type.is_dir() => total += dir_size(&entry.path()),
+                Ok(file_type) if file_type.is_file() => {
+                    total += entry.metadata().map(|meta| meta.len()).unwrap_or(0)
+                }
                 _ => {}
             }
         }
@@ -44,7 +46,7 @@ fn dir_size(p: &Path) -> u64 {
 fn make_info(game: &Path, dir: &Path, location: &str) -> WorldInfo {
     let name = dir
         .file_name()
-        .map(|s| s.to_string_lossy().to_string())
+        .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_default();
     let folder = dir
         .strip_prefix(game)
@@ -53,8 +55,8 @@ fn make_info(game: &Path, dir: &Path, location: &str) -> WorldInfo {
         .to_string();
     let last_modified = std::fs::metadata(dir.join("level.dat"))
         .ok()
-        .and_then(|m| m.modified().ok())
-        .map(|t| DateTime::<Utc>::from(t).to_rfc3339());
+        .and_then(|meta| meta.modified().ok())
+        .map(|time| DateTime::<Utc>::from(time).to_rfc3339());
     WorldInfo {
         name,
         folder,
@@ -77,21 +79,21 @@ pub fn list(app: &AppHandle, id: &str) -> Result<Vec<WorldInfo>> {
     // Client singleplayer saves.
     let saves = game.join("saves");
     if saves.is_dir() {
-        for e in std::fs::read_dir(&saves)?.flatten() {
-            if is_world(&e.path()) {
-                out.push(make_info(&game, &e.path(), "saves"));
+        for entry in std::fs::read_dir(&saves)?.flatten() {
+            if is_world(&entry.path()) {
+                out.push(make_info(&game, &entry.path(), "saves"));
             }
         }
     }
 
     // Server worlds live at the game-dir root (world, world_nether, …).
-    for e in std::fs::read_dir(&game)?.flatten() {
-        let p = e.path();
-        if e.file_name() == "saves" {
+    for entry in std::fs::read_dir(&game)?.flatten() {
+        let path = entry.path();
+        if entry.file_name() == "saves" {
             continue;
         }
-        if is_world(&p) {
-            out.push(make_info(&game, &p, "server"));
+        if is_world(&path) {
+            out.push(make_info(&game, &path, "server"));
         }
     }
 
@@ -134,10 +136,10 @@ pub fn backup(app: &AppHandle, id: &str, folder: &str) -> Result<String> {
 
     let base: String = dir
         .file_name()
-        .map(|s| s.to_string_lossy().to_string())
+        .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| "world".into())
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|ch| if ch.is_alphanumeric() || ch == '-' || ch == '_' { ch } else { '_' })
         .collect();
     let stamp = Utc::now().format("%Y%m%d-%H%M%S");
     let out = backups.join(format!("{base}-{stamp}.zip"));
@@ -153,10 +155,10 @@ fn zip_dir(src: &Path, out: &Path) -> Result<()> {
         .compression_method(zip::CompressionMethod::Deflated);
     let root = src
         .file_name()
-        .map(|s| s.to_string_lossy().to_string())
+        .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| "world".into());
     add_dir(&mut zip, src, &root, opts)?;
-    zip.finish().map_err(|e| AppError::Other(format!("zip: {e}")))?;
+    zip.finish().map_err(|error| AppError::Other(format!("zip: {error}")))?;
     Ok(())
 }
 
@@ -166,17 +168,17 @@ fn add_dir(
     rel_prefix: &str,
     opts: zip::write::SimpleFileOptions,
 ) -> Result<()> {
-    for e in std::fs::read_dir(base)?.flatten() {
-        let path = e.path();
-        let name = e.file_name().to_string_lossy().to_string();
+    for entry in std::fs::read_dir(base)?.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
         let rel = format!("{rel_prefix}/{name}");
         if path.is_dir() {
             add_dir(zip, &path, &rel, opts)?;
         } else if path.is_file() {
             zip.start_file(&rel, opts)
-                .map_err(|e| AppError::Other(format!("zip: {e}")))?;
-            let mut f = std::fs::File::open(&path)?;
-            std::io::copy(&mut f, zip)?;
+                .map_err(|error| AppError::Other(format!("zip: {error}")))?;
+            let mut file = std::fs::File::open(&path)?;
+            std::io::copy(&mut file, zip)?;
             let _ = zip.flush();
         }
     }

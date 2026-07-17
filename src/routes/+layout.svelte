@@ -46,22 +46,22 @@
   // Suppress the OS/browser right-click menu everywhere (it looks out of place
   // in a native app) — except in text fields, where paste is useful. Our own
   // context menus call preventDefault + open regardless.
-  function onContextMenu(e: MouseEvent) {
-    const t = e.target as HTMLElement | null;
-    const tag = t?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || t?.isContentEditable) return;
-    e.preventDefault();
+  function onContextMenu(event: MouseEvent) {
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+    event.preventDefault();
   }
 
   // Subtle click sound on any button (capture phase so it fires even when a
   // handler stops propagation). Gated by the uiSounds setting.
-  function onGlobalClick(e: MouseEvent) {
+  function onGlobalClick(event: MouseEvent) {
     if (!settingsStore.settings.uiSounds) return;
-    const t = e.target as HTMLElement | null;
-    const btn = t?.closest?.("button, .btn") as HTMLElement | null;
-    if (!btn) return;
-    if ((btn as HTMLButtonElement).disabled) return;
-    if (btn.getAttribute("aria-disabled") === "true") return;
+    const target = event.target as HTMLElement | null;
+    const button = target?.closest?.("button, .btn") as HTMLElement | null;
+    if (!button) return;
+    if ((button as HTMLButtonElement).disabled) return;
+    if (button.getAttribute("aria-disabled") === "true") return;
     playClick();
   }
 </script>
@@ -92,8 +92,8 @@
 {#if splash}
   <div
     class="splash"
-    onanimationend={(e) => {
-      if (e.animationName === "splash-fade") splash = false;
+    onanimationend={(event) => {
+      if (event.animationName === "splash-fade") splash = false;
     }}
   >
     <img src="/cactus-logo.png" alt="Cactus Launcher" class="splash-logo" />
@@ -101,7 +101,6 @@
 {/if}
 
 <style>
-  /* Launch splash: centered logo on top of everything, fades out. */
   .splash {
     position: fixed;
     inset: 0;

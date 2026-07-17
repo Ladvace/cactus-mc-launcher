@@ -31,18 +31,17 @@
     if (!tabs.includes(activeTab)) activeTab = "Content";
   });
 
-  // --- Server console input ---
   let command = $state("");
   let logEl = $state<HTMLPreElement>();
 
   async function sendCommand() {
-    const c = command.trim();
-    if (!c || !launchRunning) return;
+    const trimmed = command.trim();
+    if (!trimmed || !launchRunning) return;
     try {
-      await api.sendServerCommand(id, c);
+      await api.sendServerCommand(id, trimmed);
       command = "";
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     }
   }
 
@@ -52,7 +51,6 @@
     if (logEl) logEl.scrollTop = logEl.scrollHeight;
   });
 
-  // --- Launch state ---
   const runtime = $derived(launchStore.get(id));
   const launchBusy = $derived(launchStore.isBusy(id));
   const launchRunning = $derived(launchStore.isRunning(id));
@@ -69,7 +67,6 @@
     runtime.total > 0 ? Math.round((runtime.current / runtime.total) * 100) : null
   );
 
-  // --- Installed content ---
   let content = $state<ContentItem[]>([]);
   let contentLoading = $state(false);
 
@@ -114,14 +111,14 @@
           item.projectType === "mod" && instance.loader !== "vanilla"
             ? instance.loader
             : null;
-        const vs = await api.contentVersions(
+        const versions = await api.contentVersions(
           item.source as Source,
           item.projectId,
           loaderFilter,
           instance.mcVersion
         );
-        if (vs.length > 0 && vs[0].id !== item.versionId) {
-          found[item.versionId] = { versionId: vs[0].id, number: vs[0].versionNumber };
+        if (versions.length > 0 && versions[0].id !== item.versionId) {
+          found[item.versionId] = { versionId: versions[0].id, number: versions[0].versionNumber };
         }
       }
       updates = found;
@@ -131,14 +128,14 @@
   }
 
   async function updateItem(item: ContentItem) {
-    const upd = updates[item.versionId];
-    if (!upd) return;
+    const update = updates[item.versionId];
+    if (!update) return;
     updatingId = item.versionId;
     try {
       await api.installContent({
         instanceId: id,
         source: item.source as Source,
-        versionId: upd.versionId,
+        versionId: update.versionId,
         projectType: item.projectType,
         title: item.title,
         iconUrl: item.iconUrl,
@@ -159,7 +156,7 @@
 
   const loaderLabel = $derived(
     instance
-      ? MOD_LOADERS.find((l) => l.value === instance.loader)?.label ??
+      ? MOD_LOADERS.find((loader) => loader.value === instance.loader)?.label ??
           instance.loader
       : ""
   );
@@ -204,9 +201,9 @@
 
   function fmtPlaytime(sec: number): string {
     if (sec < 60) return "< 1 min";
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    const hours = Math.floor(sec / 3600);
+    const minutes = Math.floor((sec % 3600) / 60);
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
   }
 </script>
 
@@ -293,13 +290,13 @@
 
     <div class="tabs">
       <div class="col tabs-inner">
-        {#each tabs as t}
+        {#each tabs as tab}
           <button
             class="tab"
-            class:active={activeTab === t}
-            onclick={() => (activeTab = t)}
+            class:active={activeTab === tab}
+            onclick={() => (activeTab = tab)}
           >
-            {t}
+            {tab}
           </button>
         {/each}
       </div>
@@ -366,7 +363,7 @@
 
           {#if contentLoading}
             <div class="content-list">
-              {#each Array(4) as _, i (i)}
+              {#each Array(4) as _, index (index)}
                 <div class="content-row">
                   <span class="skeleton" style="width:36px;height:36px"></span>
                   <div class="content-info">
@@ -454,7 +451,7 @@
                   : "Start the server to send commands"}
                 bind:value={command}
                 disabled={!launchRunning}
-                onkeydown={(e) => e.key === "Enter" && sendCommand()}
+                onkeydown={(event) => event.key === "Enter" && sendCommand()}
               />
               <button
                 class="btn primary sm"
@@ -482,14 +479,13 @@
   </div>
 {/if}
 
-<!-- Rename -->
 <Modal title="Rename instance" open={renameOpen} onClose={() => (renameOpen = false)} width={420}>
   <label class="field-label" for="rename-input">Name</label>
   <input
     id="rename-input"
     class="input"
     bind:value={renameValue}
-    onkeydown={(e) => e.key === "Enter" && confirmRename()}
+    onkeydown={(event) => event.key === "Enter" && confirmRename()}
   />
   {#snippet footer()}
     <button class="btn ghost" onclick={() => (renameOpen = false)}>Cancel</button>
@@ -499,7 +495,6 @@
   {/snippet}
 </Modal>
 
-<!-- Delete -->
 <Modal title="Delete instance" open={deleteOpen} onClose={() => (deleteOpen = false)} width={420}>
   <p class="confirm-text">
     Are you sure you want to delete <strong>{instance?.name}</strong>? This removes

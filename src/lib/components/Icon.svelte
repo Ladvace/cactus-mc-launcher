@@ -38,11 +38,11 @@
     globe: "globe",
   };
 
-  const cls = $derived(`hn hn-${MAP[name] ?? "grid"}`);
+  const iconClass = $derived(`hn hn-${MAP[name] ?? "grid"}`);
 </script>
 
 <i
-  class={cls}
+  class={iconClass}
   style="font-size:{size}px; line-height:1; display:inline-flex; align-items:center; justify-content:center;"
   aria-hidden="true"
 ></i>

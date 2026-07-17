@@ -18,25 +18,25 @@
 </script>
 
 <div class="toaster">
-  {#each toast.toasts as t (t.id)}
-    <div class="toast {t.kind}" role={t.kind === "error" ? "alert" : "status"}>
+  {#each toast.toasts as notification (notification.id)}
+    <div class="toast {notification.kind}" role={notification.kind === "error" ? "alert" : "status"}>
       <span class="badge">
-        {#if t.kind === "success"}
+        {#if notification.kind === "success"}
           <Icon name="check" size={13} />
-        {:else if t.kind === "error"}
+        {:else if notification.kind === "error"}
           !
         {:else}
           <Icon name="clock" size={13} />
         {/if}
       </span>
-      <span class="msg">{t.message}</span>
+      <span class="msg">{notification.message}</span>
       <div class="actions">
-        {#if t.kind === "error"}
-          <button class="act" onclick={() => copy(t.id, t.message)}>
-            {copied === t.id ? "Copied" : "Copy"}
+        {#if notification.kind === "error"}
+          <button class="act" onclick={() => copy(notification.id, notification.message)}>
+            {copied === notification.id ? "Copied" : "Copy"}
           </button>
         {/if}
-        <button class="close" aria-label="Dismiss" onclick={() => toast.dismiss(t.id)}>✕</button>
+        <button class="close" aria-label="Dismiss" onclick={() => toast.dismiss(notification.id)}>✕</button>
       </div>
     </div>
   {/each}

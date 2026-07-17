@@ -53,9 +53,9 @@ pub async fn list_versions(loader: ModLoader, mc_version: &str) -> Result<Vec<Lo
         .await?;
     Ok(entries
         .into_iter()
-        .map(|e| LoaderVersion {
-            version: e.loader.version,
-            stable: e.loader.stable.unwrap_or(false),
+        .map(|entry| LoaderVersion {
+            version: entry.loader.version,
+            stable: entry.loader.stable.unwrap_or(false),
         })
         .collect())
 }
@@ -110,17 +110,17 @@ async fn resolve_version(
     mc_version: &str,
     requested: Option<&str>,
 ) -> Result<String> {
-    if let Some(v) = requested {
-        if !v.trim().is_empty() {
-            return Ok(v.trim().to_string());
+    if let Some(version) = requested {
+        if !version.trim().is_empty() {
+            return Ok(version.trim().to_string());
         }
     }
     let versions = list_versions(loader, mc_version).await?;
     versions
         .iter()
-        .find(|v| v.stable)
+        .find(|version| version.stable)
         .or_else(|| versions.first())
-        .map(|v| v.version.clone())
+        .map(|version| version.version.clone())
         .ok_or_else(|| {
             AppError::Other(format!(
                 "no {loader:?} loader builds available for Minecraft {mc_version}"
@@ -151,7 +151,7 @@ pub async fn apply_loader(
     let profile = fetch_profile(loader, mc_version, &resolved).await?;
 
     detail.main_class = match profile.main_class {
-        ProfileMainClass::Plain(s) => s,
+        ProfileMainClass::Plain(class_name) => class_name,
         ProfileMainClass::Sided { client } => client,
     };
 
@@ -159,10 +159,10 @@ pub async fn apply_loader(
     let mut libs: Vec<Library> = profile
         .libraries
         .into_iter()
-        .map(|l| Library {
-            name: l.name,
+        .map(|lib| Library {
+            name: lib.name,
             downloads: None,
-            url: l.url,
+            url: lib.url,
             rules: None,
             natives: None,
             extract: None,

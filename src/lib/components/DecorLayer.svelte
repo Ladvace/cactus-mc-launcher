@@ -4,17 +4,17 @@
 
   // Sprites placed at fixed spots around the page for the active decor theme.
   const theme = $derived(
-    DECOR_THEMES.find((t) => t.id === (settingsStore.settings.decorTheme ?? ""))
+    DECOR_THEMES.find((decorTheme) => decorTheme.id === (settingsStore.settings.decorTheme ?? ""))
   );
 </script>
 
 {#if theme}
   <div class="decor-layer" aria-hidden="true">
-    {#each theme.placements as p, i (i)}
+    {#each theme.placements as placement, index (index)}
       <img
-        src={p.sprite}
+        src={placement.sprite}
         alt=""
-        style="{p.at} width:{p.size}px; opacity:{p.opacity ?? 1}; transform: rotate({p.rotate ?? 0}deg){p.flip ? ' scaleX(-1)' : ''};"
+        style="{placement.at} width:{placement.size}px; opacity:{placement.opacity ?? 1}; transform: rotate({placement.rotate ?? 0}deg){placement.flip ? ' scaleX(-1)' : ''};"
       />
     {/each}
   </div>

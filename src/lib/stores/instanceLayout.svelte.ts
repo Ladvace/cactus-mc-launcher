@@ -24,12 +24,12 @@ function load(): Record<string, Cell> {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) || "{}") ?? {};
     const out: Record<string, Cell> = {};
-    for (const [id, v] of Object.entries<any>(raw)) {
-      if (v && typeof v.w === "number" && typeof v.h === "number") {
-        out[id] = { w: v.w, h: v.h, order: v.order ?? 0 };
-      } else if (v && typeof v.size === "string" && LEGACY[v.size]) {
-        const [w, h] = LEGACY[v.size];
-        out[id] = { w, h, order: v.order ?? 0 };
+    for (const [id, value] of Object.entries<any>(raw)) {
+      if (value && typeof value.w === "number" && typeof value.h === "number") {
+        out[id] = { w: value.w, h: value.h, order: value.order ?? 0 };
+      } else if (value && typeof value.size === "string" && LEGACY[value.size]) {
+        const [width, height] = LEGACY[value.size];
+        out[id] = { w: width, h: height, order: value.order ?? 0 };
       }
     }
     return out;
@@ -54,9 +54,9 @@ class InstanceLayout {
       every other instance's entry. */
   reorder(ids: string[]) {
     const next = { ...this.cells };
-    ids.forEach((id, idx) => {
-      const c = this.cellOf(id);
-      next[id] = { w: c.w, h: c.h, order: idx };
+    ids.forEach((id, index) => {
+      const cell = this.cellOf(id);
+      next[id] = { w: cell.w, h: cell.h, order: index };
     });
     this.cells = next;
     this.save();

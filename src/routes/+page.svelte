@@ -24,22 +24,21 @@
   const entries = $derived.by<Entry[]>(() => {
     const map = new Map<string, Instance[]>();
     const list: Entry[] = [];
-    for (const i of filtered) {
-      if (i.group) {
-        (map.get(i.group) ?? map.set(i.group, []).get(i.group)!).push(i);
+    for (const instance of filtered) {
+      if (instance.group) {
+        (map.get(instance.group) ?? map.set(instance.group, []).get(instance.group)!).push(instance);
       } else {
-        list.push({ kind: "instance", id: i.id, instance: i });
+        list.push({ kind: "instance", id: instance.id, instance });
       }
     }
-    for (const [name, insts] of [...map.entries()].sort((a, b) =>
+    for (const [name, instances] of [...map.entries()].sort((a, b) =>
       a[0].localeCompare(b[0])
     )) {
-      list.push({ kind: "folder", id: `folder:${name}`, name, instances: insts });
+      list.push({ kind: "folder", id: `folder:${name}`, name, instances });
     }
     return list;
   });
 
-  // --- Import / share context menu ---
   const online = boardApi.configured();
   let fileInput = $state<HTMLInputElement>();
   let homeMenu = $state<{ x: number; y: number } | null>(null);
@@ -56,13 +55,13 @@
       : []),
   ]);
 
-  function openMenu(e: MouseEvent) {
-    e.preventDefault();
-    homeMenu = { x: e.clientX, y: e.clientY };
+  function openMenu(event: MouseEvent) {
+    event.preventDefault();
+    homeMenu = { x: event.clientX, y: event.clientY };
   }
 
-  async function onImportFile(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
+  async function onImportFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = "";
     if (!file) return;
@@ -80,18 +79,18 @@
   }
 
   async function importFromCode() {
-    const c = code.trim();
-    if (!c || importing) return;
+    const trimmedCode = code.trim();
+    if (!trimmedCode || importing) return;
     importing = true;
     try {
-      const { snapshotId } = await boardApi.resolveCode(c);
+      const { snapshotId } = await boardApi.resolveCode(trimmedCode);
       const res = await boardApi.importSnapshot(snapshotId);
       await instancesStore.refresh();
       codeOpen = false;
       code = "";
       goto(`/instance/${res.instance.id}`);
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       importing = false;
     }
@@ -105,12 +104,12 @@
   });
 
   const filtered = $derived(
-    instancesStore.instances.filter((i) => {
+    instancesStore.instances.filter((instance) => {
       const matchesQuery =
         !query.trim() ||
-        i.name.toLowerCase().includes(query.trim().toLowerCase()) ||
-        i.mcVersion.includes(query.trim());
-      const matchesLoader = loaderFilter === "all" || i.loader === loaderFilter;
+        instance.name.toLowerCase().includes(query.trim().toLowerCase()) ||
+        instance.mcVersion.includes(query.trim());
+      const matchesLoader = loaderFilter === "all" || instance.loader === loaderFilter;
       return matchesQuery && matchesLoader;
     })
   );
@@ -145,8 +144,8 @@
       </div>
       <select class="select loader-filter" bind:value={loaderFilter}>
         <option value="all">All loaders</option>
-        {#each MOD_LOADERS as l}
-          <option value={l.value}>{l.label}</option>
+        {#each MOD_LOADERS as loader}
+          <option value={loader.value}>{loader.label}</option>
         {/each}
       </select>
       <button
@@ -178,7 +177,7 @@
 
   {#if instancesStore.loading && !instancesStore.loaded}
     <div class="grid">
-      {#each Array(6) as _, i (i)}
+      {#each Array(6) as _, index (index)}
         <InstanceCardSkeleton />
       {/each}
     </div>
@@ -194,12 +193,12 @@
   {:else if filtered.length === 0}
     <p class="muted">No instances match your filters.</p>
   {:else}
-    <HomeGrid {entries} {arranging} onOpenFolder={(n) => (openFolder = n)} />
+    <HomeGrid {entries} {arranging} onOpenFolder={(name) => (openFolder = name)} />
   {/if}
 </div>
 
 <FolderOverlay name={openFolder} onClose={() => (openFolder = null)} />
-<GroupContextMenu onOpenFolder={(n) => (openFolder = n)} />
+<GroupContextMenu onOpenFolder={(name) => (openFolder = name)} />
 
 <input
   bind:this={fileInput}
@@ -227,7 +226,7 @@
     class="input"
     placeholder="Paste a share code…"
     bind:value={code}
-    onkeydown={(e) => e.key === "Enter" && importFromCode()}
+    onkeydown={(event) => event.key === "Enter" && importFromCode()}
   />
   {#snippet footer()}
     <button class="btn ghost" onclick={() => (codeOpen = false)}>Cancel</button>

@@ -15,11 +15,11 @@
   // automatically (no separate login) and re-acquire if the account changes.
   const account = $derived(accountsStore.active);
   $effect(() => {
-    const a = account;
-    if (!ready || !a) return;
+    const activeAccount = account;
+    if (!ready || !activeAccount) return;
     if (
       !boardAuth.loggingIn &&
-      (!boardAuth.signedIn || boardAuth.session?.uuid !== a.uuid)
+      (!boardAuth.signedIn || boardAuth.session?.uuid !== activeAccount.uuid)
     ) {
       boardAuth.login();
     }
@@ -32,16 +32,15 @@
   const myBoard = $derived(boards[0] ?? null);
 
   function timeAgo(iso: string): string {
-    const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
-    if (s < 90) return "just now";
-    const m = Math.round(s / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.round(m / 60);
-    if (h < 24) return `${h}h ago`;
-    return `${Math.round(h / 24)}d ago`;
+    const seconds = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    if (seconds < 90) return "just now";
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.round(hours / 24)}d ago`;
   }
 
-  // New board form
   let handle = $state("");
   let displayName = $state("");
   let kind = $state<"creator" | "streamer" | "server">("creator");
@@ -57,7 +56,6 @@
   let changelog = $state("");
   let publishing = $state(false);
 
-  // Message
   let messageBody = $state("");
   let postingMsg = $state(false);
 
@@ -99,8 +97,8 @@
       serverAddress = "";
       await loadBoards();
       toast.success("Board created.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       creating = false;
     }
@@ -119,8 +117,8 @@
       toast.success(
         publishTo ? "Published to your board." : "Published as a standalone code."
       );
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       publishing = false;
     }
@@ -136,8 +134,8 @@
       messageBody = "";
       await loadBoards();
       toast.success("Announcement posted.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       postingMsg = false;
     }
@@ -153,31 +151,30 @@
       await boardApi.deleteMessage(token, handle, id);
       await loadBoards();
       toast.success("Announcement deleted.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       deletingMsg = null;
     }
   }
 
-  // --- Edit / delete the selected board ---
-  let eName = $state("");
-  let eDesc = $state("");
-  let eStream = $state("");
-  let eServer = $state("");
-  let ePublic = $state(true);
+  let editName = $state("");
+  let editDesc = $state("");
+  let editStream = $state("");
+  let editServer = $state("");
+  let editPublic = $state(true);
   let savingEdit = $state(false);
   let confirmDelete = $state(false);
 
   $effect(() => {
-    const b = myBoard;
+    const board = myBoard;
     confirmDelete = false;
-    if (!b) return;
-    eName = b.displayName;
-    eDesc = b.description ?? "";
-    eStream = b.streamUrl ?? "";
-    eServer = b.serverAddress ?? "";
-    ePublic = b.isPublic;
+    if (!board) return;
+    editName = board.displayName;
+    editDesc = board.description ?? "";
+    editStream = board.streamUrl ?? "";
+    editServer = board.serverAddress ?? "";
+    editPublic = board.isPublic;
   });
 
   async function saveEdit() {
@@ -187,16 +184,16 @@
     savingEdit = true;
     try {
       await boardApi.updateBoard(token, handle, {
-        displayName: eName.trim(),
-        description: eDesc.trim(),
-        streamUrl: eStream.trim(),
-        serverAddress: eServer.trim(),
-        isPublic: ePublic,
+        displayName: editName.trim(),
+        description: editDesc.trim(),
+        streamUrl: editStream.trim(),
+        serverAddress: editServer.trim(),
+        isPublic: editPublic,
       });
       await loadBoards();
       toast.success("Board saved.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       savingEdit = false;
     }
@@ -212,8 +209,8 @@
       confirmDelete = false;
       await loadBoards();
       toast.success("Board deleted.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     }
   }
 </script>
@@ -252,23 +249,22 @@
       <div class="panel"><p class="muted">Loading…</p></div>
     {/if}
 
-    <!-- Edit / delete your board -->
     {#if myBoard}
       <div class="panel">
         <div class="edit-head">
           <h3>Your board — @{myBoard.handle}</h3>
           <button class="link view" onclick={() => goto(`/share/${myBoard.handle}`)}>View public page ↗</button>
         </div>
-        <input class="input" placeholder="Display name" bind:value={eName} />
-        <input class="input mt" placeholder="Description (optional)" bind:value={eDesc} />
+        <input class="input" placeholder="Display name" bind:value={editName} />
+        <input class="input mt" placeholder="Description (optional)" bind:value={editDesc} />
         {#if myBoard.kind === "streamer"}
-          <input class="input mt" placeholder="Stream URL (twitch.tv/… or youtube.com/…)" bind:value={eStream} />
+          <input class="input mt" placeholder="Stream URL (twitch.tv/… or youtube.com/…)" bind:value={editStream} />
         {/if}
         {#if myBoard.kind === "server"}
-          <input class="input mt" placeholder="Server address (play.example.net)" bind:value={eServer} />
+          <input class="input mt" placeholder="Server address (play.example.net)" bind:value={editServer} />
         {/if}
         <label class="chk mt">
-          <input type="checkbox" bind:checked={ePublic} />
+          <input type="checkbox" bind:checked={editPublic} />
           Public — searchable in Discover
         </label>
         <div class="edit-actions mt">
@@ -310,7 +306,6 @@
       </div>
     {/if}
 
-    <!-- Publish an instance -->
     <div class="panel">
       <h3>Publish an instance</h3>
       <p class="muted">Snapshot one of your instances{publishTo ? ` to @${publishTo}` : " as a standalone shareable code"}.</p>
@@ -323,8 +318,8 @@
         </select>
         <select class="select" bind:value={instanceId}>
           <option value="" disabled>Choose an instance…</option>
-          {#each instancesStore.instances as i (i.id)}
-            <option value={i.id}>{i.name} · {i.loader} {i.mcVersion}</option>
+          {#each instancesStore.instances as instance (instance.id)}
+            <option value={instance.id}>{instance.name} · {instance.loader} {instance.mcVersion}</option>
           {/each}
         </select>
         <select class="select" bind:value={format}>
@@ -338,7 +333,6 @@
       </button>
     </div>
 
-    <!-- Announcements -->
     {#if myBoard}
       <div class="panel">
         <h3>Post an announcement to @{myBoard.handle}</h3>
@@ -349,20 +343,20 @@
 
         {#if myBoard.messages.length}
           <ul class="msgs">
-            {#each myBoard.messages as m (m.id)}
+            {#each myBoard.messages as message (message.id)}
               <li class="msg">
                 <div class="msg-body">
-                  <p>{m.body}</p>
-                  <span class="when">{timeAgo(m.createdAt)}</span>
+                  <p>{message.body}</p>
+                  <span class="when">{timeAgo(message.createdAt)}</span>
                 </div>
                 <button
                   class="msg-del"
                   title="Delete announcement"
                   aria-label="Delete announcement"
-                  disabled={deletingMsg === m.id}
-                  onclick={() => deleteMessage(m.id)}
+                  disabled={deletingMsg === message.id}
+                  onclick={() => deleteMessage(message.id)}
                 >
-                  {#if deletingMsg === m.id}…{:else}<Icon name="trash" size={14} />{/if}
+                  {#if deletingMsg === message.id}…{:else}<Icon name="trash" size={14} />{/if}
                 </button>
               </li>
             {/each}

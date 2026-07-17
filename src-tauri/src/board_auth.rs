@@ -38,7 +38,7 @@ pub async fn login(app: &AppHandle, api_base: &str) -> Result<BoardSession> {
         .await?;
     let server_id = challenge
         .get("serverId")
-        .and_then(|v| v.as_str())
+        .and_then(|value| value.as_str())
         .ok_or_else(|| AppError::Other("bad challenge response".into()))?
         .to_string();
 
@@ -71,8 +71,14 @@ pub async fn login(app: &AppHandle, api_base: &str) -> Result<BoardSession> {
         return Err(AppError::Other(format!("sign-in failed ({status}): {text}")));
     }
 
-    let v: serde_json::Value = resp.json().await?;
-    let get = |k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or_default().to_string();
+    let response_json: serde_json::Value = resp.json().await?;
+    let get = |key: &str| {
+        response_json
+            .get(key)
+            .and_then(|field| field.as_str())
+            .unwrap_or_default()
+            .to_string()
+    };
     Ok(BoardSession {
         token: get("token"),
         uuid: get("uuid"),

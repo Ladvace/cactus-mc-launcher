@@ -28,13 +28,13 @@ impl InstanceStore {
             if !meta.exists() {
                 continue;
             }
-            match std::fs::read_to_string(&meta).and_then(|s| {
-                serde_json::from_str::<Instance>(&s).map_err(std::io::Error::other)
+            match std::fs::read_to_string(&meta).and_then(|text| {
+                serde_json::from_str::<Instance>(&text).map_err(std::io::Error::other)
             }) {
-                Ok(inst) => {
-                    map.insert(inst.id.clone(), inst);
+                Ok(instance) => {
+                    map.insert(instance.id.clone(), instance);
                 }
-                Err(e) => eprintln!("skipping unreadable instance {}: {e}", meta.display()),
+                Err(error) => eprintln!("skipping unreadable instance {}: {error}", meta.display()),
             }
         }
         *self.cache.lock().unwrap() = map;

@@ -11,10 +11,10 @@ export async function fileToIconDataUri(file: File, size = 256): Promise<string>
 
 function readAsDataURL(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = () => reject(r.error ?? new Error("read failed"));
-    r.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+    reader.readAsDataURL(file);
   });
 }
 
@@ -29,10 +29,10 @@ function downscaleSquare(src: string, size: number): Promise<string> {
       if (!ctx) return reject(new Error("no 2d context"));
       // Cover-fit: scale so the image fills the square, centered.
       const scale = Math.max(size / img.width, size / img.height);
-      const w = img.width * scale;
-      const h = img.height * scale;
+      const width = img.width * scale;
+      const height = img.height * scale;
       ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      ctx.drawImage(img, (size - width) / 2, (size - height) / 2, width, height);
       resolve(canvas.toDataURL("image/webp", 0.85));
     };
     img.onerror = () => reject(new Error("could not load image"));
@@ -54,15 +54,15 @@ function downscaleFit(src: string, max: number): Promise<string> {
     const img = new Image();
     img.onload = () => {
       const scale = Math.min(1, max / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
+      const width = Math.round(img.width * scale);
+      const height = Math.round(img.height * scale);
       const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("no 2d context"));
       ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(img, 0, 0, w, h);
+      ctx.drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL("image/webp", 0.85));
     };
     img.onerror = () => reject(new Error("could not load image"));

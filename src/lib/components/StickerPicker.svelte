@@ -36,7 +36,7 @@
   // scrolls vertically instead of overflowing into more columns sideways.
   const columns = $derived.by(() => {
     const cols: Sticker[][] = Array.from({ length: COLS }, () => []);
-    stickers.forEach((s, i) => cols[i % COLS].push(s));
+    stickers.forEach((sticker, index) => cols[index % COLS].push(sticker));
     return cols;
   });
 
@@ -55,31 +55,30 @@
     try {
       onPick(await spriteToSquareIcon(url));
       ui.closeStickerPicker();
-    } catch (e) {
-      error = String(e);
+    } catch (err) {
+      error = String(err);
     } finally {
       applying = false;
     }
   }
 
   async function saveKey() {
-    const k = keyDraft.trim();
-    if (!k) return;
+    const key = keyDraft.trim();
+    if (!key) return;
     savingKey = true;
     try {
-      await settingsStore.save({ ...settingsStore.settings, giphyApiKey: k });
+      await settingsStore.save({ ...settingsStore.settings, giphyApiKey: key });
       keyDraft = "";
       editingKey = false;
       error = null;
       tab = "stickers";
-    } catch (e) {
-      error = String(e);
+    } catch (err) {
+      error = String(err);
     } finally {
       savingKey = false;
     }
   }
 
-  // Clear transient state when the picker closes.
   $effect(() => {
     if (!open) {
       query = "";
@@ -92,11 +91,10 @@
     }
   });
 
-  // Debounce the search text.
   $effect(() => {
-    const q = query;
-    const t = setTimeout(() => (debounced = q), 350);
-    return () => clearTimeout(t);
+    const queryText = query;
+    const timer = setTimeout(() => (debounced = queryText), 350);
+    return () => clearTimeout(timer);
   });
 
   // (Re)load from the top when open on the stickers tab and the query changes.
@@ -113,12 +111,12 @@
     offset = 0;
     hasMore = true;
     try {
-      const res = await api.searchStickers(debounced, 0);
-      stickers = res;
-      offset = res.length;
-      hasMore = res.length >= LIMIT;
-    } catch (e) {
-      error = String(e);
+      const results = await api.searchStickers(debounced, 0);
+      stickers = results;
+      offset = results.length;
+      hasMore = results.length >= LIMIT;
+    } catch (err) {
+      error = String(err);
       stickers = [];
     } finally {
       loading = false;
@@ -129,11 +127,11 @@
     if (loading || loadingMore || !hasMore) return;
     loadingMore = true;
     try {
-      const res = await api.searchStickers(debounced, offset);
-      const seen = new Set(stickers.map((s) => s.id));
-      stickers = [...stickers, ...res.filter((s) => !seen.has(s.id))];
-      offset += res.length;
-      hasMore = res.length >= LIMIT;
+      const results = await api.searchStickers(debounced, offset);
+      const seen = new Set(stickers.map((sticker) => sticker.id));
+      stickers = [...stickers, ...results.filter((sticker) => !seen.has(sticker.id))];
+      offset += results.length;
+      hasMore = results.length >= LIMIT;
     } catch {
       hasMore = false; // stop trying on error, keep what we have
     } finally {
@@ -141,30 +139,30 @@
     }
   }
 
-  function onScroll(e: Event) {
-    const el = e.currentTarget as HTMLElement;
+  function onScroll(event: Event) {
+    const el = event.currentTarget as HTMLElement;
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 140) loadMore();
   }
 
-  async function chooseSticker(s: Sticker) {
+  async function chooseSticker(sticker: Sticker) {
     const onPick = picker?.onPick;
     if (!onPick || applying) return;
     applying = true;
     try {
-      const uri = await api.downloadImage(s.full);
+      const uri = await api.downloadImage(sticker.full);
       onPick(uri);
       ui.closeStickerPicker();
-    } catch (e) {
-      error = String(e);
+    } catch (err) {
+      error = String(err);
     } finally {
       applying = false;
     }
   }
 
-  function chooseEmoji(e: string) {
+  function chooseEmoji(emoji: string) {
     const onPick = picker?.onPick;
     if (!onPick) return;
-    onPick(emojiToDataUri(e));
+    onPick(emojiToDataUri(emoji));
     ui.closeStickerPicker();
   }
 
@@ -243,7 +241,7 @@
               autocomplete="off"
               spellcheck="false"
               bind:value={keyDraft}
-              onkeydown={(e) => e.key === "Enter" && saveKey()}
+              onkeydown={(event) => event.key === "Enter" && saveKey()}
             />
             <button class="btn primary sm" disabled={savingKey || !keyDraft.trim()} onclick={saveKey}>
               {savingKey ? "Saving…" : "Save"}
@@ -266,9 +264,9 @@
 
         {#if loading}
           <div class="sticker-grid">
-            {#each Array(COLS) as _, c (c)}
+            {#each Array(COLS) as _, colIndex (colIndex)}
               <div class="col">
-                {#each Array(4) as _, i (i)}
+                {#each Array(4) as _, rowIndex (rowIndex)}
                   <span class="skeleton cell"></span>
                 {/each}
               </div>
@@ -291,16 +289,16 @@
           <p class="muted">No stickers found.</p>
         {:else}
           <div class="sticker-grid" class:busy={applying} onscroll={onScroll}>
-            {#each columns as col, c (c)}
+            {#each columns as col, colIndex (colIndex)}
               <div class="col">
-                {#each col as s (s.id)}
+                {#each col as sticker (sticker.id)}
                   <button
                     class="cell"
                     title="Use this sticker"
                     disabled={applying}
-                    onclick={() => chooseSticker(s)}
+                    onclick={() => chooseSticker(sticker)}
                   >
-                    <img src={s.preview} alt="sticker" loading="lazy" />
+                    <img src={sticker.preview} alt="sticker" loading="lazy" />
                   </button>
                 {/each}
                 {#if loadingMore}
@@ -316,17 +314,17 @@
         </div>
       {/if}
     {:else}
-      {#each GROUPS as g}
+      {#each GROUPS as group}
         <section class="group">
-          <h4>{g.name}</h4>
+          <h4>{group.name}</h4>
           <div class="emoji-grid">
-            {#each g.emoji as e}
+            {#each group.emoji as emoji}
               <button
                 class="emoji"
-                title={`Use ${e}`}
-                onclick={() => chooseEmoji(e)}
+                title={`Use ${emoji}`}
+                onclick={() => chooseEmoji(emoji)}
               >
-                {e}
+                {emoji}
               </button>
             {/each}
           </div>

@@ -49,7 +49,7 @@ fn match_version(loader: ModLoader, mc: &str, raw: &str) -> Option<String> {
     match loader {
         // Forge keeps the "<mc>-<forge>" scheme (both "1.20.1-47.4.21" and the
         // newer "26.2-65.0.4"), so stripping "<mc>-" works for all eras.
-        ModLoader::Forge => raw.strip_prefix(&format!("{mc}-")).map(|v| v.to_string()),
+        ModLoader::Forge => raw.strip_prefix(&format!("{mc}-")).map(|stripped| stripped.to_string()),
         // NeoForge encodes the Minecraft version in its own version string:
         // old MC "1.X.Y" drops the leading "1." ("1.21.1" -> "21.1.x"), while
         // new MC like "26.2" is used as-is ("26.2" -> "26.2.0.x").
@@ -72,9 +72,9 @@ pub async fn list_versions(loader: ModLoader, mc: &str) -> Result<Vec<LoaderVers
     let mut versions: Vec<LoaderVersion> = parse_metadata_versions(&xml)
         .iter()
         .filter_map(|raw| match_version(loader, mc, raw))
-        .map(|v| LoaderVersion {
-            stable: !v.contains("-beta"),
-            version: v,
+        .map(|version| LoaderVersion {
+            stable: !version.contains("-beta"),
+            version,
         })
         .collect();
 
@@ -83,16 +83,16 @@ pub async fn list_versions(loader: ModLoader, mc: &str) -> Result<Vec<LoaderVers
 }
 
 async fn resolve_version(loader: ModLoader, mc: &str, requested: Option<&str>) -> Result<String> {
-    if let Some(v) = requested {
-        if !v.trim().is_empty() {
-            return Ok(v.trim().to_string());
+    if let Some(version) = requested {
+        if !version.trim().is_empty() {
+            return Ok(version.trim().to_string());
         }
     }
     let versions = list_versions(loader, mc).await?;
     versions
         .into_iter()
         .next()
-        .map(|v| v.version)
+        .map(|entry| entry.version)
         .ok_or_else(|| {
             AppError::Other(format!("no {loader:?} builds available for Minecraft {mc}"))
         })
@@ -170,7 +170,6 @@ pub async fn install_server(
         return Ok(args);
     }
 
-    // Download the installer into the run directory.
     let installer = run_dir.join(".server-installer.jar");
     let bytes = client
         .get(installer_url(loader, mc, &ver))
@@ -194,13 +193,22 @@ pub async fn install_server(
         .current_dir(run_dir)
         .output()
         .await
-        .map_err(|e| AppError::Other(format!("failed to run {loader:?} server installer: {e}")))?;
+        .map_err(|error| {
+            AppError::Other(format!("failed to run {loader:?} server installer: {error}"))
+        })?;
 
     let _ = std::fs::remove_file(&installer);
 
     if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        let tail: String = err.chars().rev().take(800).collect::<String>().chars().rev().collect();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let tail: String = stderr
+            .chars()
+            .rev()
+            .take(800)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect();
         return Err(AppError::Other(format!(
             "{loader:?} server installer failed: {tail}"
         )));
@@ -273,7 +281,6 @@ async fn ensure_installed(
         }
     }
 
-    // Download the installer.
     let tmp = paths::meta_dir(app)?.join("tmp");
     std::fs::create_dir_all(&tmp)?;
     let installer = tmp.join(format!("{id}-installer.jar"));
@@ -304,17 +311,23 @@ async fn ensure_installed(
         .current_dir(&root)
         .output()
         .await
-        .map_err(|e| AppError::Other(format!("failed to run {loader:?} installer: {e}")))?;
+        .map_err(|error| AppError::Other(format!("failed to run {loader:?} installer: {error}")))?;
 
     if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        let tail: String = err.chars().rev().take(600).collect::<String>().chars().rev().collect();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let tail: String = stderr
+            .chars()
+            .rev()
+            .take(600)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect();
         return Err(AppError::Other(format!(
             "{loader:?} installer failed: {tail}"
         )));
     }
 
-    // Locate the generated version JSON.
     let (found_id, text) = find_version_json(&root, &id, ver)?;
 
     // Make the installed libraries available to our shared library tree.
@@ -326,7 +339,7 @@ async fn ensure_installed(
     let _ = std::fs::remove_file(&installer);
 
     serde_json::from_str::<ForgeProfile>(&text)
-        .map_err(|e| AppError::Other(format!("could not parse {loader:?} profile: {e}")))
+        .map_err(|error| AppError::Other(format!("could not parse {loader:?} profile: {error}")))
 }
 
 /// Find the version JSON the installer produced under `root/versions`.

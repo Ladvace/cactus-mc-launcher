@@ -16,13 +16,12 @@
   let { instance, iconSize = 72, fill = false }: Props = $props();
 
   const loaderLabel = $derived(
-    MOD_LOADERS.find((l) => l.value === instance.loader)?.label ?? instance.loader
+    MOD_LOADERS.find((option) => option.value === instance.loader)?.label ?? instance.loader
   );
   const busy = $derived(launchStore.isBusy(instance.id));
   const running = $derived(launchStore.isRunning(instance.id));
   // Cover mode: the icon fills the whole tile behind the label.
   const cover = $derived(instance.coverImage && !!instance.icon);
-  // Modpack download in progress.
   const installing = $derived(installStore.isInstalling(instance.id));
   const installPct = $derived(installStore.pct(instance.id));
   const installMsg = $derived(installStore.progressFor(instance.id)?.message ?? "");
@@ -31,14 +30,14 @@
     goto(`/instance/${instance.id}`);
   }
 
-  function contextMenu(e: MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation(); // don't also open the page-level menu
-    ui.openInstanceMenu(instance, e.clientX, e.clientY);
+  function contextMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation(); // don't also open the page-level menu
+    ui.openInstanceMenu(instance, event.clientX, event.clientY);
   }
 
-  function play(e: MouseEvent) {
-    e.stopPropagation();
+  function play(event: MouseEvent) {
+    event.stopPropagation();
     if (running) {
       launchStore.stop(instance.id);
     } else if (!busy) {
@@ -82,7 +81,7 @@
   tabindex="0"
   onclick={open}
   oncontextmenu={contextMenu}
-  onkeydown={(e) => e.key === "Enter" && open()}
+  onkeydown={(event) => event.key === "Enter" && open()}
 >
   {#if installing}
     <div class="install-overlay">

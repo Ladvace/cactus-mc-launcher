@@ -29,23 +29,23 @@
   let gridWidth = $state(0);
   const maxCols = $derived(Math.max(1, Math.floor((gridWidth + GAP) / PITCH)));
   const cellOf = (id: string) => instanceLayout.cellOf(id);
-  const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
-  const iconFor = (w: number, h: number) =>
-    Math.min(w, h) >= 2 ? 120 : Math.max(w, h) >= 2 ? 84 : 60;
+  const clamp = (value: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, value));
+  const iconFor = (width: number, height: number) =>
+    Math.min(width, height) >= 2 ? 120 : Math.max(width, height) >= 2 ? 84 : 60;
 
   // Preview icon size for a folder tile of `w`×`h` cells. The 2×2 preview grid
   // grows with the tile so the contained instances scale up when it's resized.
   const CELL = 168;
-  function folderIcon(w: number, h: number): number {
-    const availW = w * CELL + (w - 1) * GAP - 28; // folder + preview padding/border
-    const availH = h * CELL + (h - 1) * GAP - 60; // + meta row & gaps
+  function folderIcon(width: number, height: number): number {
+    const availW = width * CELL + (width - 1) * GAP - 28; // folder + preview padding/border
+    const availH = height * CELL + (height - 1) * GAP - 60; // + meta row & gaps
     const perW = (availW - 4) / 2; // 2 columns, one 4px gap
     const perH = (availH - 4) / 2; // up to 2 rows
     return clamp(Math.floor(Math.min(perW, perH)), 28, 148);
   }
 
   const ordered = $derived(
-    [...entries].sort((a, b) => cellOf(a.id).order - cellOf(b.id).order)
+    [...entries].sort((first, second) => cellOf(first.id).order - cellOf(second.id).order)
   );
 
   // --- Pointer-based drag: reorder (arrange mode) or group (normal mode) ---
@@ -68,23 +68,23 @@
   let suppressClick = false;
   let lastOver: string | null = null; // last tile hovered (arrange reorder guard)
 
-  function onTilePointerDown(e: PointerEvent, entry: Entry) {
-    if (e.button !== 0 || resizing) return;
-    const el = e.currentTarget as HTMLElement;
-    const r = el.getBoundingClientRect();
+  function onTilePointerDown(event: PointerEvent, entry: Entry) {
+    if (event.button !== 0 || resizing) return;
+    const el = event.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
     press = {
       id: entry.id,
       kind: entry.kind,
       el,
-      startX: e.clientX,
-      startY: e.clientY,
-      offX: e.clientX - r.left,
-      offY: e.clientY - r.top,
+      startX: event.clientX,
+      startY: event.clientY,
+      offX: event.clientX - rect.left,
+      offY: event.clientY - rect.top,
     };
     started = false;
   }
 
-  function beginDrag(e: PointerEvent) {
+  function beginDrag(event: PointerEvent) {
     if (!press) return;
     started = true;
     draggingId = press.id;
@@ -92,21 +92,21 @@
     dropTarget = null;
     lastOver = null;
     clone = makeClone(press.el);
-    moveClone(e);
+    moveClone(event);
   }
 
   function makeClone(el: HTMLElement): HTMLElement {
-    const r = el.getBoundingClientRect();
-    const c = el.cloneNode(true) as HTMLElement;
-    c.querySelectorAll(".handle").forEach((h) => h.remove());
-    c.classList.add("drag-clone");
-    c.classList.remove("dragging");
-    Object.assign(c.style, {
+    const rect = el.getBoundingClientRect();
+    const cloneEl = el.cloneNode(true) as HTMLElement;
+    cloneEl.querySelectorAll(".handle").forEach((handle) => handle.remove());
+    cloneEl.classList.add("drag-clone");
+    cloneEl.classList.remove("dragging");
+    Object.assign(cloneEl.style, {
       position: "fixed",
-      left: `${r.left}px`,
-      top: `${r.top}px`,
-      width: `${r.width}px`,
-      height: `${r.height}px`,
+      left: `${rect.left}px`,
+      top: `${rect.top}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
       margin: "0",
       zIndex: "500",
       pointerEvents: "none",
@@ -114,26 +114,26 @@
       transform: "scale(1.05)",
       transition: "transform 0.12s ease",
     });
-    document.body.appendChild(c);
-    return c;
+    document.body.appendChild(cloneEl);
+    return cloneEl;
   }
 
-  function moveClone(e: PointerEvent) {
+  function moveClone(event: PointerEvent) {
     if (!clone || !press) return;
-    clone.style.left = `${e.clientX - press.offX}px`;
-    clone.style.top = `${e.clientY - press.offY}px`;
+    clone.style.left = `${event.clientX - press.offX}px`;
+    clone.style.top = `${event.clientY - press.offY}px`;
   }
 
-  function tileUnder(e: PointerEvent): string | null {
+  function tileUnder(event: PointerEvent): string | null {
     const el = document
-      .elementFromPoint(e.clientX, e.clientY)
+      .elementFromPoint(event.clientX, event.clientY)
       ?.closest<HTMLElement>("[data-entry-id]");
     return el?.dataset.entryId ?? null;
   }
 
   function reorderTo(overId: string) {
     if (!draggingId || draggingId === overId) return;
-    const ids = ordered.map((x) => x.id);
+    const ids = ordered.map((entry) => entry.id);
     const from = ids.indexOf(draggingId);
     const to = ids.indexOf(overId);
     if (from < 0 || to < 0) return;
@@ -154,45 +154,45 @@
 
   function uniqueFolderName(): string {
     const existing = new Set(
-      instancesStore.instances.map((i) => i.group).filter(Boolean)
+      instancesStore.instances.map((instance) => instance.group).filter(Boolean)
     );
     let name = "New folder";
-    let k = 2;
-    while (existing.has(name)) name = `New folder ${k++}`;
+    let suffix = 2;
+    while (existing.has(name)) name = `New folder ${suffix++}`;
     return name;
   }
 
   // Fly the clone into the target tile, then remove it — the "join" animation.
   // targetId set => glide + shrink into the group; null => snap back to source.
   function flyCloneInto(targetId: string | null) {
-    const c = clone;
+    const cloneEl = clone;
     clone = null;
-    if (!c) return;
+    if (!cloneEl) return;
     const joining = !!targetId;
     const destEl = targetId
       ? document.querySelector<HTMLElement>(`[data-entry-id="${CSS.escape(targetId)}"]`)
       : press?.el ?? null;
     const dest = destEl?.getBoundingClientRect();
     if (dest) {
-      const cr = c.getBoundingClientRect();
-      const dx = dest.left + dest.width / 2 - (cr.left + cr.width / 2);
-      const dy = dest.top + dest.height / 2 - (cr.top + cr.height / 2);
+      const cloneRect = cloneEl.getBoundingClientRect();
+      const dx = dest.left + dest.width / 2 - (cloneRect.left + cloneRect.width / 2);
+      const dy = dest.top + dest.height / 2 - (cloneRect.top + cloneRect.height / 2);
       const scale = joining ? 0.32 : 1;
       // Glide over ~0.44s; hold opacity a beat so the shrink reads before it fades.
-      c.style.transition =
+      cloneEl.style.transition =
         "transform 0.44s cubic-bezier(0.32, 0.72, 0.3, 1), opacity 0.34s ease 0.16s";
-      c.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
-      c.style.opacity = "0";
-      setTimeout(() => c.remove(), 480);
+      cloneEl.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+      cloneEl.style.opacity = "0";
+      setTimeout(() => cloneEl.remove(), 480);
     } else {
-      c.style.transition = "opacity 0.2s ease";
-      c.style.opacity = "0";
-      setTimeout(() => c.remove(), 220);
+      cloneEl.style.transition = "opacity 0.2s ease";
+      cloneEl.style.opacity = "0";
+      setTimeout(() => cloneEl.remove(), 220);
     }
   }
 
   function commitGroup(targetId: string) {
-    const target = ordered.find((x) => x.id === targetId);
+    const target = ordered.find((entry) => entry.id === targetId);
     if (!target || !draggingId || dragKind !== "instance") return;
     const dragged = draggingId;
     flyCloneInto(targetId);
@@ -214,19 +214,19 @@
   }
 
   // --- Global pointer handlers (shared with resize below) ---
-  function onPointerMove(e: PointerEvent) {
-    if (resizing) return onResizeMove(e);
+  function onPointerMove(event: PointerEvent) {
+    if (resizing) return onResizeMove(event);
     if (!press) return;
 
     if (!started) {
-      if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < DRAG_THRESHOLD)
+      if (Math.hypot(event.clientX - press.startX, event.clientY - press.startY) < DRAG_THRESHOLD)
         return;
-      beginDrag(e);
+      beginDrag(event);
     }
-    e.preventDefault();
-    moveClone(e);
+    event.preventDefault();
+    moveClone(event);
 
-    const overId = tileUnder(e);
+    const overId = tileUnder(event);
 
     if (arranging) {
       if (overId && overId !== draggingId && overId !== lastOver) reorderTo(overId);
@@ -240,7 +240,7 @@
     dropTarget = overId && overId !== draggingId ? overId : null;
   }
 
-  function onPointerUp(e: PointerEvent) {
+  function onPointerUp(event: PointerEvent) {
     if (resizing) return onResizeUp();
     if (!press) return;
     if (started && !arranging && dragKind === "instance" && dropTarget) {
@@ -250,12 +250,12 @@
     endDrag();
   }
 
-  function onGridClickCapture(e: MouseEvent) {
+  function onGridClickCapture(event: MouseEvent) {
     // Swallow the click the browser fires after a drag so we don't also
     // navigate into the instance / open the folder.
     if (suppressClick) {
-      e.stopPropagation();
-      e.preventDefault();
+      event.stopPropagation();
+      event.preventDefault();
       suppressClick = false;
     }
   }
@@ -271,23 +271,24 @@
     startH: number;
   } | null>(null);
 
-  function startResize(e: PointerEvent, id: string, axis: Axis) {
-    e.preventDefault();
-    e.stopPropagation();
-    const c = cellOf(id);
-    resizing = { id, axis, startX: e.clientX, startY: e.clientY, startW: c.w, startH: c.h };
+  function startResize(event: PointerEvent, id: string, axis: Axis) {
+    event.preventDefault();
+    event.stopPropagation();
+    const cell = cellOf(id);
+    resizing = { id, axis, startX: event.clientX, startY: event.clientY, startW: cell.w, startH: cell.h };
   }
-  function onResizeMove(e: PointerEvent) {
-    const r = resizing;
-    if (!r) return;
-    let w = r.startW;
-    let h = r.startH;
-    if (r.axis === "e" || r.axis === "se")
-      w = clamp(r.startW + Math.round((e.clientX - r.startX) / PITCH), 1, maxCols);
-    if (r.axis === "s" || r.axis === "se")
-      h = clamp(r.startH + Math.round((e.clientY - r.startY) / PITCH), 1, MAX_H);
-    const cur = cellOf(r.id);
-    if (cur.w !== w || cur.h !== h) instanceLayout.set(r.id, { w, h, order: cur.order });
+  function onResizeMove(event: PointerEvent) {
+    const session = resizing;
+    if (!session) return;
+    let width = session.startW;
+    let height = session.startH;
+    if (session.axis === "e" || session.axis === "se")
+      width = clamp(session.startW + Math.round((event.clientX - session.startX) / PITCH), 1, maxCols);
+    if (session.axis === "s" || session.axis === "se")
+      height = clamp(session.startH + Math.round((event.clientY - session.startY) / PITCH), 1, MAX_H);
+    const cur = cellOf(session.id);
+    if (cur.w !== width || cur.h !== height)
+      instanceLayout.set(session.id, { w: width, h: height, order: cur.order });
   }
   function onResizeUp() {
     resizing = null;
@@ -299,7 +300,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="grid" class:arranging bind:clientWidth={gridWidth} onclickcapture={onGridClickCapture}>
   {#each ordered as entry (entry.id)}
-    {@const c = cellOf(entry.id)}
+    {@const cell = cellOf(entry.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="tile"
@@ -307,12 +308,12 @@
       class:droptarget={dropTarget === entry.id}
       class:resizing={resizing?.id === entry.id}
       data-entry-id={entry.id}
-      style="grid-column: span {c.w}; grid-row: span {c.h};"
-      onpointerdown={(e) => onTilePointerDown(e, entry)}
+      style="grid-column: span {cell.w}; grid-row: span {cell.h};"
+      onpointerdown={(event) => onTilePointerDown(event, entry)}
       animate:flip={{ duration: 180 }}
     >
       {#if entry.kind === "instance"}
-        <InstanceCard instance={entry.instance} iconSize={iconFor(c.w, c.h)} fill />
+        <InstanceCard instance={entry.instance} iconSize={iconFor(cell.w, cell.h)} fill />
       {:else}
         {@const cover = groupCovers.get(entry.name)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -322,11 +323,11 @@
           role="button"
           tabindex="0"
           onclick={() => onOpenFolder(entry.name)}
-          onkeydown={(e) => e.key === "Enter" && onOpenFolder(entry.name)}
-          oncontextmenu={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            ui.openGroupMenu(entry.name, e.clientX, e.clientY);
+          onkeydown={(event) => event.key === "Enter" && onOpenFolder(entry.name)}
+          oncontextmenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            ui.openGroupMenu(entry.name, event.clientX, event.clientY);
           }}
         >
           {#if cover}
@@ -335,7 +336,7 @@
           {:else}
             <div class="folder-preview">
               {#each entry.instances.slice(0, 4) as inst (inst.id)}
-                <InstanceIcon instance={inst} size={folderIcon(c.w, c.h)} />
+                <InstanceIcon instance={inst} size={folderIcon(cell.w, cell.h)} />
               {/each}
             </div>
           {/if}
@@ -348,11 +349,11 @@
 
       {#if arranging}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="handle e" onpointerdown={(e) => startResize(e, entry.id, "e")}></div>
+        <div class="handle e" onpointerdown={(event) => startResize(event, entry.id, "e")}></div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="handle s" onpointerdown={(e) => startResize(e, entry.id, "s")}></div>
+        <div class="handle s" onpointerdown={(event) => startResize(event, entry.id, "s")}></div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="handle se" onpointerdown={(e) => startResize(e, entry.id, "se")}></div>
+        <div class="handle se" onpointerdown={(event) => startResize(event, entry.id, "se")}></div>
       {/if}
     </div>
   {/each}

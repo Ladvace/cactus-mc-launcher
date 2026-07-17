@@ -7,10 +7,10 @@ export const DEFAULT_PORT = 25565;
 /** Extract `server-port` from a server.properties body (defaults to 25565). */
 export function parseServerPort(props: string): number {
   for (const line of props.split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t || t.startsWith("#")) continue;
-    const m = t.match(/^server-port\s*=\s*(\d+)/);
-    if (m) return parseInt(m[1], 10) || DEFAULT_PORT;
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = trimmed.match(/^server-port\s*=\s*(\d+)/);
+    if (match) return parseInt(match[1], 10) || DEFAULT_PORT;
   }
   return DEFAULT_PORT;
 }

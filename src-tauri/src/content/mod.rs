@@ -147,11 +147,16 @@ pub async fn install(
 
     let mut data = read_content(app, instance_id)?;
     // Replace any existing entry for the same project (upgrade in place).
-    if let Some(pid) = &item.project_id {
-        for old in data.items.iter().filter(|i| i.project_id.as_ref() == Some(pid)) {
+    if let Some(project_id) = &item.project_id {
+        for old in data
+            .items
+            .iter()
+            .filter(|existing| existing.project_id.as_ref() == Some(project_id))
+        {
             let _ = std::fs::remove_file(item_path(app, instance_id, old)?);
         }
-        data.items.retain(|i| i.project_id.as_ref() != Some(pid));
+        data.items
+            .retain(|existing| existing.project_id.as_ref() != Some(project_id));
     }
     data.items.push(item.clone());
     write_content(app, instance_id, &data)?;
@@ -175,7 +180,7 @@ pub fn set_enabled(
     let item = data
         .items
         .iter_mut()
-        .find(|i| i.version_id == version_id)
+        .find(|candidate| candidate.version_id == version_id)
         .ok_or_else(|| AppError::Other("content not found".into()))?;
 
     if item.enabled != enabled {
@@ -263,7 +268,7 @@ async fn fetch_icon_data_uri(client: &reqwest::Client, url: &str) -> Option<Stri
     let content_type = resp
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
+        .and_then(|value| value.to_str().ok())
         .unwrap_or("image/png")
         .split(';')
         .next()
@@ -274,8 +279,8 @@ async fn fetch_icon_data_uri(client: &reqwest::Client, url: &str) -> Option<Stri
         return None;
     }
     use base64::Engine;
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    Some(format!("data:{content_type};base64,{b64}"))
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Some(format!("data:{content_type};base64,{encoded}"))
 }
 
 /// Install a Modrinth modpack version as a brand-new instance: downloads the
@@ -309,15 +314,15 @@ pub async fn install_modpack(
 
     // Read the pack index from the zip.
     let index: MrIndex = {
-        let f = std::fs::File::open(&mrpack)?;
-        let mut zip = zip::ZipArchive::new(f)
-            .map_err(|e| AppError::Other(format!("invalid .mrpack: {e}")))?;
+        let file = std::fs::File::open(&mrpack)?;
+        let mut zip = zip::ZipArchive::new(file)
+            .map_err(|error| AppError::Other(format!("invalid .mrpack: {error}")))?;
         let mut entry = zip
             .by_name("modrinth.index.json")
             .map_err(|_| AppError::Other("modpack is missing modrinth.index.json".into()))?;
-        let mut s = String::new();
-        entry.read_to_string(&mut s)?;
-        serde_json::from_str(&s)?
+        let mut text = String::new();
+        entry.read_to_string(&mut text)?;
+        serde_json::from_str(&text)?
     };
 
     // Resolve Minecraft version + loader from dependencies.
@@ -327,20 +332,20 @@ pub async fn install_modpack(
         .cloned()
         .ok_or_else(|| AppError::Other("modpack does not specify a Minecraft version".into()))?;
 
-    let (loader, loader_version) = if let Some(v) = index.dependencies.get("fabric-loader") {
-        (ModLoader::Fabric, Some(v.clone()))
-    } else if let Some(v) = index.dependencies.get("quilt-loader") {
-        (ModLoader::Quilt, Some(v.clone()))
-    } else if let Some(v) = index.dependencies.get("neoforge") {
-        (ModLoader::NeoForge, Some(v.clone()))
-    } else if let Some(v) = index.dependencies.get("forge") {
-        (ModLoader::Forge, Some(v.clone()))
+    let (loader, loader_version) = if let Some(version) = index.dependencies.get("fabric-loader") {
+        (ModLoader::Fabric, Some(version.clone()))
+    } else if let Some(version) = index.dependencies.get("quilt-loader") {
+        (ModLoader::Quilt, Some(version.clone()))
+    } else if let Some(version) = index.dependencies.get("neoforge") {
+        (ModLoader::NeoForge, Some(version.clone()))
+    } else if let Some(version) = index.dependencies.get("forge") {
+        (ModLoader::Forge, Some(version.clone()))
     } else {
         (ModLoader::Vanilla, None)
     };
 
     let name = index.name.clone().unwrap_or_else(|| version.name.clone());
-    let icon = match icon_url.as_deref().filter(|u| !u.is_empty()) {
+    let icon = match icon_url.as_deref().filter(|url| !url.is_empty()) {
         Some(url) => fetch_icon_data_uri(&client, url).await,
         None => None,
     };
@@ -352,20 +357,20 @@ pub async fn install_modpack(
     let tasks: Vec<DownloadTask> = index
         .files
         .iter()
-        .filter(|f| {
-            f.env
+        .filter(|file| {
+            file.env
                 .as_ref()
-                .and_then(|e| e.client.as_deref())
-                .map(|c| c != "unsupported")
+                .and_then(|env| env.client.as_deref())
+                .map(|client_env| client_env != "unsupported")
                 .unwrap_or(true)
         })
-        .filter_map(|f| {
-            let rel = safe_rel(&f.path)?;
-            let url = f.downloads.first()?.clone();
+        .filter_map(|file| {
+            let rel = safe_rel(&file.path)?;
+            let url = file.downloads.first()?.clone();
             Some(DownloadTask {
                 url,
                 dest: game_dir.join(rel),
-                sha1: f.hashes.sha1.clone(),
+                sha1: file.hashes.sha1.clone(),
                 executable: false,
             })
         })
@@ -399,7 +404,7 @@ pub async fn install_ftb_modpack(
 ) -> Result<Instance> {
     let (pack_id, version_id) = composite_id
         .split_once(':')
-        .and_then(|(p, v)| Some((p.parse::<u64>().ok()?, v.parse::<u64>().ok()?)))
+        .and_then(|(pack, version)| Some((pack.parse::<u64>().ok()?, version.parse::<u64>().ok()?)))
         .ok_or_else(|| AppError::Other("invalid FTB modpack id".into()))?;
 
     emit_progress(app, None, 0, 0, "Reading FTB pack…");
@@ -409,23 +414,23 @@ pub async fn install_ftb_modpack(
     let mc_version = manifest
         .targets
         .iter()
-        .find(|t| t.kind == "game" && t.name == "minecraft")
-        .map(|t| t.version.clone())
+        .find(|target| target.kind == "game" && target.name == "minecraft")
+        .map(|target| target.version.clone())
         .ok_or_else(|| AppError::Other("FTB pack has no Minecraft version".into()))?;
 
-    let loader_target = manifest.targets.iter().find(|t| t.kind == "modloader");
-    let (loader, loader_version) = match loader_target.map(|t| t.name.as_str()) {
-        Some("fabric") => (ModLoader::Fabric, loader_target.map(|t| t.version.clone())),
-        Some("quilt") => (ModLoader::Quilt, loader_target.map(|t| t.version.clone())),
-        Some("neoforge") => (ModLoader::NeoForge, loader_target.map(|t| t.version.clone())),
-        Some("forge") => (ModLoader::Forge, loader_target.map(|t| t.version.clone())),
+    let loader_target = manifest.targets.iter().find(|target| target.kind == "modloader");
+    let (loader, loader_version) = match loader_target.map(|target| target.name.as_str()) {
+        Some("fabric") => (ModLoader::Fabric, loader_target.map(|target| target.version.clone())),
+        Some("quilt") => (ModLoader::Quilt, loader_target.map(|target| target.version.clone())),
+        Some("neoforge") => (ModLoader::NeoForge, loader_target.map(|target| target.version.clone())),
+        Some("forge") => (ModLoader::Forge, loader_target.map(|target| target.version.clone())),
         _ => (ModLoader::Vanilla, None),
     };
 
     // Client files (skip server-only).
     let client_files: Vec<&crate::sources::ftb::FtbFile> =
-        manifest.files.iter().filter(|f| !f.serveronly).collect();
-    let cf_count = client_files.iter().filter(|f| f.curseforge.is_some()).count();
+        manifest.files.iter().filter(|file| !file.serveronly).collect();
+    let cf_count = client_files.iter().filter(|file| file.curseforge.is_some()).count();
     if cf_count > 0 && !crate::sources::curseforge::is_configured() {
         return Err(AppError::Other(format!(
             "This FTB pack uses {cf_count} mods hosted on CurseForge. Set a \
@@ -435,13 +440,12 @@ pub async fn install_ftb_modpack(
 
     let client = crate::sources::ftb::client()?;
 
-    // Create the instance.
     let name = if manifest.name.is_empty() {
         format!("FTB pack {pack_id}")
     } else {
         manifest.name.clone()
     };
-    let icon = match icon_url.as_deref().filter(|u| !u.is_empty()) {
+    let icon = match icon_url.as_deref().filter(|url| !url.is_empty()) {
         Some(url) => fetch_icon_data_uri(&client, url).await,
         None => None,
     };
@@ -452,15 +456,15 @@ pub async fn install_ftb_modpack(
     // Direct files -> tasks now; CurseForge files -> resolve concurrently.
     let mut tasks: Vec<DownloadTask> = Vec::new();
     let mut cf_jobs: Vec<(u64, u64, PathBuf, Option<String>)> = Vec::new();
-    for f in &client_files {
-        let Some(rel) = ftb_dest(&f.path, &f.name) else {
+    for file in &client_files {
+        let Some(rel) = ftb_dest(&file.path, &file.name) else {
             continue;
         };
         let dest = game_dir.join(rel);
-        let sha1 = (!f.sha1.is_empty()).then(|| f.sha1.clone());
-        if !f.url.is_empty() {
-            tasks.push(DownloadTask { url: f.url.clone(), dest, sha1, executable: false });
-        } else if let Some(cf) = &f.curseforge {
+        let sha1 = (!file.sha1.is_empty()).then(|| file.sha1.clone());
+        if !file.url.is_empty() {
+            tasks.push(DownloadTask { url: file.url.clone(), dest, sha1, executable: false });
+        } else if let Some(cf) = &file.curseforge {
             cf_jobs.push((cf.project, cf.file, dest, sha1));
         }
     }
@@ -480,7 +484,6 @@ pub async fn install_ftb_modpack(
         tasks.extend(resolved.into_iter().flatten());
     }
 
-    // Download everything.
     emit_progress(app, Some(&instance.id), 0, tasks.len(), "Downloading modpack…");
     {
         let app_cb = app.clone();
@@ -502,8 +505,8 @@ async fn cf_download_url(project: u64, file: u64) -> Option<String> {
         .ok()?;
     version
         .primary_file()
-        .map(|f| f.url.clone())
-        .filter(|u| !u.is_empty())
+        .map(|file| file.url.clone())
+        .filter(|url| !url.is_empty())
 }
 
 /// Sanitize an FTB `path` (e.g. "./mods/") + `name` into a safe relative path.
@@ -515,14 +518,14 @@ fn ftb_dest(path: &str, name: &str) -> Option<PathBuf> {
 
 /// Extract `overrides/` and `client-overrides/` from the pack into the game dir.
 fn apply_overrides(mrpack: &PathBuf, game_dir: &std::path::Path) -> Result<()> {
-    let f = std::fs::File::open(mrpack)?;
-    let mut zip = zip::ZipArchive::new(f)
-        .map_err(|e| AppError::Other(format!("invalid .mrpack: {e}")))?;
+    let file = std::fs::File::open(mrpack)?;
+    let mut zip = zip::ZipArchive::new(file)
+        .map_err(|error| AppError::Other(format!("invalid .mrpack: {error}")))?;
 
-    for i in 0..zip.len() {
+    for index in 0..zip.len() {
         let mut entry = zip
-            .by_index(i)
-            .map_err(|e| AppError::Other(format!("bad zip entry: {e}")))?;
+            .by_index(index)
+            .map_err(|error| AppError::Other(format!("bad zip entry: {error}")))?;
         let name = entry.name().to_string();
         let rel = name
             .strip_prefix("overrides/")
@@ -545,7 +548,7 @@ fn apply_overrides(mrpack: &PathBuf, game_dir: &std::path::Path) -> Result<()> {
 /// Remove an item and its file from the instance.
 pub fn remove(app: &AppHandle, instance_id: &str, version_id: &str) -> Result<()> {
     let mut data = read_content(app, instance_id)?;
-    if let Some(pos) = data.items.iter().position(|i| i.version_id == version_id) {
+    if let Some(pos) = data.items.iter().position(|item| item.version_id == version_id) {
         let item = data.items.remove(pos);
         let _ = std::fs::remove_file(item_path(app, instance_id, &item)?);
         write_content(app, instance_id, &data)?;

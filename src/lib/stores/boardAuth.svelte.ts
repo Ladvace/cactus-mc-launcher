@@ -27,8 +27,8 @@ class BoardAuth {
     try {
       this.session = await boardApi.login();
       writeJson(KEY, this.session);
-    } catch (e) {
-      this.error = String(e);
+    } catch (error) {
+      this.error = String(error);
     } finally {
       this.loggingIn = false;
     }

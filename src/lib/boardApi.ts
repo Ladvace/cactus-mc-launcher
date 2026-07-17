@@ -59,10 +59,10 @@ export const boardApi = {
     invoke<BoardSession>("board_login", { apiBase: BASE }),
 
   // --- Discovery / viewing (public) ---
-  search: (q: string) =>
-    get<{ results: BoardCard[] }>(`/v1/boards?q=${encodeURIComponent(q)}`).then(
-      (r) => r.results
-    ),
+  search: (query: string) =>
+    get<{ results: BoardCard[] }>(
+      `/v1/boards?q=${encodeURIComponent(query)}`
+    ).then((data) => data.results),
 
   board: (handle: string) =>
     get<Board>(`/v1/boards/${encodeURIComponent(handle)}`),
@@ -85,7 +85,7 @@ export const boardApi = {
 
   // --- Creator (authed) ---
   myBoards: (token: string) =>
-    authed<{ boards: OwnedBoard[] }>(`/v1/boards/me`, token).then((r) => r.boards),
+    authed<{ boards: OwnedBoard[] }>(`/v1/boards/me`, token).then((data) => data.boards),
 
   createBoard: (
     token: string,
@@ -141,7 +141,7 @@ export const boardApi = {
 
   // --- Presence (opt-in "who's online") ---
   listPresence: (token: string) =>
-    authed<{ players: PresencePlayer[] }>(`/v1/presence`, token).then((r) => r.players),
+    authed<{ players: PresencePlayer[] }>(`/v1/presence`, token).then((data) => data.players),
   setPresence: (
     token: string,
     body: { status: string; serverAddress: string; mcVersion: string; loader: string }

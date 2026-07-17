@@ -49,17 +49,17 @@ fn join_url(base: &str, rel: &str) -> String {
 fn push_artifact(
     downloads: &mut Vec<DownloadTask>,
     base: &std::path::Path,
-    art: &Artifact,
+    artifact: &Artifact,
 ) -> Option<PathBuf> {
-    let rel = art.path.clone()?;
+    let rel = artifact.path.clone()?;
     let dest = base.join(&rel);
-    let sha1 = if art.sha1.is_empty() {
+    let sha1 = if artifact.sha1.is_empty() {
         None
     } else {
-        Some(art.sha1.clone())
+        Some(artifact.sha1.clone())
     };
     // A library with no URL that already exists on disk (installer-provided).
-    if art.url.is_empty() {
+    if artifact.url.is_empty() {
         if dest.exists() {
             return Some(dest);
         }
@@ -67,7 +67,7 @@ fn push_artifact(
         return None;
     }
     downloads.push(DownloadTask {
-        url: art.url.clone(),
+        url: artifact.url.clone(),
         dest: dest.clone(),
         sha1,
         executable: false,
@@ -129,8 +129,8 @@ pub fn resolve(app: &AppHandle, libraries: &[Library]) -> Result<ResolvedLibrari
         if let (Some(natives_map), Some(classifiers)) = (&lib.natives, &dl.classifiers) {
             if let Some(key) = natives_map.get(os_name()) {
                 let key = key.replace("${arch}", "64");
-                if let Some(art) = classifiers.get(&key) {
-                    if let Some(path) = push_artifact(&mut downloads, &base, art) {
+                if let Some(artifact) = classifiers.get(&key) {
+                    if let Some(path) = push_artifact(&mut downloads, &base, artifact) {
                         natives.push((path, lib.extract.as_ref().and_then(|e| e.exclude.clone())));
                     }
                 }
@@ -139,8 +139,8 @@ pub fn resolve(app: &AppHandle, libraries: &[Library]) -> Result<ResolvedLibrari
 
         // Main artifact always goes on the classpath (including new-scheme
         // natives jars — the OS rules above already filtered them).
-        if let Some(art) = &dl.artifact {
-            if let Some(path) = push_artifact(&mut downloads, &base, art) {
+        if let Some(artifact) = &dl.artifact {
+            if let Some(path) = push_artifact(&mut downloads, &base, artifact) {
                 classpath.push(path);
             }
         }
@@ -161,16 +161,19 @@ pub fn extract_natives(
     exclude: &Option<Vec<String>>,
 ) -> Result<()> {
     let file = std::fs::File::open(jar)?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| {
-        crate::error::AppError::Other(format!("failed to open native jar {}: {e}", jar.display()))
+    let mut archive = zip::ZipArchive::new(file).map_err(|error| {
+        crate::error::AppError::Other(format!(
+            "failed to open native jar {}: {error}",
+            jar.display()
+        ))
     })?;
 
     std::fs::create_dir_all(dest_dir)?;
 
-    for i in 0..archive.len() {
+    for index in 0..archive.len() {
         let mut entry = archive
-            .by_index(i)
-            .map_err(|e| crate::error::AppError::Other(format!("bad zip entry: {e}")))?;
+            .by_index(index)
+            .map_err(|error| crate::error::AppError::Other(format!("bad zip entry: {error}")))?;
         let name = entry.name().to_string();
 
         if entry.is_dir() || name.ends_with('/') {
@@ -180,14 +183,14 @@ pub fn extract_natives(
             continue;
         }
         if let Some(excludes) = exclude {
-            if excludes.iter().any(|p| name.starts_with(p)) {
+            if excludes.iter().any(|prefix| name.starts_with(prefix)) {
                 continue;
             }
         }
 
         // Flatten to the base filename to keep natives directly in dest_dir.
         let file_name = match std::path::Path::new(&name).file_name() {
-            Some(n) => n.to_owned(),
+            Some(base_name) => base_name.to_owned(),
             None => continue,
         };
         let out_path = dest_dir.join(file_name);

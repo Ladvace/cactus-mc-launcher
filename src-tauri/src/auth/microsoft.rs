@@ -84,8 +84,8 @@ pub async fn poll_token(
         .json()
         .await?;
 
-    if let Some(err) = resp.error.as_deref() {
-        return match err {
+    if let Some(error) = resp.error.as_deref() {
+        return match error {
             "authorization_pending" => Ok(PollOutcome::Pending),
             "slow_down" => Ok(PollOutcome::SlowDown),
             "expired_token" => Err(AppError::Other(
@@ -132,9 +132,9 @@ pub async fn refresh(
         .json()
         .await?;
 
-    if let Some(err) = resp.error {
+    if let Some(error) = resp.error {
         return Err(AppError::Other(format!(
-            "Session expired, please sign in again ({err})"
+            "Session expired, please sign in again ({error})"
         )));
     }
 

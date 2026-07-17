@@ -25,8 +25,8 @@ class AccountsStore {
     if (this.#started) return;
     this.#started = true;
 
-    await listen<DeviceCodeEvent>("auth-device-code", (e) => {
-      this.deviceCode = { ...e.payload, status: "waiting" };
+    await listen<DeviceCodeEvent>("auth-device-code", (event) => {
+      this.deviceCode = { ...event.payload, status: "waiting" };
     });
     await listen("auth-login-done", () => {
       if (this.deviceCode) this.deviceCode.status = "authorizing";
@@ -45,7 +45,7 @@ class AccountsStore {
 
   /** The active account, or null when offline mode is selected. */
   get active(): AccountInfo | null {
-    return this.accounts.find((a) => a.id === this.activeId) ?? null;
+    return this.accounts.find((account) => account.id === this.activeId) ?? null;
   }
 
   /** Display name of whatever is active (offline username if none). */
@@ -60,8 +60,8 @@ class AccountsStore {
     try {
       await api.loginMicrosoft();
       await this.refresh();
-    } catch (e) {
-      this.loginError = String(e);
+    } catch (error) {
+      this.loginError = String(error);
     } finally {
       this.loggingIn = false;
       this.deviceCode = null;

@@ -21,7 +21,7 @@
   });
 
   const instances = $derived(
-    current ? instancesStore.instances.filter((i) => i.group === current) : []
+    current ? instancesStore.instances.filter((instance) => instance.group === current) : []
   );
   let editName = $state("");
   $effect(() => {
@@ -30,8 +30,8 @@
 
   // Reassign every instance currently in this folder to `group` ("" ungroups).
   async function setMembersGroup(group: string) {
-    const members = instancesStore.instances.filter((i) => i.group === current);
-    for (const i of members) await instancesStore.update(i.id, { group });
+    const members = instancesStore.instances.filter((instance) => instance.group === current);
+    for (const instance of members) await instancesStore.update(instance.id, { group });
   }
 
   async function rename() {
@@ -46,8 +46,8 @@
   let coverInput = $state<HTMLInputElement>();
   const cover = $derived(current ? groupCovers.get(current) : null);
 
-  async function onCoverFile(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
+  async function onCoverFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = "";
     if (!file || !current) return;
@@ -87,31 +87,31 @@
   let started = false;
   let clone: HTMLElement | null = null;
 
-  function onCardPointerDown(e: PointerEvent, id: string) {
-    if (e.button !== 0) return;
-    const el = e.currentTarget as HTMLElement;
-    const r = el.getBoundingClientRect();
+  function onCardPointerDown(event: PointerEvent, id: string) {
+    if (event.button !== 0) return;
+    const el = event.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
     press = {
       id,
       el,
-      startX: e.clientX,
-      startY: e.clientY,
-      offX: e.clientX - r.left,
-      offY: e.clientY - r.top,
+      startX: event.clientX,
+      startY: event.clientY,
+      offX: event.clientX - rect.left,
+      offY: event.clientY - rect.top,
     };
     started = false;
   }
 
   function makeClone(el: HTMLElement): HTMLElement {
-    const r = el.getBoundingClientRect();
-    const c = el.cloneNode(true) as HTMLElement;
-    c.querySelectorAll(".pop").forEach((p) => p.remove());
-    Object.assign(c.style, {
+    const rect = el.getBoundingClientRect();
+    const cloneEl = el.cloneNode(true) as HTMLElement;
+    cloneEl.querySelectorAll(".pop").forEach((popover) => popover.remove());
+    Object.assign(cloneEl.style, {
       position: "fixed",
-      left: `${r.left}px`,
-      top: `${r.top}px`,
-      width: `${r.width}px`,
-      height: `${r.height}px`,
+      left: `${rect.left}px`,
+      top: `${rect.top}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
       margin: "0",
       zIndex: "1200",
       pointerEvents: "none",
@@ -120,31 +120,31 @@
       transition: "transform 0.12s ease",
       boxShadow: "0 16px 34px rgba(0, 0, 0, 0.5)",
     });
-    document.body.appendChild(c);
-    return c;
+    document.body.appendChild(cloneEl);
+    return cloneEl;
   }
 
-  function insideGrid(e: PointerEvent): boolean {
+  function insideGrid(event: PointerEvent): boolean {
     return !!document
-      .elementFromPoint(e.clientX, e.clientY)
+      .elementFromPoint(event.clientX, event.clientY)
       ?.closest("[data-folder-grid]");
   }
 
-  function onPointerMove(e: PointerEvent) {
+  function onPointerMove(event: PointerEvent) {
     if (!press) return;
     if (!started) {
-      if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < 6) return;
+      if (Math.hypot(event.clientX - press.startX, event.clientY - press.startY) < 6) return;
       started = true;
       draggingId = press.id;
       clone = makeClone(press.el);
     }
-    e.preventDefault();
+    event.preventDefault();
     if (clone) {
-      clone.style.left = `${e.clientX - press.offX}px`;
-      clone.style.top = `${e.clientY - press.offY}px`;
+      clone.style.left = `${event.clientX - press.offX}px`;
+      clone.style.top = `${event.clientY - press.offY}px`;
     }
     // Anywhere outside the folder's own grid counts as "drop to ungroup".
-    overRemove = !insideGrid(e);
+    overRemove = !insideGrid(event);
   }
 
   async function onPointerUp() {
@@ -154,8 +154,8 @@
     if (clone) {
       clone.style.transition = "opacity 0.18s ease";
       clone.style.opacity = "0";
-      const c = clone;
-      setTimeout(() => c.remove(), 200);
+      const cloneEl = clone;
+      setTimeout(() => cloneEl.remove(), 200);
     }
     if (started) suppressClick = true;
     clone = null;
@@ -166,10 +166,10 @@
     if (doRemove) await removeFromFolder(id);
   }
 
-  function onGridClickCapture(e: MouseEvent) {
+  function onGridClickCapture(event: MouseEvent) {
     if (suppressClick) {
-      e.stopPropagation();
-      e.preventDefault();
+      event.stopPropagation();
+      event.preventDefault();
       suppressClick = false;
     }
   }
@@ -188,7 +188,7 @@
       class="input name"
       bind:value={editName}
       onblur={rename}
-      onkeydown={(e) => e.key === "Enter" && rename()}
+      onkeydown={(event) => event.key === "Enter" && rename()}
       aria-label="Folder name"
     />
     <button class="btn danger sm" onclick={ungroupAll}>Ungroup all</button>
@@ -224,7 +224,7 @@
         <div
           class="cell"
           class:dragging={draggingId === inst.id}
-          onpointerdown={(e) => onCardPointerDown(e, inst.id)}
+          onpointerdown={(event) => onCardPointerDown(event, inst.id)}
         >
           <InstanceCard instance={inst} iconSize={64} fill />
         </div>

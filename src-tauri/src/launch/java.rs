@@ -166,11 +166,11 @@ fn pick_component(
     // Otherwise gather every non-empty candidate with a known major version.
     let mut candidates: Vec<(String, String, u32)> = map
         .iter()
-        .filter(|(k, _)| k.as_str() != "minecraft-java-exe")
-        .filter_map(|(k, entries)| {
+        .filter(|(component, _)| component.as_str() != "minecraft-java-exe")
+        .filter_map(|(component, entries)| {
             let entry = entries.first()?;
-            let major = component_major(k, entry)?;
-            Some((k.clone(), entry.manifest.url.clone(), major))
+            let major = component_major(component, entry)?;
+            Some((component.clone(), entry.manifest.url.clone(), major))
         })
         .collect();
 
@@ -212,9 +212,9 @@ where
     if let Some(path) = configured {
         let path = path.trim();
         if !path.is_empty() {
-            let p = PathBuf::from(path);
-            if p.exists() {
-                return Ok(p);
+            let candidate = PathBuf::from(path);
+            if candidate.exists() {
+                return Ok(candidate);
             }
             return Err(AppError::Other(format!(
                 "configured Java path does not exist: {path}"
@@ -267,7 +267,7 @@ where
 
     for component in COMMON_COMPONENTS {
         // Skip components with no build for this platform (arch fallback covers them).
-        let Some(entry) = map.get(component).and_then(|e| e.first()) else {
+        let Some(entry) = map.get(component).and_then(|entries| entries.first()) else {
             continue;
         };
         let major = component_major(component, entry).unwrap_or(0);
@@ -317,14 +317,14 @@ where
                 std::fs::create_dir_all(&dest)?;
             }
             "file" => {
-                if let Some(dl) = &file.downloads {
+                if let Some(download) = &file.downloads {
                     tasks.push(DownloadTask {
-                        url: dl.raw.url.clone(),
+                        url: download.raw.url.clone(),
                         dest,
-                        sha1: Some(dl.raw.sha1.clone()),
+                        sha1: Some(download.raw.sha1.clone()),
                         executable: file.executable,
                     });
-                    let _ = dl.raw.size;
+                    let _ = download.raw.size;
                 }
             }
             "link" => {

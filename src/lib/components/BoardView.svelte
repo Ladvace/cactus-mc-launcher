@@ -24,7 +24,7 @@
   const following = $derived(board ? followedBoards.isFollowing(board.handle) : false);
 
   $effect(() => {
-    const h = handle;
+    const currentHandle = handle;
     if (!boardApi.configured()) {
       error = "The boards service isn't configured.";
       loading = false;
@@ -34,9 +34,9 @@
     error = null;
     board = null;
     boardApi
-      .board(h)
-      .then((b) => (board = b))
-      .catch((e) => (error = String(e)))
+      .board(currentHandle)
+      .then((fetchedBoard) => (board = fetchedBoard))
+      .catch((err) => (error = String(err)))
       .finally(() => (loading = false));
   });
 
@@ -45,8 +45,8 @@
     if (importingId) return;
     importingId = id;
     try {
-      const res = await boardApi.importSnapshot(id);
-      recordImport(res.instance.id, {
+      const result = await boardApi.importSnapshot(id);
+      recordImport(result.instance.id, {
         handle: board!.handle,
         snapshotId: id,
         importedAt: Date.now(),
@@ -54,8 +54,8 @@
       importedIds = [...importedIds, id];
       await instancesStore.refresh();
       toast.success("Imported.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       importingId = null;
     }
@@ -67,8 +67,8 @@
     try {
       await boardApi.report(token, board.handle, reportReason.trim());
       toast.success("Report submitted — thanks.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     }
     reportOpen = false;
     reportReason = "";
@@ -100,7 +100,6 @@
     </div>
   </header>
 
-  <!-- Streamer link banner / server address -->
   {#if board.kind === "streamer" && board.streamUrl}
     <button class="banner stream" onclick={() => openUrl(board!.streamUrl!)}>
       <Icon name="video" size={16} /> Watch the stream
@@ -114,20 +113,18 @@
     </div>
   {/if}
 
-  <!-- Announcements -->
   {#if board.messages.length}
     <section class="messages">
       <h3>Announcements</h3>
-      {#each board.messages as m (m.id)}
+      {#each board.messages as message (message.id)}
         <div class="msg">
-          <p>{m.body}</p>
-          <span class="when">{timeAgo(m.createdAt)}</span>
+          <p>{message.body}</p>
+          <span class="when">{timeAgo(message.createdAt)}</span>
         </div>
       {/each}
     </section>
   {/if}
 
-  <!-- Instances -->
   <section class="insts">
     <h3>Instances</h3>
     {#if board.instances.length === 0}

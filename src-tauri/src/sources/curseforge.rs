@@ -204,52 +204,52 @@ struct FileResponse {
 
 // --- Mapping into normalized types ---
 
-fn map_mod(m: CfMod) -> SearchHit {
-    let mut versions: Vec<String> = m
+fn map_mod(cf_mod: CfMod) -> SearchHit {
+    let mut versions: Vec<String> = cf_mod
         .latest_files_indexes
         .into_iter()
-        .map(|f| f.game_version)
-        .filter(|v| !v.is_empty())
+        .map(|file_index| file_index.game_version)
+        .filter(|version| !version.is_empty())
         .collect();
     versions.dedup();
 
     SearchHit {
-        project_id: m.id.to_string(),
-        slug: m.slug,
-        title: m.name,
-        description: m.summary,
-        author: m.authors.into_iter().next().map(|a| a.name).unwrap_or_default(),
-        downloads: m.download_count as u64,
+        project_id: cf_mod.id.to_string(),
+        slug: cf_mod.slug,
+        title: cf_mod.name,
+        description: cf_mod.summary,
+        author: cf_mod.authors.into_iter().next().map(|author| author.name).unwrap_or_default(),
+        downloads: cf_mod.download_count as u64,
         follows: 0,
-        icon_url: m.logo.and_then(|l| l.url),
-        categories: m.categories.into_iter().map(|c| c.name).collect(),
+        icon_url: cf_mod.logo.and_then(|logo| logo.url),
+        categories: cf_mod.categories.into_iter().map(|category| category.name).collect(),
         versions,
-        project_type: project_type_of(m.class_id).to_string(),
+        project_type: project_type_of(cf_mod.class_id).to_string(),
         source: "curseforge".to_string(),
     }
 }
 
-fn map_file(f: CfFile) -> Version {
-    let sha1 = f
+fn map_file(cf_file: CfFile) -> Version {
+    let sha1 = cf_file
         .hashes
         .into_iter()
-        .find(|h| h.algo == 1)
-        .map(|h| h.value);
+        .find(|hash| hash.algo == 1)
+        .map(|hash| hash.value);
 
-    let loaders: Vec<String> = f
+    let loaders: Vec<String> = cf_file
         .game_versions
         .iter()
-        .filter(|v| LOADER_NAMES.iter().any(|l| l.eq_ignore_ascii_case(v)))
-        .map(|v| v.to_lowercase())
+        .filter(|version| LOADER_NAMES.iter().any(|name| name.eq_ignore_ascii_case(version)))
+        .map(|version| version.to_lowercase())
         .collect();
-    let game_versions: Vec<String> = f
+    let game_versions: Vec<String> = cf_file
         .game_versions
         .iter()
-        .filter(|v| v.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false))
+        .filter(|version| version.chars().next().map(|ch| ch.is_ascii_digit()).unwrap_or(false))
         .cloned()
         .collect();
 
-    let version_type = match f.release_type {
+    let version_type = match cf_file.release_type {
         2 => "beta",
         3 => "alpha",
         _ => "release",
@@ -258,26 +258,26 @@ fn map_file(f: CfFile) -> Version {
 
     Version {
         // Composite id so `get_version` can re-fetch (CF needs mod id + file id).
-        id: format!("{}:{}", f.mod_id, f.id),
-        project_id: f.mod_id.to_string(),
-        name: f.display_name.clone(),
-        version_number: if f.file_name.is_empty() {
-            f.display_name
+        id: format!("{}:{}", cf_file.mod_id, cf_file.id),
+        project_id: cf_file.mod_id.to_string(),
+        name: cf_file.display_name.clone(),
+        version_number: if cf_file.file_name.is_empty() {
+            cf_file.display_name
         } else {
-            f.file_name.clone()
+            cf_file.file_name.clone()
         },
         version_type,
         game_versions,
         loaders,
         files: vec![VersionFile {
-            url: f.download_url.unwrap_or_default(),
-            filename: f.file_name,
+            url: cf_file.download_url.unwrap_or_default(),
+            filename: cf_file.file_name,
             primary: true,
-            size: f.file_length,
+            size: cf_file.file_length,
             hashes: VersionHashes { sha1, sha512: None },
         }],
-        date_published: f.file_date,
-        downloads: f.download_count as u64,
+        date_published: cf_file.file_date,
+        downloads: cf_file.download_count as u64,
     }
 }
 
@@ -302,13 +302,13 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
         ("index", index),
         ("pageSize", page_size),
     ];
-    if let Some(v) = params.game_version.as_deref().filter(|s| !s.is_empty()) {
-        query.push(("gameVersion", v.to_string()));
+    if let Some(version) = params.game_version.as_deref().filter(|value| !value.is_empty()) {
+        query.push(("gameVersion", version.to_string()));
     }
-    if let Some(l) = params.loader.as_deref().filter(|s| !s.is_empty()) {
-        let lt = loader_type(l);
-        if lt != 0 {
-            query.push(("modLoaderType", lt.to_string()));
+    if let Some(loader) = params.loader.as_deref().filter(|value| !value.is_empty()) {
+        let loader_type_id = loader_type(loader);
+        if loader_type_id != 0 {
+            query.push(("modLoaderType", loader_type_id.to_string()));
         }
     }
 
@@ -322,7 +322,7 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
         .await?;
 
     Ok(SearchResults {
-        total_hits: resp.pagination.map(|p| p.total_count).unwrap_or(0),
+        total_hits: resp.pagination.map(|pagination| pagination.total_count).unwrap_or(0),
         offset: params.offset,
         limit,
         hits: resp.data.into_iter().map(map_mod).collect(),
@@ -337,13 +337,13 @@ pub async fn get_versions(
     ensure_configured()?;
 
     let mut query: Vec<(&str, String)> = vec![("pageSize", "50".to_string())];
-    if let Some(v) = game_version.filter(|s| !s.is_empty()) {
-        query.push(("gameVersion", v.to_string()));
+    if let Some(version) = game_version.filter(|value| !value.is_empty()) {
+        query.push(("gameVersion", version.to_string()));
     }
-    if let Some(l) = loader.filter(|s| !s.is_empty()) {
-        let lt = loader_type(l);
-        if lt != 0 {
-            query.push(("modLoaderType", lt.to_string()));
+    if let Some(loader_name) = loader.filter(|value| !value.is_empty()) {
+        let loader_type_id = loader_type(loader_name);
+        if loader_type_id != 0 {
+            query.push(("modLoaderType", loader_type_id.to_string()));
         }
     }
 

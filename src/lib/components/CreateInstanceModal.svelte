@@ -56,10 +56,10 @@
 
   // Fetch loader builds whenever the loader or MC version changes.
   $effect(() => {
-    const l = loader;
-    const mc = selectedVersion;
-    if (open && needsLoaderVersion && mc) {
-      loadLoaderVersions(l, mc);
+    const currentLoader = loader;
+    const mcVersion = selectedVersion;
+    if (open && needsLoaderVersion && mcVersion) {
+      loadLoaderVersions(currentLoader, mcVersion);
     } else {
       loaderVersions = [];
       loaderVersionError = null;
@@ -73,33 +73,33 @@
       const list = await api.getMinecraftVersions();
       versions = list.versions;
       selectedVersion = list.latestRelease;
-    } catch (e) {
-      versionError = String(e);
+    } catch (error) {
+      versionError = String(error);
     } finally {
       versionsLoading = false;
     }
   }
 
-  async function loadLoaderVersions(l: ModLoader, mc: string) {
+  async function loadLoaderVersions(loaderName: ModLoader, mcVersion: string) {
     loaderVersionsLoading = true;
     loaderVersionError = null;
     selectedLoaderVersion = "";
     try {
-      loaderVersions = await api.getLoaderVersions(l, mc);
+      loaderVersions = await api.getLoaderVersions(loaderName, mcVersion);
       if (loaderVersions.length === 0) {
-        loaderVersionError = `No ${l} builds for Minecraft ${mc}.`;
+        loaderVersionError = `No ${loaderName} builds for Minecraft ${mcVersion}.`;
       }
-    } catch (e) {
+    } catch (error) {
       loaderVersions = [];
-      loaderVersionError = String(e);
+      loaderVersionError = String(error);
     } finally {
       loaderVersionsLoading = false;
     }
   }
 
   const visibleVersions = $derived(
-    versions.filter((v) =>
-      showSnapshots ? true : v.type === "release"
+    versions.filter((version) =>
+      showSnapshots ? true : version.type === "release"
     )
   );
 
@@ -129,8 +129,8 @@
       reset();
       onClose();
       goto(`/instance/${inst.id}`);
-    } catch (e) {
-      versionError = String(e);
+    } catch (error) {
+      versionError = String(error);
     } finally {
       creating = false;
     }
@@ -202,15 +202,15 @@
     <div>
       <label class="field-label" for="ci-loader">Mod loader</label>
       <div class="loader-grid">
-        {#each MOD_LOADERS as l}
+        {#each MOD_LOADERS as loaderOption}
           <button
             type="button"
             class="loader-chip"
-            class:active={loader === l.value}
-            onclick={() => (loader = l.value)}
+            class:active={loader === loaderOption.value}
+            onclick={() => (loader = loaderOption.value)}
           >
-            <LoaderIcon loader={l.value} size={16} />
-            {l.label}
+            <LoaderIcon loader={loaderOption.value} size={16} />
+            {loaderOption.label}
           </button>
         {/each}
       </div>
@@ -228,9 +228,9 @@
               bind:value={selectedLoaderVersion}
             >
               <option value="">Latest stable</option>
-              {#each loaderVersions as lv (lv.version)}
-                <option value={lv.version}>
-                  {lv.version}{lv.stable ? "" : " (beta)"}
+              {#each loaderVersions as loaderVersion (loaderVersion.version)}
+                <option value={loaderVersion.version}>
+                  {loaderVersion.version}{loaderVersion.stable ? "" : " (beta)"}
                 </option>
               {/each}
             </select>
@@ -243,7 +243,7 @@
         </div>
       {:else if loader !== "vanilla"}
         <p class="hint warn">
-          {MOD_LOADERS.find((l) => l.value === loader)?.label} support is coming
+          {MOD_LOADERS.find((option) => option.value === loader)?.label} support is coming
           soon. Pick Vanilla, Fabric, or Quilt for now.
         </p>
       {/if}
@@ -265,9 +265,9 @@
         <button class="btn ghost" onclick={loadVersions}>Retry</button>
       {:else}
         <select id="ci-version" class="select" bind:value={selectedVersion}>
-          {#each visibleVersions as v (v.id)}
-            <option value={v.id}>
-              {v.id}{v.type !== "release" ? ` (${v.type})` : ""}
+          {#each visibleVersions as version (version.id)}
+            <option value={version.id}>
+              {version.id}{version.type !== "release" ? ` (${version.type})` : ""}
             </option>
           {/each}
         </select>

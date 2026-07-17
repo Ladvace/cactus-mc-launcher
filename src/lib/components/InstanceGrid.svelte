@@ -24,39 +24,38 @@
   const maxCols = $derived(Math.max(1, Math.floor((gridWidth + GAP) / PITCH)));
 
   const cellOf = (id: string): Cell => instanceLayout.cellOf(id);
-  const clamp = (n: number, lo: number, hi: number) =>
-    Math.min(hi, Math.max(lo, n));
+  const clamp = (value: number, lo: number, hi: number) =>
+    Math.min(hi, Math.max(lo, value));
 
-  // Bigger tiles get a bigger icon.
-  function iconFor(w: number, h: number): number {
-    if (Math.min(w, h) >= 2) return 120;
-    if (Math.max(w, h) >= 2) return 84;
+  function iconFor(width: number, height: number): number {
+    if (Math.min(width, height) >= 2) return 120;
+    if (Math.max(width, height) >= 2) return 84;
     return 60;
   }
 
   // Instances sorted by their stored order (unplaced ones fall to the end).
   const ordered = $derived(
     [...instances].sort(
-      (a, b) => cellOf(a.id).order - cellOf(b.id).order
+      (first, second) => cellOf(first.id).order - cellOf(second.id).order
     )
   );
 
   // --- Drag to reorder (HTML5 DnD, live reflow) -------------------------------
   let draggingId = $state<string | null>(null);
 
-  function onDragStart(e: DragEvent, id: string) {
+  function onDragStart(event: DragEvent, id: string) {
     if (!arranging || resizing) {
-      e.preventDefault();
+      event.preventDefault();
       return;
     }
     draggingId = id;
-    e.dataTransfer?.setData("text/plain", id);
-    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+    event.dataTransfer?.setData("text/plain", id);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
   }
 
   function onDragEnter(overId: string) {
     if (!draggingId || draggingId === overId) return;
-    const ids = ordered.map((i) => i.id);
+    const ids = ordered.map((instance) => instance.id);
     const from = ids.indexOf(draggingId);
     const to = ids.indexOf(overId);
     if (from < 0 || to < 0) return;
@@ -79,34 +78,34 @@
     startH: number;
   } | null>(null);
 
-  function startResize(e: PointerEvent, id: string, axis: Axis) {
-    e.preventDefault();
-    e.stopPropagation();
-    const c = cellOf(id);
+  function startResize(event: PointerEvent, id: string, axis: Axis) {
+    event.preventDefault();
+    event.stopPropagation();
+    const cell = cellOf(id);
     resizing = {
       id,
       axis,
-      startX: e.clientX,
-      startY: e.clientY,
-      startW: c.w,
-      startH: c.h,
+      startX: event.clientX,
+      startY: event.clientY,
+      startW: cell.w,
+      startH: cell.h,
     };
   }
 
-  function onPointerMove(e: PointerEvent) {
-    const r = resizing;
-    if (!r) return;
-    let w = r.startW;
-    let h = r.startH;
-    if (r.axis === "e" || r.axis === "se") {
-      w = clamp(r.startW + Math.round((e.clientX - r.startX) / PITCH), 1, maxCols);
+  function onPointerMove(event: PointerEvent) {
+    const session = resizing;
+    if (!session) return;
+    let width = session.startW;
+    let height = session.startH;
+    if (session.axis === "e" || session.axis === "se") {
+      width = clamp(session.startW + Math.round((event.clientX - session.startX) / PITCH), 1, maxCols);
     }
-    if (r.axis === "s" || r.axis === "se") {
-      h = clamp(r.startH + Math.round((e.clientY - r.startY) / PITCH), 1, MAX_H);
+    if (session.axis === "s" || session.axis === "se") {
+      height = clamp(session.startH + Math.round((event.clientY - session.startY) / PITCH), 1, MAX_H);
     }
-    const cur = cellOf(r.id);
-    if (cur.w !== w || cur.h !== h) {
-      instanceLayout.set(r.id, { w, h, order: cur.order });
+    const cur = cellOf(session.id);
+    if (cur.w !== width || cur.h !== height) {
+      instanceLayout.set(session.id, { w: width, h: height, order: cur.order });
     }
   }
 
@@ -120,38 +119,38 @@
 
 <div class="grid" class:arranging bind:clientWidth={gridWidth}>
   {#each ordered as inst (inst.id)}
-    {@const c = cellOf(inst.id)}
+    {@const cell = cellOf(inst.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="tile"
       class:dragging={draggingId === inst.id}
       class:resizing={resizing?.id === inst.id}
-      style="grid-column: span {c.w}; grid-row: span {c.h};"
+      style="grid-column: span {cell.w}; grid-row: span {cell.h};"
       draggable={arranging}
-      ondragstart={(e) => onDragStart(e, inst.id)}
+      ondragstart={(event) => onDragStart(event, inst.id)}
       ondragenter={() => onDragEnter(inst.id)}
-      ondragover={(e) => arranging && e.preventDefault()}
+      ondragover={(event) => arranging && event.preventDefault()}
       ondragend={onDragEnd}
     >
-      <InstanceCard instance={inst} iconSize={iconFor(c.w, c.h)} fill />
+      <InstanceCard instance={inst} iconSize={iconFor(cell.w, cell.h)} fill />
       {#if arranging}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="handle e"
           title="Drag to resize width"
-          onpointerdown={(e) => startResize(e, inst.id, "e")}
+          onpointerdown={(event) => startResize(event, inst.id, "e")}
         ></div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="handle s"
           title="Drag to resize height"
-          onpointerdown={(e) => startResize(e, inst.id, "s")}
+          onpointerdown={(event) => startResize(event, inst.id, "s")}
         ></div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="handle se"
           title="Drag to resize"
-          onpointerdown={(e) => startResize(e, inst.id, "se")}
+          onpointerdown={(event) => startResize(event, inst.id, "se")}
         ></div>
       {/if}
     </div>

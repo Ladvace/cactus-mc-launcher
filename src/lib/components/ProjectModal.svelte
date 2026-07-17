@@ -42,7 +42,7 @@
   // (CurseForge returns no URL for mods whose author opted out).
   const topFile = $derived(
     versions.length > 0
-      ? versions[0].files.find((f) => f.primary) ?? versions[0].files[0]
+      ? versions[0].files.find((file) => file.primary) ?? versions[0].files[0]
       : null
   );
   const canDownload = $derived(!!topFile && topFile.url.length > 0);
@@ -61,14 +61,13 @@
           : "Install"
   );
 
-  // Modpack install progress.
   let mpCurrent = $state(0);
   let mpTotal = $state(0);
   let mpMessage = $state("");
 
   const instances = $derived(instancesStore.instances);
   const selectedInstance = $derived(
-    instances.find((i) => i.id === selectedInstanceId)
+    instances.find((instance) => instance.id === selectedInstanceId)
   );
 
   const mpPct = $derived(
@@ -84,47 +83,46 @@
 
   // Load versions: unfiltered for modpacks, instance-compatible for content.
   $effect(() => {
-    const h = hit;
-    if (!open || !h) return;
+    const currentHit = hit;
+    if (!open || !currentHit) return;
     if (isModpack) {
-      loadModpackVersion(h);
+      loadModpackVersion(currentHit);
     } else if (selectedInstance) {
-      loadVersions(h, selectedInstance.mcVersion, selectedInstance.loader);
+      loadVersions(currentHit, selectedInstance.mcVersion, selectedInstance.loader);
     }
   });
 
-  // Listen for modpack install progress while open.
   $effect(() => {
     if (!open || !isModpack) return;
     let unlisten: (() => void) | undefined;
     listen<{ current: number; total: number; message: string }>(
       "modpack-progress",
-      (e) => {
-        mpCurrent = e.payload.current;
-        mpTotal = e.payload.total;
-        mpMessage = e.payload.message;
+      (event) => {
+        mpCurrent = event.payload.current;
+        mpTotal = event.payload.total;
+        mpMessage = event.payload.message;
       }
-    ).then((u) => (unlisten = u));
+    ).then((unlistenFn) => (unlisten = unlistenFn));
     return () => unlisten?.();
   });
 
-  async function loadModpackVersion(h: SearchHit) {
+  async function loadModpackVersion(searchHit: SearchHit) {
     loadingVersions = true;
     versionError = null;
     done = false;
     error = null;
     try {
-      versions = await api.contentVersions(h.source as Source, h.projectId, null, null);
+      versions = await api.contentVersions(searchHit.source as Source, searchHit.projectId, null, null);
       if (versions.length === 0) versionError = "No downloadable version found.";
-    } catch (e) {
+    } catch (err) {
       versions = [];
-      versionError = String(e);
+      versionError = String(err);
     } finally {
       loadingVersions = false;
     }
   }
 
-  async function loadVersions(h: SearchHit, mc: string, loader: string) {
+  async function loadVersions(searchHit: SearchHit, mcVersion: string, loader: string) {
     loadingVersions = true;
     versionError = null;
     done = false;
@@ -132,19 +130,18 @@
     installedItem = null;
     try {
       const loaderFilter =
-        h.projectType === "mod" && loader !== "vanilla" ? loader : null;
-      versions = await api.contentVersions(h.source as Source, h.projectId, loaderFilter, mc);
+        searchHit.projectType === "mod" && loader !== "vanilla" ? loader : null;
+      versions = await api.contentVersions(searchHit.source as Source, searchHit.projectId, loaderFilter, mcVersion);
       if (versions.length === 0) {
-        versionError = `No version compatible with ${loader} ${mc}.`;
+        versionError = `No version compatible with ${loader} ${mcVersion}.`;
       }
-      // Is this project already installed in the selected instance?
       if (selectedInstance) {
         const content = await api.listContent(selectedInstance.id);
-        installedItem = content.find((c) => c.projectId === h.projectId) ?? null;
+        installedItem = content.find((item) => item.projectId === searchHit.projectId) ?? null;
       }
-    } catch (e) {
+    } catch (err) {
       versions = [];
-      versionError = String(e);
+      versionError = String(err);
     } finally {
       loadingVersions = false;
     }
@@ -164,8 +161,8 @@
         iconUrl: hit.iconUrl,
       });
       done = true;
-    } catch (e) {
-      error = String(e);
+    } catch (err) {
+      error = String(err);
     } finally {
       installing = false;
     }
@@ -179,16 +176,16 @@
     mpTotal = 0;
     mpMessage = "Starting…";
     try {
-      const inst = await api.installModpack(
+      const instance = await api.installModpack(
         hit.source as Source,
         versions[0].id,
         hit.iconUrl
       );
       await instancesStore.refresh();
       close();
-      goto(`/instance/${inst.id}`);
-    } catch (e) {
-      error = String(e);
+      goto(`/instance/${instance.id}`);
+    } catch (err) {
+      error = String(err);
     } finally {
       installing = false;
     }

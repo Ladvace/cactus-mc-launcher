@@ -81,8 +81,8 @@ fn loader_str(loader: ModLoader) -> &'static str {
     }
 }
 
-fn parse_loader(s: &str) -> ModLoader {
-    match s {
+fn parse_loader(text: &str) -> ModLoader {
+    match text {
         "fabric" => ModLoader::Fabric,
         "quilt" => ModLoader::Quilt,
         "forge" => ModLoader::Forge,
@@ -91,8 +91,8 @@ fn parse_loader(s: &str) -> ModLoader {
     }
 }
 
-fn parse_source(s: &str) -> Source {
-    match s {
+fn parse_source(text: &str) -> Source {
+    match text {
         "curseforge" => Source::CurseForge,
         "ftb" => Source::Ftb,
         _ => Source::Modrinth,
@@ -100,11 +100,11 @@ fn parse_source(s: &str) -> Source {
 }
 
 fn sanitize(name: &str) -> String {
-    let s: String = name
+    let cleaned: String = name
         .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .map(|ch| if ch.is_alphanumeric() { ch } else { '-' })
         .collect();
-    let trimmed = s.trim_matches('-').to_string();
+    let trimmed = cleaned.trim_matches('-').to_string();
     if trimmed.is_empty() {
         "setup".into()
     } else {
@@ -124,9 +124,9 @@ fn emit(app: &AppHandle, phase: &str, current: usize, total: usize) {
 /// Config files to include in a snapshot (small, non-copyrighted text/data).
 fn override_files(game_dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    for f in ["options.txt", "optionsshaders.txt", "servers.dat"] {
-        if game_dir.join(f).is_file() {
-            out.push(PathBuf::from(f));
+    for file_name in ["options.txt", "optionsshaders.txt", "servers.dat"] {
+        if game_dir.join(file_name).is_file() {
+            out.push(PathBuf::from(file_name));
         }
     }
     collect_rel(&game_dir.join("config"), game_dir, &mut out);
@@ -198,7 +198,7 @@ fn add_overrides(
         total += data.len() as u64;
         let name = format!("overrides/{}", rel.to_string_lossy().replace('\\', "/"));
         zip.start_file(name, opts)
-            .map_err(|e| AppError::Other(format!("zip: {e}")))?;
+            .map_err(|error| AppError::Other(format!("zip: {error}")))?;
         zip.write_all(&data)?;
     }
     Ok(())
@@ -253,15 +253,15 @@ fn export_cactuspack(
 ) -> Result<()> {
     let content: Vec<SnapshotContent> = items
         .into_iter()
-        .map(|i| SnapshotContent {
-            source: i.source,
-            project_type: i.project_type,
-            project_id: i.project_id,
-            version_id: i.version_id,
-            file_name: i.file_name,
-            title: i.title,
-            icon_url: i.icon_url,
-            enabled: i.enabled,
+        .map(|item| SnapshotContent {
+            source: item.source,
+            project_type: item.project_type,
+            project_id: item.project_id,
+            version_id: item.version_id,
+            file_name: item.file_name,
+            title: item.title,
+            icon_url: item.icon_url,
+            enabled: item.enabled,
         })
         .collect();
 
@@ -277,10 +277,10 @@ fn export_cactuspack(
 
     let mut zip = zip::ZipWriter::new(std::fs::File::create(out_path)?);
     zip.start_file("index.json", opts)
-        .map_err(|e| AppError::Other(format!("zip: {e}")))?;
+        .map_err(|error| AppError::Other(format!("zip: {error}")))?;
     zip.write_all(serde_json::to_string_pretty(&index)?.as_bytes())?;
     add_overrides(&mut zip, opts, game_dir)?;
-    zip.finish().map_err(|e| AppError::Other(format!("zip: {e}")))?;
+    zip.finish().map_err(|error| AppError::Other(format!("zip: {error}")))?;
     Ok(())
 }
 
@@ -302,7 +302,7 @@ async fn export_mrpack(
             continue;
         }
         let version = match crate::sources::get_version(Source::Modrinth, &item.version_id).await {
-            Ok(v) => v,
+            Ok(version) => version,
             Err(_) => {
                 skipped.push(item.title.clone());
                 continue;
@@ -351,10 +351,10 @@ async fn export_mrpack(
 
     let mut zip = zip::ZipWriter::new(std::fs::File::create(out_path)?);
     zip.start_file("modrinth.index.json", opts)
-        .map_err(|e| AppError::Other(format!("zip: {e}")))?;
+        .map_err(|error| AppError::Other(format!("zip: {error}")))?;
     zip.write_all(serde_json::to_string_pretty(&index)?.as_bytes())?;
     add_overrides(&mut zip, opts, game_dir)?;
-    zip.finish().map_err(|e| AppError::Other(format!("zip: {e}")))?;
+    zip.finish().map_err(|error| AppError::Other(format!("zip: {error}")))?;
     Ok(skipped)
 }
 
@@ -400,11 +400,11 @@ pub async fn publish(
         ("modLoader", loader),
         ("modLoaderVersion", &loader_version),
     ];
-    if let Some(bh) = board_handle.as_deref().filter(|s| !s.is_empty()) {
-        params.push(("boardHandle", bh));
+    if let Some(handle) = board_handle.as_deref().filter(|value| !value.is_empty()) {
+        params.push(("boardHandle", handle));
     }
-    if let Some(ch) = changelog.as_deref().filter(|c| !c.is_empty()) {
-        params.push(("changelog", ch));
+    if let Some(changelog_text) = changelog.as_deref().filter(|value| !value.is_empty()) {
+        params.push(("changelog", changelog_text));
     }
 
     let resp = reqwest::Client::new()
@@ -423,8 +423,8 @@ pub async fn publish(
 
     let json: serde_json::Value = resp.json().await?;
     json.get("id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
+        .and_then(|value| value.as_str())
+        .map(|id| id.to_string())
         .ok_or_else(|| AppError::Other("no snapshot id in response".into()))
 }
 
@@ -456,9 +456,10 @@ pub async fn import(app: &AppHandle, bytes: Vec<u8>) -> Result<ImportResult> {
 
 /// Whether a zip contains an entry with the exact given name.
 fn has_entry(pack: &Path, name: &str) -> Result<bool> {
-    let f = std::fs::File::open(pack)?;
-    let zip = zip::ZipArchive::new(f).map_err(|e| AppError::Other(format!("bad zip: {e}")))?;
-    let found = zip.file_names().any(|n| n == name);
+    let file = std::fs::File::open(pack)?;
+    let zip =
+        zip::ZipArchive::new(file).map_err(|error| AppError::Other(format!("bad zip: {error}")))?;
+    let found = zip.file_names().any(|entry_name| entry_name == name);
     Ok(found)
 }
 
@@ -481,22 +482,22 @@ async fn import_cactuspack(app: &AppHandle, pack_path: &Path) -> Result<ImportRe
     emit(app, "resolving", 0, total);
     let mut installed = 0usize;
     let mut skipped = Vec::new();
-    for (i, c) in index.content.iter().enumerate() {
+    for (content_index, content_ref) in index.content.iter().enumerate() {
         match content::install(
             app,
             &instance.id,
-            parse_source(&c.source),
-            &c.version_id,
-            &c.project_type,
-            &c.title,
-            c.icon_url.clone(),
+            parse_source(&content_ref.source),
+            &content_ref.version_id,
+            &content_ref.project_type,
+            &content_ref.title,
+            content_ref.icon_url.clone(),
         )
         .await
         {
             Ok(_) => installed += 1,
-            Err(_) => skipped.push(c.title.clone()),
+            Err(_) => skipped.push(content_ref.title.clone()),
         }
-        emit(app, "installing", i + 1, total);
+        emit(app, "installing", content_index + 1, total);
     }
 
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
@@ -513,7 +514,7 @@ async fn import_cactuspack(app: &AppHandle, pack_path: &Path) -> Result<ImportRe
 async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult> {
     let index = read_mr_index(pack_path)?;
 
-    let mc = index
+    let mc_version = index
         .dependencies
         .get("minecraft")
         .cloned()
@@ -521,7 +522,7 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     let (loader, loader_version) = mr_loader_from_deps(&index.dependencies);
     let name = index.name.clone().unwrap_or_else(|| "Imported pack".into());
 
-    let instance = Instance::new(name, InstanceKind::Client, mc, loader, loader_version, None);
+    let instance = Instance::new(name, InstanceKind::Client, mc_version, loader, loader_version, None);
     app.state::<InstanceStore>().save(app, &instance)?;
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
 
@@ -529,19 +530,19 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     let tasks: Vec<DownloadTask> = index
         .files
         .iter()
-        .filter(|f| {
-            f.env
+        .filter(|file| {
+            file.env
                 .as_ref()
-                .map(|e| e.client != "unsupported")
+                .map(|env| env.client != "unsupported")
                 .unwrap_or(true)
         })
-        .filter_map(|f| {
-            let rel = safe_rel(&f.path)?;
-            let url = f.downloads.first()?.clone();
+        .filter_map(|file| {
+            let rel = safe_rel(&file.path)?;
+            let url = file.downloads.first()?.clone();
             Some(DownloadTask {
                 url,
                 dest: game_dir.join(rel),
-                sha1: f.hashes.sha1.clone(),
+                sha1: file.hashes.sha1.clone(),
                 executable: false,
             })
         })
@@ -551,8 +552,8 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     emit(app, "installing", 0, total);
     let client = crate::modrinth::client()?;
     let app_cb = app.clone();
-    content::cache::install_all(&client, app, tasks, 12, move |cur, t| {
-        emit(&app_cb, "installing", cur, t);
+    content::cache::install_all(&client, app, tasks, 12, move |cur, total| {
+        emit(&app_cb, "installing", cur, total);
     })
     .await?;
 
@@ -568,23 +569,25 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
 
 fn read_index(pack: &Path) -> Result<SnapshotIndex> {
     let text = read_zip_text(pack, "index.json")?;
-    serde_json::from_str(&text).map_err(|e| AppError::Other(format!("bad snapshot index: {e}")))
+    serde_json::from_str(&text)
+        .map_err(|error| AppError::Other(format!("bad snapshot index: {error}")))
 }
 
 fn read_mr_index(pack: &Path) -> Result<MrIndex> {
     let text = read_zip_text(pack, "modrinth.index.json")?;
-    serde_json::from_str(&text).map_err(|e| AppError::Other(format!("bad .mrpack index: {e}")))
+    serde_json::from_str(&text).map_err(|error| AppError::Other(format!("bad .mrpack index: {error}")))
 }
 
 fn read_zip_text(pack: &Path, entry: &str) -> Result<String> {
-    let f = std::fs::File::open(pack)?;
-    let mut zip = zip::ZipArchive::new(f).map_err(|e| AppError::Other(format!("bad zip: {e}")))?;
-    let mut e = zip
+    let file = std::fs::File::open(pack)?;
+    let mut zip =
+        zip::ZipArchive::new(file).map_err(|error| AppError::Other(format!("bad zip: {error}")))?;
+    let mut zip_entry = zip
         .by_name(entry)
         .map_err(|_| AppError::Other(format!("missing {entry}")))?;
-    let mut s = String::new();
-    e.read_to_string(&mut s)?;
-    Ok(s)
+    let mut text = String::new();
+    zip_entry.read_to_string(&mut text)?;
+    Ok(text)
 }
 
 fn mr_loader_from_deps(
@@ -596,8 +599,8 @@ fn mr_loader_from_deps(
         ("neoforge", ModLoader::NeoForge),
         ("forge", ModLoader::Forge),
     ] {
-        if let Some(v) = deps.get(key) {
-            return (loader, (!v.is_empty()).then(|| v.clone()));
+        if let Some(version) = deps.get(key) {
+            return (loader, (!version.is_empty()).then(|| version.clone()));
         }
     }
     (ModLoader::Vanilla, None)
@@ -649,13 +652,13 @@ struct MrEnv {
 
 /// Extract the `overrides/` tree of a pack into an instance's game dir.
 fn extract_overrides(pack: &Path, game_dir: &Path) -> Result<()> {
-    let f = std::fs::File::open(pack)?;
+    let file = std::fs::File::open(pack)?;
     let mut zip =
-        zip::ZipArchive::new(f).map_err(|e| AppError::Other(format!("bad zip: {e}")))?;
-    for i in 0..zip.len() {
+        zip::ZipArchive::new(file).map_err(|error| AppError::Other(format!("bad zip: {error}")))?;
+    for index in 0..zip.len() {
         let mut entry = zip
-            .by_index(i)
-            .map_err(|e| AppError::Other(format!("bad zip entry: {e}")))?;
+            .by_index(index)
+            .map_err(|error| AppError::Other(format!("bad zip entry: {error}")))?;
         let name = entry.name().to_string();
         let Some(rel) = name
             .strip_prefix("overrides/")
@@ -679,16 +682,16 @@ fn extract_overrides(pack: &Path, game_dir: &Path) -> Result<()> {
 
 /// Reject absolute paths and `..` traversal in archive entry names.
 fn safe_rel(path: &str) -> Option<PathBuf> {
-    let p = PathBuf::from(path);
-    if p.is_absolute() {
+    let path_buf = PathBuf::from(path);
+    if path_buf.is_absolute() {
         return None;
     }
-    for comp in p.components() {
-        if matches!(comp, std::path::Component::ParentDir | std::path::Component::Prefix(_)) {
+    for component in path_buf.components() {
+        if matches!(component, std::path::Component::ParentDir | std::path::Component::Prefix(_)) {
             return None;
         }
     }
-    Some(p)
+    Some(path_buf)
 }
 
 #[cfg(test)]
@@ -697,14 +700,14 @@ mod tests {
 
     #[test]
     fn loader_string_round_trips() {
-        for l in [
+        for loader in [
             ModLoader::Vanilla,
             ModLoader::Fabric,
             ModLoader::Quilt,
             ModLoader::Forge,
             ModLoader::NeoForge,
         ] {
-            assert_eq!(parse_loader(loader_str(l)), l);
+            assert_eq!(parse_loader(loader_str(loader)), loader);
         }
     }
 

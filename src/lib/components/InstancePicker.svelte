@@ -20,8 +20,8 @@
 
   function place() {
     if (!triggerEl) return;
-    const r = triggerEl.getBoundingClientRect();
-    pos = { left: r.left, top: r.bottom + 4, width: r.width };
+    const rect = triggerEl.getBoundingClientRect();
+    pos = { left: rect.left, top: rect.bottom + 4, width: rect.width };
   }
   function toggle() {
     if (open) {
@@ -33,29 +33,29 @@
   }
 
   const all = $derived(instancesStore.instances);
-  const selected = $derived(all.find((i) => i.id === value) ?? null);
+  const selected = $derived(all.find((instance) => instance.id === value) ?? null);
 
-  function matches(i: Instance, q: string): boolean {
-    if (!q) return true;
+  function matches(instance: Instance, term: string): boolean {
+    if (!term) return true;
     return (
-      i.name.toLowerCase().includes(q) ||
-      i.mcVersion.toLowerCase().includes(q) ||
-      i.loader.includes(q)
+      instance.name.toLowerCase().includes(term) ||
+      instance.mcVersion.toLowerCase().includes(term) ||
+      instance.loader.includes(term)
     );
   }
 
   // Filtered view split into ungrouped instances + one section per folder,
   // mirroring how instances are grouped on Home.
   const view = $derived.by(() => {
-    const q = query.trim().toLowerCase();
+    const term = query.trim().toLowerCase();
     const ungrouped: Instance[] = [];
     const byGroup = new Map<string, Instance[]>();
-    for (const i of all) {
-      if (!matches(i, q)) continue;
-      if (i.group) {
-        (byGroup.get(i.group) ?? byGroup.set(i.group, []).get(i.group)!).push(i);
+    for (const instance of all) {
+      if (!matches(instance, term)) continue;
+      if (instance.group) {
+        (byGroup.get(instance.group) ?? byGroup.set(instance.group, []).get(instance.group)!).push(instance);
       } else {
-        ungrouped.push(i);
+        ungrouped.push(instance);
       }
     }
     return { ungrouped, groups: [...byGroup.entries()] };
@@ -63,7 +63,6 @@
 
   const isEmpty = $derived(view.ungrouped.length === 0 && view.groups.length === 0);
 
-  // Focus the search box when the dropdown opens.
   $effect(() => {
     if (open) searchEl?.focus();
   });
@@ -73,22 +72,22 @@
     open = false;
     query = "";
   }
-  function onWindowPointerDown(e: PointerEvent) {
-    if (open && rootEl && !rootEl.contains(e.target as Node)) open = false;
+  function onWindowPointerDown(event: PointerEvent) {
+    if (open && rootEl && !rootEl.contains(event.target as Node)) open = false;
   }
 </script>
 
 <svelte:window
   onpointerdown={onWindowPointerDown}
-  onkeydown={(e) => e.key === "Escape" && (open = false)}
+  onkeydown={(event) => event.key === "Escape" && (open = false)}
   onresize={() => (open = false)}
 />
 
-{#snippet row(i: Instance)}
-  <button type="button" class="opt" class:sel={i.id === value} onclick={() => choose(i.id)}>
-    <InstanceIcon instance={i} size={22} />
-    <span class="opt-name">{i.name}</span>
-    <span class="opt-sub">{i.loader} {i.mcVersion}</span>
+{#snippet row(instance: Instance)}
+  <button type="button" class="opt" class:sel={instance.id === value} onclick={() => choose(instance.id)}>
+    <InstanceIcon instance={instance} size={22} />
+    <span class="opt-name">{instance.name}</span>
+    <span class="opt-sub">{instance.loader} {instance.mcVersion}</span>
   </button>
 {/snippet}
 
@@ -122,13 +121,13 @@
         {#if isEmpty}
           <p class="none">No instances match.</p>
         {:else}
-          {#each view.ungrouped as i (i.id)}
-            {@render row(i)}
+          {#each view.ungrouped as instance (instance.id)}
+            {@render row(instance)}
           {/each}
           {#each view.groups as [name, items] (name)}
             <div class="group-head"><Icon name="folder" size={11} /> {name}</div>
-            {#each items as i (i.id)}
-              {@render row(i)}
+            {#each items as instance (instance.id)}
+              {@render row(instance)}
             {/each}
           {/each}
         {/if}

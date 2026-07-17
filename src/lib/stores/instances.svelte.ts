@@ -14,8 +14,8 @@ class InstancesStore {
     try {
       this.instances = await api.listInstances();
       this.loaded = true;
-    } catch (e) {
-      this.error = String(e);
+    } catch (error) {
+      this.error = String(error);
     } finally {
       this.loading = false;
     }
@@ -27,7 +27,7 @@ class InstancesStore {
   }
 
   get(id: string): Instance | undefined {
-    return this.instances.find((i) => i.id === id);
+    return this.instances.find((instance) => instance.id === id);
   }
 
   async create(payload: CreateInstance): Promise<Instance> {

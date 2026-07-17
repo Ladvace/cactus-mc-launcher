@@ -39,8 +39,8 @@
       await navigator.clipboard.writeText(addr);
       copied = addr;
       setTimeout(() => copied === addr && (copied = null), 1500);
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 </script>

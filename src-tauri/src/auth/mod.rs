@@ -69,11 +69,11 @@ pub struct AccountInfo {
     pub kind: String,
 }
 
-fn to_info(acc: &Account) -> AccountInfo {
+fn to_info(account: &Account) -> AccountInfo {
     AccountInfo {
-        id: acc.id.clone(),
-        username: acc.username.clone(),
-        uuid: acc.uuid.clone(),
+        id: account.id.clone(),
+        username: account.username.clone(),
+        uuid: account.uuid.clone(),
         kind: "microsoft".into(),
     }
 }
@@ -134,13 +134,13 @@ impl AccountStore {
     pub fn active_account(&self) -> Option<Account> {
         let data = self.inner.lock().unwrap();
         let id = data.active_id.as_ref()?;
-        data.accounts.iter().find(|a| &a.id == id).cloned()
+        data.accounts.iter().find(|account| &account.id == id).cloned()
     }
 
     /// Insert or replace an account by id.
     pub fn upsert(&self, app: &AppHandle, account: Account) -> Result<()> {
         let mut data = self.inner.lock().unwrap();
-        if let Some(existing) = data.accounts.iter_mut().find(|a| a.id == account.id) {
+        if let Some(existing) = data.accounts.iter_mut().find(|entry| entry.id == account.id) {
             *existing = account;
         } else {
             data.accounts.push(account);
@@ -152,7 +152,7 @@ impl AccountStore {
         let mut data = self.inner.lock().unwrap();
         // Ignore ids that don't exist (except None = offline).
         if let Some(id) = &id {
-            if !data.accounts.iter().any(|a| &a.id == id) {
+            if !data.accounts.iter().any(|account| &account.id == id) {
                 return Err(AppError::Other("account not found".into()));
             }
         }
@@ -162,7 +162,7 @@ impl AccountStore {
 
     pub fn remove(&self, app: &AppHandle, id: &str) -> Result<()> {
         let mut data = self.inner.lock().unwrap();
-        data.accounts.retain(|a| a.id != id);
+        data.accounts.retain(|account| account.id != id);
         if data.active_id.as_deref() == Some(id) {
             data.active_id = None;
         }
@@ -194,26 +194,26 @@ pub async fn login(app: &AppHandle) -> Result<AccountInfo> {
     let client_id = ensure_client_id()?;
     let http = http_client()?;
 
-    let dc = microsoft::request_device_code(&http, client_id).await?;
+    let device_code = microsoft::request_device_code(&http, client_id).await?;
     let _ = app.emit(
         "auth-device-code",
         DeviceCodeEvent {
-            user_code: dc.user_code.clone(),
-            verification_uri: dc.verification_uri.clone(),
-            message: dc.message.clone(),
-            expires_in: dc.expires_in,
+            user_code: device_code.user_code.clone(),
+            verification_uri: device_code.verification_uri.clone(),
+            message: device_code.message.clone(),
+            expires_in: device_code.expires_in,
         },
     );
 
-    let deadline = Utc::now().timestamp() + dc.expires_in as i64;
-    let mut interval = dc.interval.max(1);
+    let deadline = Utc::now().timestamp() + device_code.expires_in as i64;
+    let mut interval = device_code.interval.max(1);
 
-    let ms = loop {
+    let ms_token = loop {
         if Utc::now().timestamp() > deadline {
             return Err(AppError::Other("Login timed out. Please try again.".into()));
         }
         tokio::time::sleep(Duration::from_secs(interval)).await;
-        match microsoft::poll_token(&http, client_id, &dc.device_code).await? {
+        match microsoft::poll_token(&http, client_id, &device_code.device_code).await? {
             microsoft::PollOutcome::Pending => continue,
             microsoft::PollOutcome::SlowDown => {
                 interval += 5;
@@ -223,7 +223,7 @@ pub async fn login(app: &AppHandle) -> Result<AccountInfo> {
         }
     };
 
-    let account = full_chain(&http, ms).await?;
+    let account = full_chain(&http, ms_token).await?;
 
     let store = app.state::<AccountStore>();
     store.upsert(app, account.clone())?;
@@ -234,8 +234,8 @@ pub async fn login(app: &AppHandle) -> Result<AccountInfo> {
 }
 
 /// Walk an MS token through Xbox/XSTS/Minecraft to a full `Account`.
-async fn full_chain(http: &reqwest::Client, ms: microsoft::MsToken) -> Result<Account> {
-    let xbl = xbox::xbl_authenticate(http, &ms.access_token).await?;
+async fn full_chain(http: &reqwest::Client, ms_token: microsoft::MsToken) -> Result<Account> {
+    let xbl = xbox::xbl_authenticate(http, &ms_token.access_token).await?;
     let xsts = xbox::xsts_authorize(http, &xbl.token).await?;
     let mc = xbox::minecraft_login(http, &xsts.user_hash, &xsts.token).await?;
     let profile = xbox::minecraft_profile(http, &mc.access_token).await?;
@@ -244,7 +244,7 @@ async fn full_chain(http: &reqwest::Client, ms: microsoft::MsToken) -> Result<Ac
         id: profile.id.clone(),
         username: profile.name,
         uuid: profile.id,
-        ms_refresh_token: ms.refresh_token,
+        ms_refresh_token: ms_token.refresh_token,
         mc_access_token: mc.access_token,
         expires_at: Utc::now().timestamp() + mc.expires_in,
     })
@@ -257,8 +257,8 @@ pub async fn refresh_account(
     account: &Account,
 ) -> Result<Account> {
     let client_id = ensure_client_id()?;
-    let ms = microsoft::refresh(http, client_id, &account.ms_refresh_token).await?;
-    let refreshed = full_chain(http, ms).await?;
+    let ms_token = microsoft::refresh(http, client_id, &account.ms_refresh_token).await?;
+    let refreshed = full_chain(http, ms_token).await?;
     app.state::<AccountStore>().upsert(app, refreshed.clone())?;
     Ok(refreshed)
 }

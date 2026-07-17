@@ -35,14 +35,14 @@ pub fn offline_uuid(name: &str) -> String {
     let mut hash = Md5::digest(format!("OfflinePlayer:{name}").as_bytes());
     hash[6] = (hash[6] & 0x0f) | 0x30; // version 3
     hash[8] = (hash[8] & 0x3f) | 0x80; // RFC 4122 variant
-    let h = hex::encode(hash);
+    let hex_str = hex::encode(hash);
     format!(
         "{}-{}-{}-{}-{}",
-        &h[0..8],
-        &h[8..12],
-        &h[12..16],
-        &h[16..20],
-        &h[20..32]
+        &hex_str[0..8],
+        &hex_str[8..12],
+        &hex_str[12..16],
+        &hex_str[16..20],
+        &hex_str[20..32]
     )
 }
 
@@ -50,7 +50,7 @@ fn classpath_string(paths: &[PathBuf]) -> String {
     let sep = if cfg!(windows) { ";" } else { ":" };
     paths
         .iter()
-        .map(|p| p.to_string_lossy().to_string())
+        .map(|path| path.to_string_lossy().to_string())
         .collect::<Vec<_>>()
         .join(sep)
 }
@@ -108,16 +108,16 @@ fn collect(
     let mut out = Vec::new();
     for arg in args {
         match arg {
-            Argument::Plain(s) => out.push(apply(s, subs)),
+            Argument::Plain(value) => out.push(apply(value, subs)),
             Argument::Conditional { rules, value } => {
                 if !rules_allow(rules, features) {
                     continue;
                 }
                 match value {
-                    ArgValue::One(s) => out.push(apply(s, subs)),
+                    ArgValue::One(value) => out.push(apply(value, subs)),
                     ArgValue::Many(list) => {
-                        for s in list {
-                            out.push(apply(s, subs));
+                        for value in list {
+                            out.push(apply(value, subs));
                         }
                     }
                 }
@@ -141,37 +141,37 @@ fn apply(input: &str, subs: &HashMap<String, String>) -> String {
 }
 
 fn substitutions(detail: &VersionDetail, ctx: &LaunchContext) -> HashMap<String, String> {
-    let mut m = HashMap::new();
-    let s = |p: &PathBuf| p.to_string_lossy().to_string();
+    let mut subs = HashMap::new();
+    let path_str = |path: &PathBuf| path.to_string_lossy().to_string();
 
-    m.insert("natives_directory".into(), s(&ctx.natives_dir));
-    m.insert("launcher_name".into(), LAUNCHER_NAME.into());
-    m.insert("launcher_version".into(), LAUNCHER_VERSION.into());
-    m.insert("classpath".into(), classpath_string(&ctx.classpath));
-    m.insert("library_directory".into(), s(&ctx.library_directory));
-    m.insert(
+    subs.insert("natives_directory".into(), path_str(&ctx.natives_dir));
+    subs.insert("launcher_name".into(), LAUNCHER_NAME.into());
+    subs.insert("launcher_version".into(), LAUNCHER_VERSION.into());
+    subs.insert("classpath".into(), classpath_string(&ctx.classpath));
+    subs.insert("library_directory".into(), path_str(&ctx.library_directory));
+    subs.insert(
         "classpath_separator".into(),
         if cfg!(windows) { ";" } else { ":" }.into(),
     );
 
-    m.insert("auth_player_name".into(), ctx.player_name.clone());
-    m.insert("version_name".into(), detail.id.clone());
-    m.insert("game_directory".into(), s(&ctx.game_dir));
-    m.insert("assets_root".into(), s(&ctx.assets_dir));
-    m.insert("game_assets".into(), s(&ctx.assets_dir)); // legacy alias
-    m.insert("assets_index_name".into(), ctx.assets_index.clone());
-    m.insert("auth_uuid".into(), ctx.uuid.clone());
-    m.insert("auth_access_token".into(), ctx.access_token.clone());
-    m.insert("auth_session".into(), ctx.access_token.clone()); // legacy alias
-    m.insert("auth_xuid".into(), String::new());
-    m.insert("clientid".into(), String::new());
-    m.insert("user_type".into(), ctx.user_type.clone());
-    m.insert("user_properties".into(), "{}".into());
-    m.insert("version_type".into(), detail.kind.clone());
-    m.insert("resolution_width".into(), ctx.width.to_string());
-    m.insert("resolution_height".into(), ctx.height.to_string());
+    subs.insert("auth_player_name".into(), ctx.player_name.clone());
+    subs.insert("version_name".into(), detail.id.clone());
+    subs.insert("game_directory".into(), path_str(&ctx.game_dir));
+    subs.insert("assets_root".into(), path_str(&ctx.assets_dir));
+    subs.insert("game_assets".into(), path_str(&ctx.assets_dir)); // legacy alias
+    subs.insert("assets_index_name".into(), ctx.assets_index.clone());
+    subs.insert("auth_uuid".into(), ctx.uuid.clone());
+    subs.insert("auth_access_token".into(), ctx.access_token.clone());
+    subs.insert("auth_session".into(), ctx.access_token.clone()); // legacy alias
+    subs.insert("auth_xuid".into(), String::new());
+    subs.insert("clientid".into(), String::new());
+    subs.insert("user_type".into(), ctx.user_type.clone());
+    subs.insert("user_properties".into(), "{}".into());
+    subs.insert("version_type".into(), detail.kind.clone());
+    subs.insert("resolution_width".into(), ctx.width.to_string());
+    subs.insert("resolution_height".into(), ctx.height.to_string());
 
-    m
+    subs
 }
 
 #[cfg(test)]

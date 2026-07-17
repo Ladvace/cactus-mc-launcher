@@ -33,31 +33,31 @@ class LaunchStore {
     if (this.#started) return;
     this.#started = true;
 
-    await listen<LaunchStatusEvent>("launch-status", (e) => {
-      const r = this.ensure(e.payload.instanceId);
-      r.state = e.payload.state;
-      r.message = e.payload.message;
-      if (e.payload.state === "exited" || e.payload.state === "error") {
-        r.current = 0;
-        r.total = 0;
-        r.stage = "";
+    await listen<LaunchStatusEvent>("launch-status", (event) => {
+      const runtime = this.ensure(event.payload.instanceId);
+      runtime.state = event.payload.state;
+      runtime.message = event.payload.message;
+      if (event.payload.state === "exited" || event.payload.state === "error") {
+        runtime.current = 0;
+        runtime.total = 0;
+        runtime.stage = "";
         // Refresh playtime / last-played after a session ends.
         instancesStore.refresh();
       }
     });
 
-    await listen<LaunchProgressEvent>("launch-progress", (e) => {
-      const r = this.ensure(e.payload.instanceId);
-      r.stage = e.payload.stage;
-      r.current = e.payload.current;
-      r.total = e.payload.total;
+    await listen<LaunchProgressEvent>("launch-progress", (event) => {
+      const runtime = this.ensure(event.payload.instanceId);
+      runtime.stage = event.payload.stage;
+      runtime.current = event.payload.current;
+      runtime.total = event.payload.total;
     });
 
-    await listen<LaunchLogEvent>("launch-log", (e) => {
-      const r = this.ensure(e.payload.instanceId);
-      r.logs.push(e.payload.line);
-      if (r.logs.length > MAX_LOG_LINES) {
-        r.logs.splice(0, r.logs.length - MAX_LOG_LINES);
+    await listen<LaunchLogEvent>("launch-log", (event) => {
+      const runtime = this.ensure(event.payload.instanceId);
+      runtime.logs.push(event.payload.line);
+      if (runtime.logs.length > MAX_LOG_LINES) {
+        runtime.logs.splice(0, runtime.logs.length - MAX_LOG_LINES);
       }
     });
   }
@@ -73,8 +73,8 @@ class LaunchStore {
 
   /** Preparing / downloading / launching — busy but not yet playing. */
   isBusy(id: string): boolean {
-    const s = this.byId[id]?.state;
-    return s === "preparing" || s === "downloading" || s === "launching";
+    const state = this.byId[id]?.state;
+    return state === "preparing" || state === "downloading" || state === "launching";
   }
 
   isRunning(id: string): boolean {
@@ -82,25 +82,25 @@ class LaunchStore {
   }
 
   async launch(id: string) {
-    const r = this.ensure(id);
-    r.logs = [];
-    r.state = "preparing";
-    r.message = "Starting…";
-    r.current = 0;
-    r.total = 0;
+    const runtime = this.ensure(id);
+    runtime.logs = [];
+    runtime.state = "preparing";
+    runtime.message = "Starting…";
+    runtime.current = 0;
+    runtime.total = 0;
     try {
       await api.launchInstance(id);
-    } catch (e) {
-      r.state = "error";
-      r.message = String(e);
+    } catch (error) {
+      runtime.state = "error";
+      runtime.message = String(error);
     }
   }
 
   async stop(id: string) {
     try {
       await api.stopInstance(id);
-    } catch (e) {
-      console.error("stop failed", e);
+    } catch (error) {
+      console.error("stop failed", error);
     }
   }
 }

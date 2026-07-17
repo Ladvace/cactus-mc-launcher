@@ -14,9 +14,9 @@
   let pendingName = $state<string | null>(null);
 
   const items = $derived.by<MenuItem[]>(() => {
-    const m = ui.groupMenu;
-    if (!m) return [];
-    const name = m.name;
+    const groupMenu = ui.groupMenu;
+    if (!groupMenu) return [];
+    const name = groupMenu.name;
     const hasCover = !!groupCovers.get(name);
     return [
       { label: "Open folder", icon: "folder", onSelect: () => onOpenFolder(name) },
@@ -41,8 +41,8 @@
     fileInput?.click();
   }
 
-  async function onFile(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
+  async function onFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = "";
     const name = pendingName;
@@ -56,8 +56,8 @@
   }
 
   async function ungroupAll(name: string) {
-    const members = instancesStore.instances.filter((i) => i.group === name);
-    for (const i of members) await instancesStore.update(i.id, { group: "" });
+    const members = instancesStore.instances.filter((instance) => instance.group === name);
+    for (const instance of members) await instancesStore.update(instance.id, { group: "" });
     groupCovers.clear(name);
   }
 </script>

@@ -53,8 +53,8 @@ pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Stick
         ));
     }
 
-    let q = query.trim();
-    let endpoint = if q.is_empty() { "trending" } else { "search" };
+    let trimmed_query = query.trim();
+    let endpoint = if trimmed_query.is_empty() { "trending" } else { "search" };
     let limit = 30u32.to_string();
     let offset = offset.to_string();
 
@@ -65,8 +65,8 @@ pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Stick
         ("rating", "pg-13"),
         ("bundle", "messaging_non_clips"),
     ];
-    if !q.is_empty() {
-        params.push(("q", q));
+    if !trimmed_query.is_empty() {
+        params.push(("q", trimmed_query));
     }
 
     let resp: GiphyResp = reqwest::Client::new()
@@ -81,21 +81,21 @@ pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Stick
     let stickers = resp
         .data
         .into_iter()
-        .filter_map(|it| {
-            let imgs = it.images;
-            let full = imgs
+        .filter_map(|item| {
+            let images = item.images;
+            let full = images
                 .fixed_width
                 .as_ref()
-                .or(imgs.fixed_width_downsampled.as_ref())
-                .map(|r| r.url.clone())?;
-            let preview = imgs
+                .or(images.fixed_width_downsampled.as_ref())
+                .map(|rendition| rendition.url.clone())?;
+            let preview = images
                 .fixed_width_small
                 .as_ref()
-                .or(imgs.preview_gif.as_ref())
-                .map(|r| r.url.clone())
+                .or(images.preview_gif.as_ref())
+                .map(|rendition| rendition.url.clone())
                 .unwrap_or_else(|| full.clone());
             Some(Sticker {
-                id: it.id,
+                id: item.id,
                 preview,
                 full,
             })
@@ -112,7 +112,7 @@ pub async fn download_data_uri(url: &str) -> Result<String> {
     let content_type = resp
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
+        .and_then(|value| value.to_str().ok())
         .unwrap_or("image/gif")
         .split(';')
         .next()
@@ -128,6 +128,6 @@ pub async fn download_data_uri(url: &str) -> Result<String> {
     }
 
     use base64::Engine;
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-    Ok(format!("data:{content_type};base64,{b64}"))
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:{content_type};base64,{encoded}"))
 }

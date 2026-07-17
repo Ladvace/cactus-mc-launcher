@@ -21,7 +21,7 @@ class FollowedBoards {
   }
 
   unfollow(handle: string) {
-    this.handles = this.handles.filter((h) => h !== handle);
+    this.handles = this.handles.filter((existing) => existing !== handle);
     this.save();
   }
 

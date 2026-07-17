@@ -145,7 +145,6 @@ export const api = {
 
   downloadImage: (url: string) => invoke<string>("download_image", { url }),
 
-  // Shared content cache
   contentCacheStats: () => invoke<CacheStats>("content_cache_stats"),
 
   // Snapshots (share / export-import)

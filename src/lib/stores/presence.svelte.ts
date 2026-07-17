@@ -74,10 +74,10 @@ class PresenceStore {
     if (this.enabled) void this.goOffline();
   }
 
-  async setEnabled(v: boolean) {
-    this.enabled = v;
+  async setEnabled(enabled: boolean) {
+    this.enabled = enabled;
     this.persist();
-    if (v) await this.poll();
+    if (enabled) await this.poll();
     else await this.goOffline();
   }
 
@@ -97,9 +97,9 @@ class PresenceStore {
   }
 
   private async heartbeat() {
-    const t = boardAuth.token;
-    if (!t) return;
-    await boardApi.setPresence(t, {
+    const token = boardAuth.token;
+    if (!token) return;
+    await boardApi.setPresence(token, {
       status: this.status,
       serverAddress: this.serverAddress,
       mcVersion: this.mcVersion,
@@ -108,22 +108,22 @@ class PresenceStore {
   }
 
   private async goOffline() {
-    const t = boardAuth.token;
-    if (!t) return;
-    await boardApi.clearPresence(t).catch(() => {});
+    const token = boardAuth.token;
+    if (!token) return;
+    await boardApi.clearPresence(token).catch(() => {});
   }
 
   /** One cycle: heartbeat (if online) then refresh the list. Safe to call anytime. */
   async poll() {
-    const t = boardAuth.token;
-    if (!t) return;
+    const token = boardAuth.token;
+    if (!token) return;
     this.loading = this.players.length === 0;
     try {
       if (this.enabled) await this.heartbeat();
-      this.players = await boardApi.listPresence(t);
+      this.players = await boardApi.listPresence(token);
       this.error = null;
-    } catch (e) {
-      this.error = String(e);
+    } catch (error) {
+      this.error = String(error);
     } finally {
       this.loading = false;
     }

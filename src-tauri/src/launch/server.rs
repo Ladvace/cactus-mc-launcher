@@ -18,9 +18,9 @@ use crate::settings::Settings;
 pub async fn launch(app: AppHandle, instance: Instance, settings: Settings) -> Result<()> {
     let id = instance.id.clone();
     let result = prepare_and_spawn(&app, &instance, &settings).await;
-    if let Err(e) = &result {
-        eprintln!("[server] error for instance {id}: {e}");
-        super::emit_status(&app, &id, "error", Some(e.to_string()));
+    if let Err(error) = &result {
+        eprintln!("[server] error for instance {id}: {error}");
+        super::emit_status(&app, &id, "error", Some(error.to_string()));
     }
     result
 }
@@ -38,7 +38,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     let entry = manifest
         .versions
         .iter()
-        .find(|v| v.id == instance.mc_version)
+        .find(|version| version.id == instance.mc_version)
         .ok_or_else(|| {
             AppError::Other(format!("Minecraft version '{}' not found", instance.mc_version))
         })?;
@@ -212,7 +212,7 @@ async fn prepare_fabric_like(
         .await?;
     let installer_url = installers
         .first()
-        .map(|i| i.url.clone())
+        .map(|installer| installer.url.clone())
         .ok_or_else(|| AppError::Other("no installer available".into()))?;
 
     let installer = run_dir.join(".loader-installer.jar");
@@ -248,15 +248,21 @@ async fn prepare_fabric_like(
                 .arg("-downloadMinecraft");
         }
     }
-    let output = cmd
-        .output()
-        .await
-        .map_err(|e| AppError::Other(format!("failed to run {:?} installer: {e}", instance.loader)))?;
+    let output = cmd.output().await.map_err(|error| {
+        AppError::Other(format!("failed to run {:?} installer: {error}", instance.loader))
+    })?;
     let _ = std::fs::remove_file(&installer);
 
     if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        let tail: String = err.chars().rev().take(800).collect::<String>().chars().rev().collect();
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let tail: String = stderr
+            .chars()
+            .rev()
+            .take(800)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect();
         return Err(AppError::Other(format!(
             "{:?} server installer failed: {tail}",
             instance.loader
@@ -282,6 +288,6 @@ fn write_eula(run_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn path_str(p: &PathBuf) -> String {
-    p.to_string_lossy().to_string()
+fn path_str(path: &PathBuf) -> String {
+    path.to_string_lossy().to_string()
 }

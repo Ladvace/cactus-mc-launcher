@@ -73,20 +73,20 @@ async fn fetch_pack(client: &reqwest::Client, id: u64) -> Option<Pack> {
         .ok()
 }
 
-fn pack_to_hit(p: Pack) -> SearchHit {
-    let icon = p
+fn pack_to_hit(pack: Pack) -> SearchHit {
+    let icon = pack
         .art
         .into_iter()
-        .find(|a| a.kind == "square")
-        .map(|a| a.url)
-        .filter(|u| !u.is_empty());
+        .find(|art| art.kind == "square")
+        .map(|art| art.url)
+        .filter(|url| !url.is_empty());
     SearchHit {
-        project_id: p.id.to_string(),
-        slug: p.id.to_string(),
-        title: p.name,
-        description: p.synopsis,
-        author: p.authors.into_iter().next().map(|a| a.name).unwrap_or_default(),
-        downloads: p.installs,
+        project_id: pack.id.to_string(),
+        slug: pack.id.to_string(),
+        title: pack.name,
+        description: pack.synopsis,
+        author: pack.authors.into_iter().next().map(|author| author.name).unwrap_or_default(),
+        downloads: pack.installs,
         follows: 0,
         icon_url: icon,
         categories: Vec::new(),
@@ -137,7 +137,7 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
             async move { fetch_pack(&client, id).await.map(pack_to_hit) }
         })
         .buffer_unordered(8)
-        .filter_map(|x| async move { x })
+        .filter_map(|hit| async move { hit })
         .collect()
         .await;
 
@@ -159,12 +159,12 @@ pub async fn get_versions(project_id: &str) -> Result<Vec<Version>> {
     let mut versions: Vec<Version> = pack
         .versions
         .into_iter()
-        .map(|v| Version {
-            id: format!("{}:{}", pack.id, v.id),
+        .map(|version| Version {
+            id: format!("{}:{}", pack.id, version.id),
             project_id: pack.id.to_string(),
-            name: v.name.clone(),
-            version_number: v.name,
-            version_type: v.kind.to_lowercase(),
+            name: version.name.clone(),
+            version_number: version.name,
+            version_type: version.kind.to_lowercase(),
             game_versions: Vec::new(),
             loaders: Vec::new(),
             files: vec![VersionFile {
@@ -237,14 +237,14 @@ pub async fn fetch_manifest(pack_id: u64, version_id: u64) -> Result<Manifest> {
 }
 
 /// Minimal percent-encoding for the search term (spaces and a few specials).
-fn urlencoding(s: &str) -> String {
+fn urlencoding(text: &str) -> String {
     let mut out = String::new();
-    for b in s.bytes() {
-        match b {
+    for byte in text.bytes() {
+        match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char)
+                out.push(byte as char)
             }
-            _ => out.push_str(&format!("%{b:02X}")),
+            _ => out.push_str(&format!("%{byte:02X}")),
         }
     }
     out

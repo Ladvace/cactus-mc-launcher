@@ -18,7 +18,7 @@
   const offlineName = $derived(
     settingsStore.settings.offlineUsername || "Player"
   );
-  const dc = $derived(accountsStore.deviceCode);
+  const deviceCode = $derived(accountsStore.deviceCode);
 
   // --- Skin viewer / changer (active Microsoft account) ---
   const active = $derived(accountsStore.active);
@@ -34,40 +34,39 @@
 
   // Load the current skin (via Rust to dodge cross-origin WebGL taint).
   $effect(() => {
-    const a = active;
-    if (!open || !a) {
+    const activeAccount = active;
+    if (!open || !activeAccount) {
       skinData = "";
       return;
     }
     api
-      .downloadImage(`https://minotar.net/skin/${a.uuid}`)
-      .then((d) => (skinData = d))
+      .downloadImage(`https://minotar.net/skin/${activeAccount.uuid}`)
+      .then((dataUri) => (skinData = dataUri))
       .catch(() => (skinData = ""));
   });
 
-  // Load capes the account owns.
   $effect(() => {
-    const a = active;
-    if (!open || !a) {
+    const activeAccount = active;
+    if (!open || !activeAccount) {
       capes = [];
       capeData = "";
       return;
     }
     api
       .getCapes()
-      .then((cs) => {
-        capes = cs;
-        loadActiveCape(cs);
+      .then((ownedCapes) => {
+        capes = ownedCapes;
+        loadActiveCape(ownedCapes);
       })
       .catch(() => (capes = []));
   });
 
-  function loadActiveCape(cs: typeof capes) {
-    const activeCape = cs.find((c) => c.active);
+  function loadActiveCape(capeList: typeof capes) {
+    const activeCape = capeList.find((cape) => cape.active);
     if (activeCape) {
       api
         .downloadImage(activeCape.url)
-        .then((d) => (capeData = d))
+        .then((dataUri) => (capeData = dataUri))
         .catch(() => (capeData = ""));
     } else {
       capeData = "";
@@ -77,19 +76,19 @@
   async function chooseCape(id: string | null) {
     try {
       await api.setCape(id);
-      capes = capes.map((c) => ({ ...c, active: c.id === id }));
+      capes = capes.map((cape) => ({ ...cape, active: cape.id === id }));
       loadActiveCape(capes);
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 
   function fileToDataUrl(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result as string);
-      r.onerror = () => reject(r.error);
-      r.readAsDataURL(file);
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
     });
   }
 
@@ -98,8 +97,8 @@
     changing = true;
     skinMsg = null;
     try {
-      const buf = await file.arrayBuffer();
-      await api.setSkin(Array.from(new Uint8Array(buf)), variant);
+      const buffer = await file.arrayBuffer();
+      await api.setSkin(Array.from(new Uint8Array(buffer)), variant);
       skinData = await fileToDataUrl(file); // instant preview
       skinMsg = "Skin updated ✓";
       setTimeout(() => (skinMsg = null), 4000);
@@ -110,17 +109,17 @@
     }
   }
 
-  function onSkinFile(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
+  function onSkinFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = "";
     if (file) applySkinFile(file);
   }
 
-  function onSkinDrop(e: DragEvent) {
-    e.preventDefault();
+  function onSkinDrop(event: DragEvent) {
+    event.preventDefault();
     dragOver = false;
-    const file = e.dataTransfer?.files?.[0];
+    const file = event.dataTransfer?.files?.[0];
     if (file && file.type === "image/png") applySkinFile(file);
   }
 
@@ -140,8 +139,8 @@
       <div
         class="skin-stage"
         class:drag={dragOver}
-        ondragover={(e) => {
-          e.preventDefault();
+        ondragover={(event) => {
+          event.preventDefault();
           dragOver = true;
         }}
         ondragleave={() => (dragOver = false)}
@@ -177,12 +176,12 @@
           <div class="cape-row">
             <button
               class="cape-btn"
-              class:on={!capes.some((c) => c.active)}
+              class:on={!capes.some((cape) => cape.active)}
               onclick={() => chooseCape(null)}>None</button
             >
-            {#each capes as c (c.id)}
-              <button class="cape-btn" class:on={c.active} onclick={() => chooseCape(c.id)}>
-                {c.alias}
+            {#each capes as cape (cape.id)}
+              <button class="cape-btn" class:on={cape.active} onclick={() => chooseCape(cape.id)}>
+                {cape.alias}
               </button>
             {/each}
           </div>
@@ -209,7 +208,6 @@
   {/if}
 
   <div class="list">
-    <!-- Offline -->
     <button
       class="row"
       class:active={accountsStore.activeId === null}
@@ -225,7 +223,6 @@
       {/if}
     </button>
 
-    <!-- Microsoft accounts -->
     {#each accountsStore.accounts as acc (acc.id)}
       <div class="row" class:active={accountsStore.activeId === acc.id}>
         <button class="row-main" onclick={() => accountsStore.setActive(acc.id)}>
@@ -249,26 +246,25 @@
     {/each}
   </div>
 
-  <!-- Add / login -->
   <div class="add-area">
     {#if !accountsStore.microsoftConfigured}
       <div class="notice">
         Microsoft sign-in isn't configured. Add your Azure client ID in
         <code>src-tauri/src/auth/mod.rs</code> to enable it.
       </div>
-    {:else if dc}
+    {:else if deviceCode}
       <div class="device-code">
         <p class="dc-title">Sign in to Microsoft</p>
         <p class="dc-instructions">
           Open the link and enter this code:
         </p>
-        <div class="code">{dc.userCode}</div>
-        <button class="btn primary" onclick={() => openLink(dc.verificationUri)}>
-          Open {dc.verificationUri}
+        <div class="code">{deviceCode.userCode}</div>
+        <button class="btn primary" onclick={() => openLink(deviceCode.verificationUri)}>
+          Open {deviceCode.verificationUri}
         </button>
         <p class="dc-status">
           <span class="spinner"></span>
-          {dc.status === "authorizing"
+          {deviceCode.status === "authorizing"
             ? "Signing you in…"
             : "Waiting for you to authorize…"}
         </p>

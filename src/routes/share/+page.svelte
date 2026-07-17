@@ -21,7 +21,7 @@
     if (!online || !token) return;
     boardApi
       .myBoards(token)
-      .then((bs) => (hasBoard = bs.length > 0))
+      .then((boards) => (hasBoard = boards.length > 0))
       .catch(() => {});
   });
 
@@ -35,41 +35,39 @@
       : followedBoards.handles
   );
 
-  // Discover: board search
   let query = $state("");
   let debounced = $state("");
   let results = $state<BoardCard[]>([]);
   let searching = $state(false);
 
   $effect(() => {
-    const q = query;
-    const t = setTimeout(() => (debounced = q), 300);
-    return () => clearTimeout(t);
+    const currentQuery = query;
+    const timer = setTimeout(() => (debounced = currentQuery), 300);
+    return () => clearTimeout(timer);
   });
   $effect(() => {
     if (!online) return;
-    const q = debounced.trim();
-    if (!q) {
+    const trimmed = debounced.trim();
+    if (!trimmed) {
       results = [];
       return;
     }
     searching = true;
     boardApi
-      .search(q)
-      .then((r) => (results = r))
+      .search(trimmed)
+      .then((found) => (results = found))
       .catch(() => (results = []))
       .finally(() => (searching = false));
   });
 
-  // Share an instance: import from file or code
   let fileInput = $state<HTMLInputElement>();
   let importing = $state(false);
   let result = $state<ImportResult | null>(null);
   let code = $state("");
   let codeBusy = $state(false);
 
-  async function onFile(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
+  async function onFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = "";
     if (!file) return;
@@ -87,12 +85,12 @@
   }
 
   async function importByCode() {
-    const c = code.trim();
-    if (!c || codeBusy) return;
+    const trimmedCode = code.trim();
+    if (!trimmedCode || codeBusy) return;
     codeBusy = true;
     result = null;
     try {
-      const { snapshotId } = await boardApi.resolveCode(c);
+      const { snapshotId } = await boardApi.resolveCode(trimmedCode);
       importing = true;
       result = await boardApi.importSnapshot(snapshotId);
       recordImport(result.instance.id, {
@@ -101,8 +99,8 @@
         importedAt: Date.now(),
       });
       await instancesStore.refresh();
-    } catch (e) {
-      toast.error(String(e));
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       codeBusy = false;
       importing = false;
@@ -126,9 +124,9 @@
     <button class="tab" class:on={active === "discover"} onclick={() => (active = "discover")}>
       Discover
     </button>
-    {#each tabs as h (h)}
-      <button class="tab" class:on={active === h} onclick={() => (active = h)}>
-        @{h}
+    {#each tabs as handle (handle)}
+      <button class="tab" class:on={active === handle} onclick={() => (active = handle)}>
+        @{handle}
       </button>
     {/each}
     <button
@@ -153,13 +151,13 @@
       </div>
       {#if results.length}
         <ul class="results">
-          {#each results as b (b.handle)}
+          {#each results as board (board.handle)}
             <li>
-              <button class="bcard" onclick={() => (active = b.handle)}>
-                <span class="kind">{b.kind}</span>
+              <button class="bcard" onclick={() => (active = board.handle)}>
+                <span class="kind">{board.kind}</span>
                 <span class="bbody">
-                  <span class="name">{b.displayName}</span>
-                  <span class="handle">@{b.handle} · {b.ownerName}</span>
+                  <span class="name">{board.displayName}</span>
+                  <span class="handle">@{board.handle} · {board.ownerName}</span>
                 </span>
               </button>
             </li>
@@ -189,7 +187,7 @@
           </button>
           {#if online}
             <div class="code">
-              <input placeholder="Paste a share code…" bind:value={code} onkeydown={(e) => e.key === "Enter" && importByCode()} />
+              <input placeholder="Paste a share code…" bind:value={code} onkeydown={(event) => event.key === "Enter" && importByCode()} />
               <button class="btn primary sm" disabled={codeBusy || !code.trim()} onclick={importByCode}>Go</button>
             </div>
           {/if}

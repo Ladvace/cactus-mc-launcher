@@ -27,13 +27,13 @@
   $effect(() => {
     const el = menuEl;
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    let nx = x;
-    let ny = y;
-    if (x + r.width > window.innerWidth - 8) nx = window.innerWidth - r.width - 8;
-    if (y + r.height > window.innerHeight - 8)
-      ny = window.innerHeight - r.height - 8;
-    pos = { x: Math.max(8, nx), y: Math.max(8, ny) };
+    const rect = el.getBoundingClientRect();
+    let nextX = x;
+    let nextY = y;
+    if (x + rect.width > window.innerWidth - 8) nextX = window.innerWidth - rect.width - 8;
+    if (y + rect.height > window.innerHeight - 8)
+      nextY = window.innerHeight - rect.height - 8;
+    pos = { x: Math.max(8, nextX), y: Math.max(8, nextY) };
   });
 
   function select(item: MenuItem) {
@@ -42,14 +42,14 @@
     onClose();
   }
 
-  function onWindowPointerDown(e: PointerEvent) {
-    if (menuEl && !menuEl.contains(e.target as Node)) onClose();
+  function onWindowPointerDown(event: PointerEvent) {
+    if (menuEl && !menuEl.contains(event.target as Node)) onClose();
   }
 </script>
 
 <svelte:window
   onpointerdown={onWindowPointerDown}
-  onkeydown={(e) => e.key === "Escape" && onClose()}
+  onkeydown={(event) => event.key === "Escape" && onClose()}
   onwheel={onClose}
   onresize={onClose}
 />

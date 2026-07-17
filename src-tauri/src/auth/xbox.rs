@@ -44,7 +44,7 @@ fn extract(resp: XboxResponse) -> Result<XboxAuth> {
         .xui
         .into_iter()
         .next()
-        .map(|x| x.uhs)
+        .map(|claim| claim.uhs)
         .ok_or_else(|| AppError::Other("Xbox response missing user hash".into()))?;
     Ok(XboxAuth {
         token: resp.token,
@@ -91,8 +91,8 @@ pub async fn xsts_authorize(client: &reqwest::Client, xbl_token: &str) -> Result
     let status = resp.status();
     if !status.is_success() {
         // Map the well-known XSTS error codes to friendly messages.
-        if let Ok(err) = resp.json::<XstsError>().await {
-            let msg = match err.xerr {
+        if let Ok(error) = resp.json::<XstsError>().await {
+            let message = match error.xerr {
                 Some(2148916233) => {
                     "This Microsoft account has no Xbox profile. Create one at xbox.com, then try again."
                 }
@@ -105,7 +105,7 @@ pub async fn xsts_authorize(client: &reqwest::Client, xbl_token: &str) -> Result
                 }
                 _ => "Xbox (XSTS) authorization failed.",
             };
-            return Err(AppError::Other(msg.into()));
+            return Err(AppError::Other(message.into()));
         }
         return Err(AppError::Other("Xbox (XSTS) authorization failed".into()));
     }

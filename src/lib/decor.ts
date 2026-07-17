@@ -28,9 +28,9 @@ export async function spriteToSquareIcon(url: string, size = 128): Promise<strin
   if (!ctx) return url;
   ctx.imageSmoothingEnabled = true;
   const scale = Math.min(size / img.width, size / img.height) * 0.92;
-  const w = img.width * scale;
-  const h = img.height * scale;
-  ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+  const width = img.width * scale;
+  const height = img.height * scale;
+  ctx.drawImage(img, (size - width) / 2, (size - height) / 2, width, height);
   return canvas.toDataURL("image/png");
 }
 

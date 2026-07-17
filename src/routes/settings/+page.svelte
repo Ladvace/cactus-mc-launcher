@@ -33,7 +33,6 @@
   let saved = $state(false);
   let saving = $state(false);
 
-  // --- Shared content cache stats ---
   let cacheStats = $state<CacheStats | null>(null);
   let cacheLoading = $state(false);
 
@@ -54,16 +53,15 @@
   function formatBytes(n: number): string {
     if (n <= 0) return "0 B";
     const units = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
-    return `${(n / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+    const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
+    return `${(n / Math.pow(1024, unitIndex)).toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
   }
 
-  // --- Background ---
   const kind = $derived(bgKind(draft.background ?? ""));
   const colorValue = $derived.by(() => {
-    const v = draft.background.startsWith("color:") ? draft.background.slice(6) : "";
+    const value = draft.background.startsWith("color:") ? draft.background.slice(6) : "";
     // Decor-theme presets store a gradient here; the colour input needs a hex.
-    return /^#[0-9a-fA-F]{6}$/.test(v) ? v : DEFAULT_COLOR;
+    return /^#[0-9a-fA-F]{6}$/.test(value) ? value : DEFAULT_COLOR;
   });
   const activePattern = $derived(
     kind === "pattern" ? parsePattern(draft.background).name : ""
@@ -81,8 +79,8 @@
 
   let bgFileInput = $state<HTMLInputElement>();
 
-  function setColor(v: string) {
-    draft.background = `color:${v}`;
+  function setColor(value: string) {
+    draft.background = `color:${value}`;
   }
   // Set the pattern, keeping any chosen base colour.
   function setPattern(name: string) {
@@ -97,13 +95,13 @@
     const { uri } = parseImage(draft.background);
     if (uri) draft.background = `image:${color}|${uri}`;
   }
-  function setTextureOpacity(v: number) {
+  function setTextureOpacity(value: number) {
     const { uri, color } = parseTexture(draft.background);
-    const c = color ? `${color}|` : "";
-    draft.background = `texture:${v}|${c}${uri}`;
+    const colorPrefix = color ? `${color}|` : "";
+    draft.background = `texture:${value}|${colorPrefix}${uri}`;
   }
-  async function onBgFile(e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
+  async function onBgFile(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = "";
     if (!file) return;
@@ -131,7 +129,6 @@
     }
   });
 
-  // --- Managed Java auto-setup ---
   let javaBusy = $state(false);
   let javaLabel = $state("");
   let javaCur = $state(0);
@@ -147,12 +144,12 @@
     let unlisten: (() => void) | undefined;
     listen<{ label: string; current: number; total: number }>(
       "java-setup",
-      (e) => {
-        javaLabel = e.payload.label;
-        javaCur = e.payload.current;
-        javaTotal = e.payload.total;
+      (event) => {
+        javaLabel = event.payload.label;
+        javaCur = event.payload.current;
+        javaTotal = event.payload.total;
       }
-    ).then((u) => (unlisten = u));
+    ).then((fn) => (unlisten = fn));
     return () => unlisten?.();
   });
 
@@ -165,8 +162,8 @@
     javaTotal = 0;
     try {
       javaInstalled = await api.setupJava();
-    } catch (e) {
-      javaError = String(e);
+    } catch (err) {
+      javaError = String(err);
     } finally {
       javaBusy = false;
       javaLabel = "";
@@ -192,7 +189,7 @@
     type="color"
     class="color-input"
     {value}
-    oninput={(e) => onPick(e.currentTarget.value)}
+    oninput={(event) => onPick(event.currentTarget.value)}
   />
   <span class="hex">{value}</span>
 {/snippet}
@@ -268,13 +265,13 @@
         <small>Which edge of the window the app dock sits on.</small>
       </div>
       <div class="seg">
-        {#each DOCK_POSITIONS as p}
+        {#each DOCK_POSITIONS as position}
           <button
             class="seg-btn"
-            class:on={draft.dockPosition === p.value}
-            onclick={() => (draft.dockPosition = p.value)}
+            class:on={draft.dockPosition === position.value}
+            onclick={() => (draft.dockPosition = position.value)}
           >
-            {p.label}
+            {position.label}
           </button>
         {/each}
       </div>
@@ -300,26 +297,26 @@
       <small>One-click backgrounds — solid colours, patterns, and cactus decor.</small>
     </div>
     <div class="themes">
-      {#each THEME_PRESETS as t (t.name)}
+      {#each THEME_PRESETS as preset (preset.name)}
         <button
           class="theme"
-          class:on={draft.background === t.bg && (draft.decorTheme ?? "") === (t.decor ?? "")}
+          class:on={draft.background === preset.bg && (draft.decorTheme ?? "") === (preset.decor ?? "")}
           onclick={() => {
-            draft.background = t.bg;
-            draft.decorTheme = t.decor ?? "";
+            draft.background = preset.bg;
+            draft.decorTheme = preset.decor ?? "";
           }}
-          title={t.name}
+          title={preset.name}
         >
-          <span class="theme-swatch" style="background: {backgroundCss(t.bg)};">
-            {#if t.decor}
+          <span class="theme-swatch" style="background: {backgroundCss(preset.bg)};">
+            {#if preset.decor}
               <img
                 class="theme-decor"
-                src={DECOR_THEMES.find((d) => d.id === t.decor)?.placements[0].sprite}
+                src={DECOR_THEMES.find((decor) => decor.id === preset.decor)?.placements[0].sprite}
                 alt=""
               />
             {/if}
           </span>
-          <span class="theme-name">{t.name}</span>
+          <span class="theme-name">{preset.name}</span>
         </button>
       {/each}
     </div>
@@ -375,14 +372,14 @@
       </div>
     {:else if kind === "pattern"}
       <div class="bg-detail patterns">
-        {#each PATTERNS as p}
+        {#each PATTERNS as pattern}
           <button
             class="swatch"
-            class:on={activePattern === p}
-            style="background: {backgroundCss(`pattern:${p}|${patternColor}`)};"
-            title={p}
-            aria-label={p}
-            onclick={() => setPattern(p)}
+            class:on={activePattern === pattern}
+            style="background: {backgroundCss(`pattern:${pattern}|${patternColor}`)};"
+            title={pattern}
+            aria-label={pattern}
+            onclick={() => setPattern(pattern)}
           ></button>
         {/each}
       </div>
@@ -413,7 +410,7 @@
           max="1"
           step="0.05"
           value={textureOpacity}
-          oninput={(e) => setTextureOpacity(parseFloat(e.currentTarget.value))}
+          oninput={(event) => setTextureOpacity(parseFloat(event.currentTarget.value))}
         />
         <span class="hex">{Math.round(textureOpacity * 100)}%</span>
       </div>

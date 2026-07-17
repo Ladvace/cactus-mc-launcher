@@ -16,16 +16,16 @@ use crate::paths;
 fn concise_args(args: &[String]) -> String {
     let sep = if cfg!(windows) { ';' } else { ':' };
     let mut out = Vec::new();
-    let mut i = 0;
-    while i < args.len() {
-        if (args[i] == "-cp" || args[i] == "-classpath") && i + 1 < args.len() {
-            let count = args[i + 1].split(sep).count();
+    let mut index = 0;
+    while index < args.len() {
+        if (args[index] == "-cp" || args[index] == "-classpath") && index + 1 < args.len() {
+            let count = args[index + 1].split(sep).count();
             out.push("-cp".to_string());
             out.push(format!("<{count} jars>"));
-            i += 2;
+            index += 2;
         } else {
-            out.push(args[i].clone());
-            i += 1;
+            out.push(args[index].clone());
+            index += 1;
         }
     }
     out.join(" ")
@@ -39,8 +39,8 @@ fn describe_exit(status: &std::process::ExitStatus) -> String {
     #[cfg(unix)]
     {
         use std::os::unix::process::ExitStatusExt;
-        if let Some(sig) = status.signal() {
-            let name = match sig {
+        if let Some(signal) = status.signal() {
+            let name = match signal {
                 4 => "SIGILL",
                 5 => "SIGTRAP",
                 6 => "SIGABRT",
@@ -49,7 +49,7 @@ fn describe_exit(status: &std::process::ExitStatus) -> String {
                 11 => "SIGSEGV",
                 _ => "signal",
             };
-            return format!("Crashed ({name}, signal {sig})");
+            return format!("Crashed ({name}, signal {signal})");
         }
     }
     "Exited".to_string()
@@ -114,13 +114,13 @@ pub fn spawn_and_monitor(
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| {
+        .map_err(|error| {
             let hint = if cfg!(target_os = "macos") {
                 " (older Minecraft versions need Rosetta 2 on Apple Silicon — install it with: softwareupdate --install-rosetta --agree-to-license)"
             } else {
                 ""
             };
-            AppError::Other(format!("failed to start Java process: {e}{hint}"))
+            AppError::Other(format!("failed to start Java process: {error}{hint}"))
         })?;
 
     emit_status(&app, &instance_id, "running", None);
@@ -147,8 +147,8 @@ pub fn spawn_and_monitor(
     tokio::spawn(async move {
         let exit_message = tokio::select! {
             status = child.wait() => match status {
-                Ok(s) => describe_exit(&s),
-                Err(e) => format!("Process error: {e}"),
+                Ok(status) => describe_exit(&status),
+                Err(error) => format!("Process error: {error}"),
             },
             _ = kill_rx => {
                 let _ = child.start_kill();
@@ -160,8 +160,11 @@ pub fn spawn_and_monitor(
         eprintln!("[launch] instance {instance_id} {exit_message}");
 
         // Surface captured stderr (incl. native crashes) in the in-app Logs tab.
-        if let Ok(err) = std::fs::read_to_string(&stderr_path) {
-            let lines: Vec<&str> = err.lines().filter(|l| !l.trim().is_empty()).collect();
+        if let Ok(stderr_text) = std::fs::read_to_string(&stderr_path) {
+            let lines: Vec<&str> = stderr_text
+                .lines()
+                .filter(|line| !line.trim().is_empty())
+                .collect();
             if !lines.is_empty() {
                 // Keep the last chunk to avoid flooding the UI on huge dumps.
                 let start = lines.len().saturating_sub(200);
@@ -171,13 +174,12 @@ pub fn spawn_and_monitor(
             }
         }
 
-        // Record playtime.
         let elapsed = started.elapsed().as_secs();
         let store = app.state::<InstanceStore>();
-        if let Some(mut inst) = store.get(&instance_id) {
-            inst.total_playtime_seconds += elapsed;
-            inst.last_played = Some(Utc::now());
-            let _ = store.save(&app, &inst);
+        if let Some(mut instance) = store.get(&instance_id) {
+            instance.total_playtime_seconds += elapsed;
+            instance.last_played = Some(Utc::now());
+            let _ = store.save(&app, &instance);
         }
 
         app.state::<LaunchState>().unregister(&instance_id);
@@ -219,7 +221,7 @@ pub fn spawn_server(
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| AppError::Other(format!("failed to start server process: {e}")))?;
+        .map_err(|error| AppError::Other(format!("failed to start server process: {error}")))?;
 
     emit_status(&app, &instance_id, "running", None);
 
@@ -232,14 +234,14 @@ pub fn spawn_server(
         let id = instance_id.clone();
         tokio::spawn(async move {
             match pipe {
-                Pipe::Out(o) => {
-                    let mut lines = BufReader::new(o).lines();
+                Pipe::Out(stdout) => {
+                    let mut lines = BufReader::new(stdout).lines();
                     while let Ok(Some(line)) = lines.next_line().await {
                         emit_log(&app, &id, line);
                     }
                 }
-                Pipe::Err(e) => {
-                    let mut lines = BufReader::new(e).lines();
+                Pipe::Err(stderr) => {
+                    let mut lines = BufReader::new(stderr).lines();
                     while let Ok(Some(line)) = lines.next_line().await {
                         emit_log(&app, &id, line);
                     }
@@ -259,22 +261,22 @@ pub fn spawn_server(
             tokio::select! {
                 status = child.wait() => {
                     break match status {
-                        Ok(s) => describe_exit(&s),
-                        Err(e) => format!("Process error: {e}"),
+                        Ok(status) => describe_exit(&status),
+                        Err(error) => format!("Process error: {error}"),
                     };
                 }
                 msg = rx.recv() => {
                     match msg {
                         Some(ServerMsg::Line(line)) => {
-                            if let Some(si) = stdin.as_mut() {
-                                let _ = si.write_all(format!("{line}\n").as_bytes()).await;
-                                let _ = si.flush().await;
+                            if let Some(stdin_handle) = stdin.as_mut() {
+                                let _ = stdin_handle.write_all(format!("{line}\n").as_bytes()).await;
+                                let _ = stdin_handle.flush().await;
                             }
                         }
                         Some(ServerMsg::Stop) => {
-                            if let Some(si) = stdin.as_mut() {
-                                let _ = si.write_all(b"stop\n").await;
-                                let _ = si.flush().await;
+                            if let Some(stdin_handle) = stdin.as_mut() {
+                                let _ = stdin_handle.write_all(b"stop\n").await;
+                                let _ = stdin_handle.flush().await;
                             }
                             // Let the server shut itself down; child.wait() above
                             // resolves once it exits.
@@ -293,10 +295,10 @@ pub fn spawn_server(
 
         let elapsed = started.elapsed().as_secs();
         let store = app.state::<InstanceStore>();
-        if let Some(mut inst) = store.get(&instance_id) {
-            inst.total_playtime_seconds += elapsed;
-            inst.last_played = Some(Utc::now());
-            let _ = store.save(&app, &inst);
+        if let Some(mut instance) = store.get(&instance_id) {
+            instance.total_playtime_seconds += elapsed;
+            instance.last_played = Some(Utc::now());
+            let _ = store.save(&app, &instance);
         }
 
         app.state::<ServerState>().unregister(&instance_id);

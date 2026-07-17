@@ -19,10 +19,10 @@
     instance.name
       .split(/\s+/)
       .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase() ?? "")
+      .map((word) => word[0]?.toUpperCase() ?? "")
       .join("") || "?"
   );
-  const bg = $derived(loaderColor[instance.loader] ?? "#4a6b8a");
+  const backgroundColor = $derived(loaderColor[instance.loader] ?? "#4a6b8a");
 </script>
 
 {#if instance.icon}
@@ -35,7 +35,7 @@
 {:else}
   <div
     class="icon-fallback"
-    style="width:{size}px;height:{size}px;background:{bg};font-size:{Math.round(
+    style="width:{size}px;height:{size}px;background:{backgroundColor};font-size:{Math.round(
       size * 0.38
     )}px;"
   >

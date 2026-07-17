@@ -44,7 +44,7 @@ fn whitelist_file(app: &AppHandle, id: &str) -> Result<PathBuf> {
 fn read_json<T: for<'de> Deserialize<'de>>(path: &PathBuf) -> Vec<T> {
     std::fs::read_to_string(path)
         .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
+        .and_then(|text| serde_json::from_str(&text).ok())
         .unwrap_or_default()
 }
 
@@ -66,13 +66,13 @@ pub fn read_whitelist(app: &AppHandle, id: &str) -> Result<Vec<PlayerEntry>> {
 fn is_online_mode(app: &AppHandle, id: &str) -> bool {
     let props = paths::instance_game_dir(app, id)
         .ok()
-        .map(|d| d.join("server.properties"));
-    let text = props.and_then(|p| std::fs::read_to_string(p).ok());
+        .map(|dir| dir.join("server.properties"));
+    let text = props.and_then(|path| std::fs::read_to_string(path).ok());
     let Some(text) = text else { return true };
     for line in text.lines() {
-        let t = line.trim();
-        if let Some(v) = t.strip_prefix("online-mode=") {
-            return v.trim() != "false";
+        let trimmed = line.trim();
+        if let Some(value) = trimmed.strip_prefix("online-mode=") {
+            return value.trim() != "false";
         }
     }
     true
@@ -99,17 +99,17 @@ async fn resolve_player(app: &AppHandle, id: &str, name: &str) -> Result<(String
 }
 
 /// Insert dashes into a 32-char undashed UUID (8-4-4-4-12).
-fn dash_uuid(u: &str) -> String {
-    if u.len() != 32 {
-        return u.to_string();
+fn dash_uuid(uuid: &str) -> String {
+    if uuid.len() != 32 {
+        return uuid.to_string();
     }
     format!(
         "{}-{}-{}-{}-{}",
-        &u[0..8],
-        &u[8..12],
-        &u[12..16],
-        &u[16..20],
-        &u[20..32]
+        &uuid[0..8],
+        &uuid[8..12],
+        &uuid[12..16],
+        &uuid[16..20],
+        &uuid[20..32]
     )
 }
 
@@ -117,7 +117,7 @@ pub async fn add_op(app: &AppHandle, id: &str, name: &str, level: u8) -> Result<
     let (uuid, canonical) = resolve_player(app, id, name).await?;
     let path = ops_file(app, id)?;
     let mut ops: Vec<OpEntry> = read_json(&path);
-    ops.retain(|o| !o.name.eq_ignore_ascii_case(&canonical) && o.uuid != uuid);
+    ops.retain(|op| !op.name.eq_ignore_ascii_case(&canonical) && op.uuid != uuid);
     ops.push(OpEntry {
         uuid,
         name: canonical,
@@ -130,7 +130,7 @@ pub async fn add_op(app: &AppHandle, id: &str, name: &str, level: u8) -> Result<
 pub fn remove_op(app: &AppHandle, id: &str, name: &str) -> Result<()> {
     let path = ops_file(app, id)?;
     let mut ops: Vec<OpEntry> = read_json(&path);
-    ops.retain(|o| !o.name.eq_ignore_ascii_case(name));
+    ops.retain(|op| !op.name.eq_ignore_ascii_case(name));
     write_json(&path, &ops)
 }
 
@@ -138,7 +138,7 @@ pub async fn add_whitelist(app: &AppHandle, id: &str, name: &str) -> Result<()> 
     let (uuid, canonical) = resolve_player(app, id, name).await?;
     let path = whitelist_file(app, id)?;
     let mut list: Vec<PlayerEntry> = read_json(&path);
-    list.retain(|p| !p.name.eq_ignore_ascii_case(&canonical) && p.uuid != uuid);
+    list.retain(|player| !player.name.eq_ignore_ascii_case(&canonical) && player.uuid != uuid);
     list.push(PlayerEntry { uuid, name: canonical });
     write_json(&path, &list)
 }
@@ -146,7 +146,7 @@ pub async fn add_whitelist(app: &AppHandle, id: &str, name: &str) -> Result<()> 
 pub fn remove_whitelist(app: &AppHandle, id: &str, name: &str) -> Result<()> {
     let path = whitelist_file(app, id)?;
     let mut list: Vec<PlayerEntry> = read_json(&path);
-    list.retain(|p| !p.name.eq_ignore_ascii_case(name));
+    list.retain(|player| !player.name.eq_ignore_ascii_case(name));
     write_json(&path, &list)
 }
 

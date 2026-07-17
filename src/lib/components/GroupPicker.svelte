@@ -11,10 +11,10 @@
     [
       ...new Set(
         instancesStore.instances
-          .map((i) => i.group)
-          .filter((g): g is string => !!g)
+          .map((instance) => instance.group)
+          .filter((group): group is string => !!group)
       ),
-    ].sort((a, b) => a.localeCompare(b))
+    ].sort((first, second) => first.localeCompare(second))
   );
 
   let newGroup = $state("");
@@ -27,10 +27,10 @@
   }
 
   async function createAndAssign() {
-    const g = newGroup.trim();
-    if (!g) return;
+    const groupName = newGroup.trim();
+    if (!groupName) return;
     newGroup = "";
-    await assign(g);
+    await assign(groupName);
   }
 </script>
 
@@ -47,10 +47,10 @@
       <button class="opt" class:on={!inst.group} onclick={() => assign("")}>
         <Icon name="home" size={14} /> No group
       </button>
-      {#each groups as g (g)}
-        <button class="opt" class:on={inst.group === g} onclick={() => assign(g)}>
+      {#each groups as group (group)}
+        <button class="opt" class:on={inst.group === group} onclick={() => assign(group)}>
           <Icon name="folder" size={14} />
-          {g}
+          {group}
         </button>
       {/each}
     </div>
@@ -60,7 +60,7 @@
         class="input"
         placeholder="New group…"
         bind:value={newGroup}
-        onkeydown={(e) => e.key === "Enter" && createAndAssign()}
+        onkeydown={(event) => event.key === "Enter" && createAndAssign()}
       />
       <button class="btn primary" disabled={!newGroup.trim()} onclick={createAndAssign}>
         Create
