@@ -53,6 +53,7 @@ pub fn run() {
             commands::create_instance,
             commands::update_instance,
             commands::delete_instance,
+            commands::create_server_from,
             commands::instance_folder,
             commands::set_instance_game_dir,
             commands::get_settings,

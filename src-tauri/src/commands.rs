@@ -119,6 +119,47 @@ pub fn delete_instance(
     store.delete(&app, &id)
 }
 
+/// Create a dedicated-server instance from a client instance: same Minecraft
+/// version and loader, with its mods and configs copied over.
+#[tauri::command]
+pub fn create_server_from(
+    app: AppHandle,
+    store: State<'_, InstanceStore>,
+    id: String,
+) -> Result<Instance> {
+    let source = store.get(&id).ok_or_else(|| AppError::InstanceNotFound(id.clone()))?;
+
+    let mut server = Instance::new(
+        format!("{} (Server)", source.name),
+        InstanceKind::Server,
+        source.mc_version.clone(),
+        source.loader,
+        source.loader_version.clone(),
+        source.icon.clone(),
+    );
+    server.group = source.group.clone();
+    store.save(&app, &server)?;
+
+    // Content manifest lives with the record; mods/config live in the game dir.
+    let source_manifest = crate::paths::instance_dir(&app, &id)?.join("content.json");
+    if source_manifest.exists() {
+        std::fs::copy(
+            &source_manifest,
+            crate::paths::instance_dir(&app, &server.id)?.join("content.json"),
+        )?;
+    }
+    let source_game = crate::paths::instance_game_dir(&app, &id)?;
+    let server_game = crate::paths::instance_game_dir(&app, &server.id)?;
+    for sub in ["mods", "config"] {
+        let from = source_game.join(sub);
+        if from.exists() {
+            copy_tree(&from, &server_game.join(sub))?;
+        }
+    }
+
+    Ok(store.get(&server.id).unwrap_or(server))
+}
+
 /// The instance's game directory, for revealing it in the file manager.
 #[tauri::command]
 pub fn instance_folder(app: AppHandle, id: String) -> Result<String> {

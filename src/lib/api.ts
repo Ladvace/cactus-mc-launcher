@@ -38,6 +38,10 @@ export const api = {
 
   deleteInstance: (id: string) => invoke<void>("delete_instance", { id }),
 
+  /** Create a dedicated-server instance from a client instance (copies mods/config). */
+  createServerFrom: (id: string) =>
+    invoke<Instance>("create_server_from", { id }),
+
   /** The instance's game folder path (for revealing it in the file manager). */
   instanceFolder: (id: string) => invoke<string>("instance_folder", { id }),
 

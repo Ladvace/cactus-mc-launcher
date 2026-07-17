@@ -50,6 +50,15 @@
       },
       { label: "Open", icon: "folder", onSelect: () => goto(`/instance/${inst.id}`) },
       { label: "Open folder", icon: "archive", onSelect: () => openFolder(inst.id) },
+      ...(inst.kind !== "server"
+        ? [
+            {
+              label: "Create server",
+              icon: "globe",
+              onSelect: () => createServer(inst.id),
+            },
+          ]
+        : []),
       ...(inst.kind === "server"
         ? [
             {
@@ -154,6 +163,17 @@
       toast.success("Copied!");
     } catch {
       /* clipboard may be unavailable */
+    }
+  }
+
+  async function createServer(id: string) {
+    try {
+      const server = await api.createServerFrom(id);
+      await instancesStore.refresh();
+      toast.success("Server instance created.");
+      goto(`/instance/${server.id}`);
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 
