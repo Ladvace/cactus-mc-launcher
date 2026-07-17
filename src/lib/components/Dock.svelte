@@ -227,6 +227,9 @@
               <Icon name="plus" size={24} />
             {:else if item.kind === "instance"}
               <InstanceIcon instance={item.instance} size={44} />
+              {#if item.instance.kind === "server"}
+                <span class="kind-badge" title="Dedicated server">S</span>
+              {/if}
               {#if installStore.isInstalling(item.instance.id)}
                 <span class="dock-dl">
                   <span class="dock-spinner"></span>
@@ -438,6 +441,20 @@
     height: 44px;
     object-fit: cover;
     image-rendering: pixelated;
+  }
+  /* Marks a dedicated-server tile, mirroring the "SERVER" badge on Home. */
+  .kind-badge {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    z-index: 3;
+    padding: 1px 3px;
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    line-height: 1;
+    color: var(--bg-app);
+    background: var(--accent);
+    pointer-events: none;
   }
   .overflow {
     font-family: var(--font-pixel);
