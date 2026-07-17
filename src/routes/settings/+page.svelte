@@ -137,6 +137,15 @@
     if (folder) draft.instancesDir = folder;
   }
 
+  // The global ngrok key persists on its own (like a connected credential); a
+  // per-server key set on the instance overrides it.
+  async function saveNgrokToken() {
+    const token = draft.ngrokAuthtoken.trim();
+    draft.ngrokAuthtoken = token;
+    if (token === (settingsStore.settings.ngrokAuthtoken ?? "")) return;
+    await settingsStore.save({ ...draft, ngrokAuthtoken: token });
+  }
+
   // Sync the draft once settings finish loading.
   $effect(() => {
     if (settingsStore.loaded) {
@@ -524,6 +533,32 @@
           <Icon name="refresh" size={14} /> Reset
         </button>
       </div>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3>Servers</h3>
+    <div class="setting">
+      <div class="label">
+        <span>ngrok authtoken</span>
+        <small>
+          Lets you share a server over the internet (no port-forwarding). Get a
+          free token at
+          <button class="linkish" onclick={() => openUrl("https://dashboard.ngrok.com/get-started/your-authtoken")}>
+            ngrok.com
+          </button>. A server can override this with its own key.
+        </small>
+      </div>
+      <input
+        class="input narrow"
+        type="password"
+        placeholder="Paste your ngrok authtoken"
+        bind:value={draft.ngrokAuthtoken}
+        onblur={saveNgrokToken}
+        onkeydown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+        autocomplete="off"
+        spellcheck="false"
+      />
     </div>
   </section>
 

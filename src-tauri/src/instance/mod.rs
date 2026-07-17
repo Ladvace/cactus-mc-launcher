@@ -78,6 +78,9 @@ pub struct Instance {
     /// instance's data to another drive/folder without moving its record.
     #[serde(default)]
     pub game_dir: Option<String>,
+    /// ngrok authtoken for sharing this server, overriding the global one.
+    #[serde(default)]
+    pub ngrok_authtoken: Option<String>,
 }
 
 impl Instance {
@@ -110,6 +113,7 @@ impl Instance {
             game_width: None,
             game_height: None,
             game_dir: None,
+            ngrok_authtoken: None,
         }
     }
 }
@@ -151,6 +155,8 @@ pub struct UpdateInstance {
     pub java_path: Option<String>,
     pub game_width: Option<u32>,
     pub game_height: Option<u32>,
+    /// Per-instance ngrok authtoken; empty string clears it (use the global one).
+    pub ngrok_authtoken: Option<String>,
 }
 
 #[cfg(test)]

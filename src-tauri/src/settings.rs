@@ -40,6 +40,10 @@ pub struct Settings {
     /// own instances folder. Only affects instances created after it's set.
     #[serde(default)]
     pub instances_dir: String,
+    /// ngrok authtoken used to share a server over the internet. A per-instance
+    /// token overrides this. Empty = not configured.
+    #[serde(default)]
+    pub ngrok_authtoken: String,
 }
 
 impl Default for Settings {
@@ -60,6 +64,7 @@ impl Default for Settings {
             decor_theme: String::new(),
             dock_magnify: true,
             instances_dir: String::new(),
+            ngrok_authtoken: String::new(),
         }
     }
 }

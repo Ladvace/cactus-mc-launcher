@@ -102,6 +102,9 @@ pub fn update_instance(
     if let Some(value) = patch.game_height {
         instance.game_height = (value != 0).then_some(value);
     }
+    if let Some(value) = patch.ngrok_authtoken {
+        instance.ngrok_authtoken = (!value.trim().is_empty()).then_some(value);
+    }
 
     store.save(&app, &instance)?;
     Ok(instance)

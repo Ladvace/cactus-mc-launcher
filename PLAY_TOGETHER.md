@@ -27,13 +27,16 @@ not on us.
 
 1. Make a free ngrok account and copy your authtoken from
    <https://dashboard.ngrok.com/get-started/your-authtoken>.
-2. Start your server instance (default port 25565).
-3. Open the **Play Together** panel → *Play over the internet* → paste the
-   authtoken, confirm the port, **Start sharing**.
-4. Share the shown `host:port` with friends. They open Minecraft → Multiplayer →
-   Direct Connect → paste it.
+2. Add the token once in **Settings → Servers → ngrok authtoken** (a single
+   server can override it with its own key from its **Share online** row).
+3. Open your **server instance** and start it (default port 25565).
+4. Next to the server address, hit **Share via ngrok**. Share the shown
+   `host:port` with friends — they open Minecraft → Multiplayer → Direct Connect
+   → paste it.
 
-The authtoken is remembered locally (`cactus:ngrokToken`) so it's entered once.
+The tunnel lives with the server (not the "Play Together" matchmaking panel):
+the key is resolved as **per-server token → global Settings token**, and the
+port is read from the instance's `server.properties`.
 
 ## Implementation
 
@@ -42,7 +45,8 @@ The authtoken is remembered locally (`cactus:ngrokToken`) so it's entered once.
 | Tunnel (ngrok SDK, forward loop) | `src-tauri/src/tunnel.rs` |
 | Commands `tunnel_start` / `tunnel_stop` | registered in `src-tauri/src/lib.rs` |
 | API wrappers | `src/lib/api.ts` (`tunnelStart` / `tunnelStop`) |
-| UI | `src/lib/components/ServerTunnel.svelte` (in the Play Together panel) |
+| Global key | `Settings` (`ngrokAuthtoken`); per-server override on the instance |
+| UI | `src/lib/components/ServerShare.svelte` (on the server instance page) |
 
 No backend/deploy is required — the tunnel is entirely client-side plus the
 host's ngrok account. `tunnel_start(authtoken, port)` connects an ngrok session,
@@ -52,7 +56,7 @@ and returns the public address; `tunnel_stop` tears it down.
 ## Caveats / testing
 
 - Real networking — verify with two machines on different networks. The server
-  must actually be listening on the port passed to *Start sharing*.
+  must actually be listening on the port read from `server.properties`.
 - ngrok's free tier has session/bandwidth limits; heavy servers may want a paid
   plan. Minecraft traffic is light, so casual play is fine.
 - rustls needs a crypto provider at runtime; if `connect()` ever panics with

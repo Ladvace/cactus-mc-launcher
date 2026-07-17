@@ -11,6 +11,7 @@
   import Modal from "$lib/components/Modal.svelte";
   import ServerProperties from "$lib/components/ServerProperties.svelte";
   import ServerAddress from "$lib/components/ServerAddress.svelte";
+  import ServerShare from "$lib/components/ServerShare.svelte";
   import PlayersList from "$lib/components/PlayersList.svelte";
   import WorldsList from "$lib/components/WorldsList.svelte";
   import InstanceJavaSettings from "$lib/components/InstanceJavaSettings.svelte";
@@ -322,6 +323,7 @@
 
       {#if isServer}
         <ServerAddress {id} />
+        <ServerShare {id} />
       {/if}
       </div>
     </div>

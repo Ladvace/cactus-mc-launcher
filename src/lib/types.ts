@@ -37,6 +37,8 @@ export interface Instance {
   gameHeight: number | null;
   /** Absolute game-data folder; null = default under the instances folder. */
   gameDir: string | null;
+  /** Per-instance ngrok authtoken (overrides the global one); null = use global. */
+  ngrokAuthtoken: string | null;
 }
 
 export interface CreateInstance {
@@ -96,6 +98,8 @@ export interface UpdateInstance {
   javaPath?: string;
   gameWidth?: number;
   gameHeight?: number;
+  /** Per-instance ngrok authtoken; "" clears it (use the global one). */
+  ngrokAuthtoken?: string;
 }
 
 export interface Sticker {
@@ -200,6 +204,8 @@ export interface Settings {
   dockMagnify: boolean;
   /** Default parent folder for new instances' data. Empty = app default. */
   instancesDir: string;
+  /** Global ngrok authtoken for sharing servers; a per-instance token wins. */
+  ngrokAuthtoken: string;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";
