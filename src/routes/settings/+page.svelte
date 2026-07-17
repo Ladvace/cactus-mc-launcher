@@ -36,16 +36,14 @@
   let cacheStats = $state<CacheStats | null>(null);
   let cacheLoading = $state(false);
 
-  // Stickers may be enabled by a baked-in .env GIPHY_API_KEY with no settings
-  // key — surface that so this field doesn't look unconfigured.
-  let giphyFromEnv = $state(false);
-  $effect(() => {
-    if (!draft.giphyApiKey.trim()) {
-      api.giphyConfigured().then((value) => (giphyFromEnv = value)).catch(() => {});
-    } else {
-      giphyFromEnv = false;
-    }
-  });
+  // The Giphy key persists on its own (on blur) so it's remembered even without
+  // pressing "Save changes" — it behaves like connecting a credential.
+  async function saveGiphyKey() {
+    const key = draft.giphyApiKey.trim();
+    draft.giphyApiKey = key;
+    if (key === (settingsStore.settings.giphyApiKey ?? "")) return;
+    await settingsStore.save({ ...draft, giphyApiKey: key });
+  }
 
   async function loadCache() {
     cacheLoading = true;
@@ -259,15 +257,14 @@
           </button>
           to enable the Stickers tab. The emoji picker always works.
         </small>
-        {#if giphyFromEnv}
-          <small class="ok-note">✓ Enabled via a GIPHY_API_KEY in .env — leave blank to keep using it.</small>
-        {/if}
       </div>
       <input
         class="input narrow"
         type="password"
-        placeholder={giphyFromEnv ? "Using .env key" : "Paste key to enable"}
+        placeholder="Paste key to enable"
         bind:value={draft.giphyApiKey}
+        onblur={saveGiphyKey}
+        onkeydown={(event) => event.key === "Enter" && event.currentTarget.blur()}
         autocomplete="off"
         spellcheck="false"
       />
@@ -829,9 +826,6 @@
     flex: 1;
     cursor: pointer;
     accent-color: var(--accent);
-  }
-  .ok-note {
-    color: var(--accent);
   }
   /* Segmented control (dock position). */
   .seg {
