@@ -28,6 +28,7 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(InstanceStore::default())
         .manage(SettingsStore::default())
         .manage(LaunchState::default())
@@ -48,6 +49,7 @@ pub fn run() {
             commands::update_instance,
             commands::delete_instance,
             commands::instance_folder,
+            commands::set_instance_game_dir,
             commands::get_settings,
             commands::save_settings,
             commands::get_minecraft_versions,

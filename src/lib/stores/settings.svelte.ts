@@ -16,6 +16,7 @@ const DEFAULTS: Settings = {
   dockPosition: "bottom",
   decorTheme: "",
   dockMagnify: true,
+  instancesDir: "",
 };
 
 /// Reactive settings store, persisted through the Rust backend.

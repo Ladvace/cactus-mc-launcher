@@ -16,6 +16,7 @@
     DEFAULT_COLOR,
   } from "$lib/background";
   import { fileToBackgroundDataUri } from "$lib/image";
+  import { pickFolder } from "$lib/dialog";
   import { THEME_PRESETS, DECOR_THEMES } from "$lib/themes";
   import { LINKS } from "$lib/links";
   import { playClick } from "$lib/sound";
@@ -129,6 +130,11 @@
   function resetResolution() {
     draft.gameWidth = 854;
     draft.gameHeight = 480;
+  }
+
+  async function browseInstancesDir() {
+    const folder = await pickFolder("Choose where new instances install");
+    if (folder) draft.instancesDir = folder;
   }
 
   // Sync the draft once settings finish loading.
@@ -525,6 +531,22 @@
     <h3>Storage</h3>
     <div class="setting">
       <div class="label">
+        <span>Instances folder</span>
+        <small>
+          Where new instances' game data (mods, saves, worlds) is installed.
+          Existing instances stay where they are.
+        </small>
+        <small class="path">{draft.instancesDir || "Default (app data folder)"}</small>
+      </div>
+      <div class="folder-actions">
+        <button class="btn ghost" onclick={browseInstancesDir}>Browse…</button>
+        {#if draft.instancesDir}
+          <button class="btn ghost" onclick={() => (draft.instancesDir = "")}>Reset</button>
+        {/if}
+      </div>
+    </div>
+    <div class="setting">
+      <div class="label">
         <span>Shared content cache</span>
         <small
           >Mods, resource packs & shaders are downloaded once and hard-linked
@@ -826,6 +848,17 @@
     flex: 1;
     cursor: pointer;
     accent-color: var(--accent);
+  }
+  .path {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    color: var(--accent);
+    word-break: break-all;
+  }
+  .folder-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
   }
   /* Segmented control (dock position). */
   .seg {

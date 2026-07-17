@@ -35,6 +35,8 @@ export interface Instance {
   javaPath: string | null;
   gameWidth: number | null;
   gameHeight: number | null;
+  /** Absolute game-data folder; null = default under the instances folder. */
+  gameDir: string | null;
 }
 
 export interface CreateInstance {
@@ -196,6 +198,8 @@ export interface Settings {
   dockPosition: DockPosition;
   decorTheme: string;
   dockMagnify: boolean;
+  /** Default parent folder for new instances' data. Empty = app default. */
+  instancesDir: string;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";

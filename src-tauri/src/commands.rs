@@ -43,7 +43,8 @@ pub fn create_instance(
         payload.icon,
     );
     store.save(&app, &instance)?;
-    Ok(instance)
+    // `save` pins the game dir from the global setting, so return the stored copy.
+    Ok(store.get(&instance.id).unwrap_or(instance))
 }
 
 #[tauri::command]
@@ -121,6 +122,80 @@ pub fn instance_folder(app: AppHandle, id: String) -> Result<String> {
     let dir = crate::paths::instance_game_dir(&app, &id)?;
     std::fs::create_dir_all(&dir)?;
     Ok(dir.to_string_lossy().into_owned())
+}
+
+/// Move an instance's game data to `path` (or back to the default when null),
+/// remembering the location. Refuses while the instance is running.
+#[tauri::command]
+pub fn set_instance_game_dir(
+    app: AppHandle,
+    store: State<'_, InstanceStore>,
+    launch: State<'_, LaunchState>,
+    servers: State<'_, ServerState>,
+    id: String,
+    path: Option<String>,
+) -> Result<Instance> {
+    if launch.is_running(&id) || servers.is_running(&id) {
+        return Err(AppError::Other(
+            "Stop the instance before moving its files.".into(),
+        ));
+    }
+    let mut instance = store.get(&id).ok_or_else(|| AppError::InstanceNotFound(id.clone()))?;
+
+    let old = crate::paths::instance_game_dir(&app, &id)?;
+    let has_custom = path
+        .as_deref()
+        .map(|p| !p.trim().is_empty())
+        .unwrap_or(false);
+    let target = if has_custom {
+        std::path::PathBuf::from(path.as_deref().unwrap().trim())
+    } else {
+        crate::paths::default_game_dir(&app, &id)?
+    };
+
+    if old != target {
+        move_tree(&old, &target)?;
+    }
+    instance.game_dir = if has_custom {
+        Some(target.to_string_lossy().into_owned())
+    } else {
+        None
+    };
+    store.save(&app, &instance)?;
+    Ok(instance)
+}
+
+/// Move a directory tree, falling back to copy+remove across volumes / into an
+/// existing target.
+fn move_tree(old: &std::path::Path, target: &std::path::Path) -> Result<()> {
+    if !old.exists() {
+        std::fs::create_dir_all(target)?;
+        return Ok(());
+    }
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    if !target.exists() && std::fs::rename(old, target).is_ok() {
+        return Ok(());
+    }
+    std::fs::create_dir_all(target)?;
+    copy_tree(old, target)?;
+    std::fs::remove_dir_all(old)?;
+    Ok(())
+}
+
+fn copy_tree(from: &std::path::Path, to: &std::path::Path) -> Result<()> {
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let dest = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            std::fs::create_dir_all(&dest)?;
+            copy_tree(&entry.path(), &dest)?;
+        } else {
+            std::fs::copy(entry.path(), &dest)?;
+        }
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

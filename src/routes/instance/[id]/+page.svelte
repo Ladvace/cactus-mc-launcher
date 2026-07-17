@@ -15,6 +15,8 @@
   import WorldsList from "$lib/components/WorldsList.svelte";
   import InstanceJavaSettings from "$lib/components/InstanceJavaSettings.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
+  import { pickFolder } from "$lib/dialog";
+  import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
   const id = $derived($page.params.id ?? "");
   const instance = $derived(instancesStore.get(id));
@@ -199,6 +201,42 @@
     });
   }
 
+  // --- Game folder (per-instance install location) ---
+  let gameFolder = $state("");
+  let movingFolder = $state(false);
+  $effect(() => {
+    if (id) api.instanceFolder(id).then((path) => (gameFolder = path)).catch(() => {});
+  });
+
+  async function moveGameFolder(path: string | null) {
+    if (movingFolder || launchRunning) return;
+    movingFolder = true;
+    try {
+      await api.setInstanceGameDir(id, path);
+      await instancesStore.refresh();
+      gameFolder = await api.instanceFolder(id);
+      toast.success(path ? "Instance files moved." : "Moved back to the default folder.");
+    } catch (err) {
+      toast.error(String(err));
+    } finally {
+      movingFolder = false;
+    }
+  }
+
+  async function changeGameFolder() {
+    if (movingFolder || launchRunning) return;
+    const folder = await pickFolder("Move this instance's game data");
+    if (folder) moveGameFolder(folder);
+  }
+
+  async function openGameFolder() {
+    try {
+      await revealItemInDir(await api.instanceFolder(id));
+    } catch (err) {
+      toast.error(String(err));
+    }
+  }
+
   function fmtPlaytime(sec: number): string {
     if (sec < 60) return "< 1 min";
     const hours = Math.floor(sec / 3600);
@@ -328,6 +366,39 @@
           </section>
 
           <InstanceJavaSettings {instance} {isServer} />
+
+          <section class="card-block">
+            <h3>Storage</h3>
+            <div class="row col">
+              <span>Game folder <small class="muted">— mods, saves, worlds</small></span>
+              <code class="folder-path">{gameFolder || "…"}</code>
+            </div>
+            <div class="row">
+              <span>{instance.gameDir ? "Custom location" : "Default location"}</span>
+              <div class="folder-actions">
+                <button class="btn ghost sm" onclick={openGameFolder}>Open</button>
+                {#if instance.gameDir}
+                  <button
+                    class="btn ghost sm"
+                    onclick={() => moveGameFolder(null)}
+                    disabled={movingFolder || launchRunning}
+                  >
+                    Reset
+                  </button>
+                {/if}
+                <button
+                  class="btn ghost sm"
+                  onclick={changeGameFolder}
+                  disabled={movingFolder || launchRunning}
+                >
+                  {movingFolder ? "Moving…" : "Change…"}
+                </button>
+              </div>
+            </div>
+            {#if launchRunning}
+              <p class="muted running-note">Stop the instance to move its files.</p>
+            {/if}
+          </section>
 
           <section class="card-block danger-zone">
             <h3>Danger zone</h3>
@@ -677,6 +748,26 @@
   }
   .row:first-of-type {
     border-top: none;
+  }
+  .row.col {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .folder-path {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    color: var(--accent);
+    word-break: break-all;
+  }
+  .folder-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .running-note {
+    margin: 8px 0 0;
+    font-size: 12px;
   }
   .danger-zone {
     border-color: rgba(255, 91, 91, 0.25);

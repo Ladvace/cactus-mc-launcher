@@ -73,6 +73,11 @@ pub struct Instance {
     pub game_width: Option<u32>,
     #[serde(default)]
     pub game_height: Option<u32>,
+    /// Absolute path to this instance's game directory (mods, saves, worlds).
+    /// `None` = the default location under the instances folder. Set to move an
+    /// instance's data to another drive/folder without moving its record.
+    #[serde(default)]
+    pub game_dir: Option<String>,
 }
 
 impl Instance {
@@ -104,6 +109,7 @@ impl Instance {
             java_path: None,
             game_width: None,
             game_height: None,
+            game_dir: None,
         }
     }
 }

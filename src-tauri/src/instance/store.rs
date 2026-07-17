@@ -56,24 +56,42 @@ impl InstanceStore {
         self.cache.lock().unwrap().get(id).cloned()
     }
 
-    /// Persist an instance (create or overwrite) and update the cache.
+    /// Persist an instance (create or overwrite) and update the cache. On the
+    /// first save of a new instance, pin its game directory from the global
+    /// instances-folder setting so a later change never moves existing data.
     pub fn save(&self, app: &AppHandle, instance: &Instance) -> Result<()> {
+        let mut instance = instance.clone();
+        let is_new = !self.cache.lock().unwrap().contains_key(&instance.id);
+        if is_new && instance.game_dir.is_none() {
+            instance.game_dir = paths::new_instance_game_dir(app, &instance.id);
+        }
+
         let dir = paths::instance_dir(app, &instance.id)?;
         std::fs::create_dir_all(&dir)?;
-        let json = serde_json::to_string_pretty(instance)?;
+        let json = serde_json::to_string_pretty(&instance)?;
         std::fs::write(dir.join("instance.json"), json)?;
         self.cache
             .lock()
             .unwrap()
-            .insert(instance.id.clone(), instance.clone());
+            .insert(instance.id.clone(), instance);
         Ok(())
     }
 
-    /// Remove an instance and its entire folder from disk.
+    /// Remove an instance: its record folder and, if it lives elsewhere, its
+    /// custom game directory.
     pub fn delete(&self, app: &AppHandle, id: &str) -> Result<()> {
-        if self.cache.lock().unwrap().remove(id).is_none() {
+        let removed = self.cache.lock().unwrap().remove(id);
+        let Some(instance) = removed else {
             return Err(AppError::InstanceNotFound(id.to_string()));
+        };
+
+        if let Some(game_dir) = instance.game_dir.as_deref().filter(|path| !path.trim().is_empty()) {
+            let game_dir = std::path::Path::new(game_dir);
+            if game_dir.exists() {
+                let _ = std::fs::remove_dir_all(game_dir);
+            }
         }
+
         let dir = paths::instance_dir(app, id)?;
         if dir.exists() {
             std::fs::remove_dir_all(&dir)?;

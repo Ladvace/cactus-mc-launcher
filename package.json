@@ -23,6 +23,7 @@
   "dependencies": {
     "@hackernoon/pixel-icon-library": "^1.1.0",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-opener": "^2",
     "skinview3d": "^3.4.2"
   },

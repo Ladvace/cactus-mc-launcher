@@ -36,6 +36,10 @@ pub struct Settings {
     pub decor_theme: String,
     /// macOS-style magnify-on-hover for the dock.
     pub dock_magnify: bool,
+    /// Default parent folder for new instances' game data. Empty = the app's
+    /// own instances folder. Only affects instances created after it's set.
+    #[serde(default)]
+    pub instances_dir: String,
 }
 
 impl Default for Settings {
@@ -55,6 +59,7 @@ impl Default for Settings {
             dock_position: "bottom".into(),
             decor_theme: String::new(),
             dock_magnify: true,
+            instances_dir: String::new(),
         }
     }
 }

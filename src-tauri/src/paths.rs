@@ -1,4 +1,6 @@
 use crate::error::Result;
+use crate::instance::store::InstanceStore;
+use crate::settings::SettingsStore;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
@@ -74,12 +76,46 @@ pub fn natives_dir(app: &AppHandle, instance_id: &str) -> Result<PathBuf> {
     Ok(dir)
 }
 
+/// The default game directory under the record folder (used when an instance
+/// has no custom `game_dir`).
+pub fn default_game_dir(app: &AppHandle, instance_id: &str) -> Result<PathBuf> {
+    Ok(instance_dir(app, instance_id)?.join("minecraft"))
+}
+
 /// The game working directory for an instance (its `.minecraft` equivalent):
-/// saves, mods, config, resourcepacks live here.
+/// saves, mods, config, resourcepacks live here. Honours the instance's custom
+/// `game_dir` when set, otherwise falls back to the default under its folder.
 pub fn instance_game_dir(app: &AppHandle, instance_id: &str) -> Result<PathBuf> {
-    let dir = instance_dir(app, instance_id)?.join("minecraft");
+    let custom = app
+        .state::<InstanceStore>()
+        .get(instance_id)
+        .and_then(|instance| instance.game_dir)
+        .filter(|path| !path.trim().is_empty());
+    let dir = match custom {
+        Some(path) => PathBuf::from(path),
+        None => default_game_dir(app, instance_id)?,
+    };
     std::fs::create_dir_all(&dir)?;
     Ok(dir)
+}
+
+/// The game directory a NEW instance should use, honouring the global
+/// instances-folder setting. Resolved once at creation and stored on the
+/// instance, so a later change to the global setting never moves it.
+/// Returns `None` when the default location should be used (empty setting).
+pub fn new_instance_game_dir(app: &AppHandle, instance_id: &str) -> Option<String> {
+    let base = app.state::<SettingsStore>().get().instances_dir;
+    let base = base.trim();
+    if base.is_empty() {
+        return None;
+    }
+    Some(
+        PathBuf::from(base)
+            .join(instance_id)
+            .join("minecraft")
+            .to_string_lossy()
+            .into_owned(),
+    )
 }
 
 /// Global settings file.

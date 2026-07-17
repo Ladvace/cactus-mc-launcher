@@ -41,6 +41,10 @@ export const api = {
   /** The instance's game folder path (for revealing it in the file manager). */
   instanceFolder: (id: string) => invoke<string>("instance_folder", { id }),
 
+  /** Move an instance's game data to `path` (null = back to the default). */
+  setInstanceGameDir: (id: string, path: string | null) =>
+    invoke<Instance>("set_instance_game_dir", { id, path }),
+
   getSettings: () => invoke<Settings>("get_settings"),
 
   saveSettings: (settings: Settings) =>
