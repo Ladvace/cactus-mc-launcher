@@ -349,6 +349,22 @@ export interface LoaderVersion {
   stable: boolean;
 }
 
+/** Live Server List Ping result (mirrors Rust `server_ping::ServerStatus`). */
+export interface ServerStatus {
+  online: number;
+  max: number;
+  motd: string;
+  players: string[];
+  pingMs: number;
+}
+
+/** One point in a server's player-count history (from the boards backend). */
+export interface ServerSample {
+  sampledAt: string;
+  online: number;
+  max: number;
+}
+
 /** Loaders with working install support today. */
 export const SUPPORTED_LOADERS: ModLoader[] = [
   "fabric",

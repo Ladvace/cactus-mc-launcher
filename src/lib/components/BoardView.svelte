@@ -9,6 +9,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { timeAgo } from "$lib/time";
+  import ServerWeather from "./ServerWeather.svelte";
   import type { Board } from "$lib/types";
 
   let { handle }: { handle: string } = $props();
@@ -110,6 +111,9 @@
     <div class="banner server">
       <Icon name="globe" size={16} />
       <code>{board.serverAddress}</code>
+    </div>
+    <div class="weather-strip">
+      <ServerWeather address={board.serverAddress} />
     </div>
   {/if}
 
@@ -242,6 +246,13 @@
     font-family: var(--font-pixel);
     color: var(--accent);
     user-select: all;
+  }
+  .weather-strip {
+    margin: -8px 0 14px;
+    padding: 8px 16px;
+    border: 2px solid var(--border-subtle);
+    border-top: none;
+    background: var(--bg-card);
   }
   h3 {
     font-size: 14px;

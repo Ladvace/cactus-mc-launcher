@@ -15,6 +15,7 @@ import type {
   PlayerEntry,
   SearchParams,
   SearchResults,
+  ServerStatus,
   Settings,
   Source,
   Sticker,
@@ -180,4 +181,8 @@ export const api = {
 
   /** Set the active cape (id) or hide it (null). */
   setCape: (capeId: string | null) => invoke<void>("set_cape", { capeId }),
+
+  /** Live Server List Ping for `host[:port]` (default port 25565). */
+  pingServer: (address: string) =>
+    invoke<ServerStatus>("ping_server", { address }),
 };

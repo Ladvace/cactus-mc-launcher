@@ -11,6 +11,7 @@ mod paths;
 mod board_auth;
 mod settings;
 mod players;
+mod server_ping;
 mod snapshot;
 mod sources;
 mod stickers;
@@ -88,6 +89,7 @@ pub fn run() {
             commands::set_skin,
             commands::get_capes,
             commands::set_cape,
+            server_ping::ping_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
