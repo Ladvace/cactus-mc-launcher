@@ -78,9 +78,18 @@
     | { kind: "sep" }
     | { kind: "instance"; instance: Instance; label: string }
     | { kind: "overflow"; count: number; label: string }
+    | { kind: "downloads"; pct: number | null; targetId: string | null; label: string }
     | { kind: "add"; label: string }
     | { kind: "settings"; href: string; label: string }
     | { kind: "account"; label: string };
+
+  // A persistent modpack-download indicator, shown on every page while an
+  // install runs — except when the installing instance is already a pinned tile
+  // (its own tile shows the progress), which would be redundant.
+  const dlId = $derived(installStore.primaryInstanceId());
+  const showDownloads = $derived(
+    installStore.anyActive() && !(dlId && pinned.some((instance) => instance.id === dlId))
+  );
 
   const items = $derived<Item[]>([
     { kind: "nav", href: "/", icon: "home", label: "Home" },
@@ -96,6 +105,16 @@
             kind: "overflow" as const,
             count: overflow,
             label: `${overflow} more on Home`,
+          },
+        ]
+      : []),
+    ...(showDownloads
+      ? [
+          {
+            kind: "downloads" as const,
+            pct: installStore.overallPct(),
+            targetId: dlId,
+            label: installStore.overallMessage(),
           },
         ]
       : []),
@@ -177,7 +196,9 @@
     if (item.kind === "nav" || item.kind === "settings") goto(item.href);
     else if (item.kind === "instance") goto(`/instance/${item.instance.id}`);
     else if (item.kind === "overflow") toggleOverflow(event);
-    else if (item.kind === "add") onCreate();
+    else if (item.kind === "downloads") {
+      if (item.targetId) goto(`/instance/${item.targetId}`);
+    } else if (item.kind === "add") onCreate();
     else if (item.kind === "account") ui.openAccounts();
   }
 
@@ -223,6 +244,11 @@
               />
             {:else if item.kind === "overflow"}
               <span class="overflow">+{item.count}</span>
+            {:else if item.kind === "downloads"}
+              <span class="dl-glyph">
+                <span class="dock-spinner"></span>
+                {#if item.pct !== null}<span class="dock-pct">{item.pct}%</span>{/if}
+              </span>
             {:else if item.kind === "add"}
               <Icon name="plus" size={24} />
             {:else if item.kind === "instance"}
@@ -517,6 +543,14 @@
     justify-content: center;
     gap: 1px;
     background: rgba(10, 9, 8, 0.78);
+  }
+  /* Standalone dock download indicator (pre-creation / non-pinned installs). */
+  .dl-glyph {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
   }
   .dock-spinner {
     width: 15px;

@@ -4,6 +4,7 @@
   import InstancePicker from "./InstancePicker.svelte";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { installStore } from "$lib/stores/install.svelte";
   import { formatCount } from "$lib/format";
   import { goto } from "$app/navigation";
   import { listen } from "@tauri-apps/api/event";
@@ -186,6 +187,7 @@
       goto(`/instance/${instance.id}`);
     } catch (err) {
       error = String(err);
+      installStore.clearPending();
     } finally {
       installing = false;
     }

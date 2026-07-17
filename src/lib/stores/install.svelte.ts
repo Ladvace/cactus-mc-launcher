@@ -11,6 +11,9 @@ interface Progress {
 /// tiles + the dock can show progress even after the install modal is closed.
 class InstallStore {
   progress = $state<Record<string, Progress>>({});
+  // The pre-creation phase of a modpack install (downloading the pack, resolving
+  // versions) before an instance exists — so the dock can show it immediately.
+  pending = $state<Progress | null>(null);
   private started = false;
 
   init() {
@@ -23,7 +26,11 @@ class InstallStore {
       message: string;
     }>("modpack-progress", (event) => {
       const { instanceId, current, total, message } = event.payload;
-      if (!instanceId) return; // pre-creation phase (no instance yet)
+      if (!instanceId) {
+        this.pending = message === "Done" ? null : { current, total, message };
+        return;
+      }
+      this.pending = null; // the instance now exists; tracked per-id below
 
       if (message === "Done") {
         const { [instanceId]: _done, ...rest } = this.progress;
@@ -47,11 +54,37 @@ class InstallStore {
     return this.progress[id];
   }
   pct(id: string): number | null {
-    const progress = this.progress[id];
-    return progress && progress.total > 0
-      ? Math.round((progress.current / progress.total) * 100)
-      : null;
+    return toPct(this.progress[id]);
   }
+
+  /** Clear the pre-creation phase (e.g. the install failed before an instance). */
+  clearPending() {
+    this.pending = null;
+  }
+
+  /** Any modpack install in flight (pre-creation or downloading into a tile). */
+  anyActive(): boolean {
+    return this.pending !== null || Object.keys(this.progress).length > 0;
+  }
+  /** The instance a global indicator should link to, if one exists yet. */
+  primaryInstanceId(): string | null {
+    return Object.keys(this.progress)[0] ?? null;
+  }
+  /** Representative percent for a global indicator (per-instance, else pending). */
+  overallPct(): number | null {
+    const id = this.primaryInstanceId();
+    return id ? this.pct(id) : toPct(this.pending ?? undefined);
+  }
+  overallMessage(): string {
+    const id = this.primaryInstanceId();
+    return this.progressFor(id ?? "")?.message ?? this.pending?.message ?? "Installing…";
+  }
+}
+
+function toPct(progress: Progress | undefined): number | null {
+  return progress && progress.total > 0
+    ? Math.round((progress.current / progress.total) * 100)
+    : null;
 }
 
 export const installStore = new InstallStore();
