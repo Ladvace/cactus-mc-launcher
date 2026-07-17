@@ -13,6 +13,7 @@ mod settings;
 mod players;
 mod server_ping;
 mod snapshot;
+mod tunnel;
 mod sources;
 mod stickers;
 mod worlds;
@@ -32,6 +33,7 @@ pub fn run() {
         .manage(LaunchState::default())
         .manage(ServerState::default())
         .manage(AccountStore::default())
+        .manage(tunnel::TunnelState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             app.state::<InstanceStore>().load(&handle)?;
@@ -90,6 +92,8 @@ pub fn run() {
             commands::get_capes,
             commands::set_cape,
             server_ping::ping_server,
+            tunnel::tunnel_start,
+            tunnel::tunnel_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

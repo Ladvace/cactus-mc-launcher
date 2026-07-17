@@ -185,4 +185,11 @@ export const api = {
   /** Live Server List Ping for `host[:port]` (default port 25565). */
   pingServer: (address: string) =>
     invoke<ServerStatus>("ping_server", { address }),
+
+  /** Open an ngrok tunnel to the local server; returns the public host:port. */
+  tunnelStart: (authtoken: string, port = 25565) =>
+    invoke<string>("tunnel_start", { authtoken, port }),
+
+  /** Stop the running ngrok tunnel. */
+  tunnelStop: () => invoke<void>("tunnel_stop"),
 };
