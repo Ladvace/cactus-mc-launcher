@@ -1,6 +1,8 @@
-# Minecraft Launcher
+# Cactus Launcher
 
-A custom Minecraft launcher (Modrinth-style) built with **Tauri v2**, **SvelteKit**, **Svelte 5 (runes)**, and **Rust**.
+[![CI](https://github.com/Ladvace/cactus-mc-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/Ladvace/cactus-mc-launcher/actions/workflows/ci.yml)
+
+A custom Minecraft launcher (Modrinth-style) built with **Tauri v2**, **SvelteKit**, **Svelte 5 (runes)**, and **Rust** — spiky but not spooky.
 
 ## Running
 

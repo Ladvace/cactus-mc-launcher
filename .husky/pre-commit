@@ -1,0 +1,6 @@
+# Fast pre-commit gate: type-check the frontend + run the jsdom unit tests.
+# Rust, server typecheck and Playwright e2e run in CI (slower).
+echo "▸ svelte-check…"
+bun run check || exit 1
+echo "▸ unit tests…"
+bun run test || exit 1
