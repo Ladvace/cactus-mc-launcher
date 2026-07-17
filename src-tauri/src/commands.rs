@@ -229,11 +229,11 @@ fn move_tree(old: &std::path::Path, target: &std::path::Path) -> Result<()> {
 }
 
 fn copy_tree(from: &std::path::Path, to: &std::path::Path) -> Result<()> {
+    std::fs::create_dir_all(to)?;
     for entry in std::fs::read_dir(from)? {
         let entry = entry?;
         let dest = to.join(entry.file_name());
         if entry.file_type()?.is_dir() {
-            std::fs::create_dir_all(&dest)?;
             copy_tree(&entry.path(), &dest)?;
         } else {
             std::fs::copy(entry.path(), &dest)?;
