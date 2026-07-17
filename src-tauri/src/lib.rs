@@ -82,6 +82,7 @@ pub fn run() {
             commands::remove_content,
             commands::install_modpack,
             commands::search_stickers,
+            commands::giphy_configured,
             commands::download_image,
             commands::content_cache_stats,
             commands::export_setup,

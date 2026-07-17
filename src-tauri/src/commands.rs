@@ -444,8 +444,15 @@ pub async fn search_stickers(
     query: String,
     offset: u32,
 ) -> Result<Vec<crate::stickers::Sticker>> {
-    let key = settings.get().giphy_api_key;
+    let key = crate::stickers::effective_key(&settings.get().giphy_api_key);
     crate::stickers::search(&key, &query, offset).await
+}
+
+/// Whether the sticker picker is enabled — from the settings key or a baked-in
+/// `.env` `GIPHY_API_KEY`. Lets the UI enable stickers without a settings key.
+#[tauri::command]
+pub fn giphy_configured(settings: State<'_, SettingsStore>) -> bool {
+    crate::stickers::is_configured(&settings.get().giphy_api_key)
 }
 
 /// Download an image URL and return it as a data URI (used to store a chosen

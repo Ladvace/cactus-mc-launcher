@@ -36,6 +36,17 @@
   let cacheStats = $state<CacheStats | null>(null);
   let cacheLoading = $state(false);
 
+  // Stickers may be enabled by a baked-in .env GIPHY_API_KEY with no settings
+  // key — surface that so this field doesn't look unconfigured.
+  let giphyFromEnv = $state(false);
+  $effect(() => {
+    if (!draft.giphyApiKey.trim()) {
+      api.giphyConfigured().then((value) => (giphyFromEnv = value)).catch(() => {});
+    } else {
+      giphyFromEnv = false;
+    }
+  });
+
   async function loadCache() {
     cacheLoading = true;
     try {
@@ -248,11 +259,14 @@
           </button>
           to enable the Stickers tab. The emoji picker always works.
         </small>
+        {#if giphyFromEnv}
+          <small class="ok-note">✓ Enabled via a GIPHY_API_KEY in .env — leave blank to keep using it.</small>
+        {/if}
       </div>
       <input
         class="input narrow"
         type="password"
-        placeholder="Paste key to enable"
+        placeholder={giphyFromEnv ? "Using .env key" : "Paste key to enable"}
         bind:value={draft.giphyApiKey}
         autocomplete="off"
         spellcheck="false"
@@ -815,6 +829,9 @@
     flex: 1;
     cursor: pointer;
     accent-color: var(--accent);
+  }
+  .ok-note {
+    color: var(--accent);
   }
   /* Segmented control (dock position). */
   .seg {
