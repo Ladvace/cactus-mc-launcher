@@ -57,11 +57,11 @@
 
   // --- Background ---
   const kind = $derived(bgKind(draft.background ?? ""));
-  const colorValue = $derived(
-    draft.background.startsWith("color:")
-      ? draft.background.slice(6)
-      : DEFAULT_COLOR
-  );
+  const colorValue = $derived.by(() => {
+    const v = draft.background.startsWith("color:") ? draft.background.slice(6) : "";
+    // Decor-theme presets store a gradient here; the colour input needs a hex.
+    return /^#[0-9a-fA-F]{6}$/.test(v) ? v : DEFAULT_COLOR;
+  });
   const activePattern = $derived(
     kind === "pattern" ? parsePattern(draft.background).name : ""
   );
@@ -257,6 +257,17 @@
           </button>
         {/each}
       </div>
+    </div>
+
+    <div class="setting">
+      <div class="label">
+        <span>Magnify dock on hover</span>
+        <small>The macOS-style zoom as you move across dock icons.</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" bind:checked={draft.dockMagnify} />
+        <span class="track"><span class="thumb"></span></span>
+      </label>
     </div>
   </section>
 

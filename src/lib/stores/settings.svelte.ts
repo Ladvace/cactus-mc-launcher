@@ -15,6 +15,7 @@ const DEFAULTS: Settings = {
   giphyApiKey: "",
   dockPosition: "bottom",
   decorTheme: "",
+  dockMagnify: true,
 };
 
 /// Reactive settings store, persisted through the Rust backend.

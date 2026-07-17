@@ -195,6 +195,7 @@ export interface Settings {
   giphyApiKey: string;
   dockPosition: DockPosition;
   decorTheme: string;
+  dockMagnify: boolean;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";

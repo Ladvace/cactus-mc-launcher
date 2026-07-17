@@ -10,6 +10,7 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { skinFace } from "$lib/skin";
   import { ui } from "$lib/stores/ui.svelte";
+  import { DECOR_THEMES } from "$lib/themes";
   import type { Instance } from "$lib/types";
 
   interface Props {
@@ -19,6 +20,11 @@
 
   const pos = $derived(settingsStore.settings.dockPosition ?? "bottom");
   const horizontal = $derived(pos === "top" || pos === "bottom");
+  const magnify = $derived(settingsStore.settings.dockMagnify ?? true);
+  // A themed sprite perched on the dock's corner, from the active decor theme.
+  const peek = $derived(
+    DECOR_THEMES.find((t) => t.id === (settingsStore.settings.decorTheme ?? ""))?.peek
+  );
 
   const path = $derived($page.url.pathname);
 
@@ -132,6 +138,10 @@
   function apply() {
     rafId = 0;
     if (!inside) return;
+    if (!magnify) {
+      if (scales.length) scales = [];
+      return;
+    }
     const base = dockStart + PAD;
     const pointer = horizontal ? mouseX : mouseY;
     scales = centers.map((c) => {
@@ -241,6 +251,9 @@
         </button>
       {/if}
     {/each}
+    {#if peek}
+      <img class="dock-peek" src={peek} alt="" />
+    {/if}
   </div>
 </div>
 
@@ -296,6 +309,7 @@
     align-items: center;
   }
   .dock {
+    position: relative;
     pointer-events: auto;
     display: flex;
     align-items: flex-end;
@@ -329,6 +343,30 @@
     align-self: stretch;
     margin: 4px 2px;
     background: var(--border);
+  }
+  /* Themed sprite that perches on / peeks over the dock's outer corner. */
+  .dock-peek {
+    position: absolute;
+    width: 40px;
+    height: auto;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+  }
+  [data-pos="bottom"] .dock-peek {
+    bottom: calc(100% - 14px);
+    right: 14px;
+  }
+  [data-pos="top"] .dock-peek {
+    top: calc(100% - 14px);
+    right: 14px;
+  }
+  [data-pos="left"] .dock-peek {
+    left: calc(100% - 14px);
+    top: 10px;
+  }
+  [data-pos="right"] .dock-peek {
+    right: calc(100% - 14px);
+    top: 10px;
   }
   [data-pos="left"] .dock-sep,
   [data-pos="right"] .dock-sep {

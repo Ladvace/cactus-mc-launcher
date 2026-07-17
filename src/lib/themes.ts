@@ -20,6 +20,8 @@ export interface Placement {
 export interface DecorTheme {
   id: string;
   placements: Placement[];
+  /** A small sprite that perches on the corner of the dock. */
+  peek: string;
 }
 
 export const DECOR_THEMES: DecorTheme[] = [
@@ -32,6 +34,7 @@ export const DECOR_THEMES: DecorTheme[] = [
       { sprite: S(18), at: "top:78px; right:34px;", size: 34, opacity: 0.85 }, // sparkle
       { sprite: S(6), at: "bottom:8px; left:26%;", size: 60, opacity: 0.8 }, // rocks
     ],
+    peek: S(9), // flowering cactus perches on the dock
   },
   {
     id: "bloom",
@@ -42,6 +45,7 @@ export const DECOR_THEMES: DecorTheme[] = [
       { sprite: S(17), at: "top:80px; right:32px;", size: 36, rotate: 10 }, // blue butterfly
       { sprite: S(19), at: "top:44%; right:16px;", size: 28, opacity: 0.8 }, // sparkle
     ],
+    peek: S(1), // pink flower
   },
   {
     id: "mystic",
@@ -52,6 +56,7 @@ export const DECOR_THEMES: DecorTheme[] = [
       { sprite: S(18), at: "top:78px; right:36px;", size: 30, opacity: 0.85 }, // sparkle
       { sprite: S(14), at: "top:46%; left:14px;", size: 26, opacity: 0.8 }, // gem
     ],
+    peek: S(4), // crystals
   },
 ];
 
@@ -65,11 +70,15 @@ export const THEME_PRESETS: ThemePreset[] = [
   { name: "Default", bg: "" },
   { name: "Midnight", bg: "color:#0f1219" },
   { name: "Dusk", bg: "color:#241a26" },
-  { name: "Sand", bg: "color:#2b2620" },
   { name: "Forest", bg: "color:#152018" },
   { name: "Dots", bg: "pattern:dots|#181620" },
   { name: "Grid", bg: "pattern:grid|#14181e" },
-  { name: "Desert", bg: "color:#241f18", decor: "desert" },
-  { name: "Bloom", bg: "color:#241a22", decor: "bloom" },
-  { name: "Mystic", bg: "color:#131f1d", decor: "mystic" },
+  // Vibrant gradient backgrounds (the `color:` kind takes any CSS value).
+  { name: "Sunset", bg: "color:linear-gradient(160deg, #d98a2b 0%, #8a4a2a 45%, #3a2340 100%)" },
+  { name: "Orchid", bg: "color:linear-gradient(160deg, #b63a86 0%, #5a2456 55%, #2a1830 100%)" },
+  { name: "Aurora", bg: "color:linear-gradient(155deg, #1fb38f 0%, #157a6e 45%, #10233a 100%)" },
+  // Decor themes: vibrant solid base + placed sprites.
+  { name: "Desert", bg: "color:#c9a866", decor: "desert" },
+  { name: "Bloom", bg: "color:#c85a92", decor: "bloom" },
+  { name: "Mystic", bg: "color:#1f9c86", decor: "mystic" },
 ];

@@ -34,6 +34,8 @@ pub struct Settings {
     pub dock_position: String,
     /// Placed-sprite decoration theme id ("" = none).
     pub decor_theme: String,
+    /// macOS-style magnify-on-hover for the dock.
+    pub dock_magnify: bool,
 }
 
 impl Default for Settings {
@@ -52,6 +54,7 @@ impl Default for Settings {
             giphy_api_key: String::new(),
             dock_position: "bottom".into(),
             decor_theme: String::new(),
+            dock_magnify: true,
         }
     }
 }
