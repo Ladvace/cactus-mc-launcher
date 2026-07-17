@@ -5,6 +5,7 @@
   import { instanceLayout } from "$lib/stores/instanceLayout.svelte";
   import HomeGrid, { type Entry } from "$lib/components/HomeGrid.svelte";
   import FolderOverlay from "$lib/components/FolderOverlay.svelte";
+  import GroupContextMenu from "$lib/components/GroupContextMenu.svelte";
   import InstanceCardSkeleton from "$lib/components/InstanceCardSkeleton.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import ContextMenu, { type MenuItem } from "$lib/components/ContextMenu.svelte";
@@ -198,6 +199,7 @@
 </div>
 
 <FolderOverlay name={openFolder} onClose={() => (openFolder = null)} />
+<GroupContextMenu onOpenFolder={(n) => (openFolder = n)} />
 
 <input
   bind:this={fileInput}

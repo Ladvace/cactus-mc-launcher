@@ -11,6 +11,8 @@
   import InstanceIcon from "./InstanceIcon.svelte";
   import { instanceLayout } from "$lib/stores/instanceLayout.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { groupCovers } from "$lib/stores/groupCovers.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
 
   interface Props {
     entries: Entry[];
@@ -312,20 +314,32 @@
       {#if entry.kind === "instance"}
         <InstanceCard instance={entry.instance} iconSize={iconFor(c.w, c.h)} fill />
       {:else}
+        {@const cover = groupCovers.get(entry.name)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="folder"
+          class:has-cover={!!cover}
           role="button"
           tabindex="0"
           onclick={() => onOpenFolder(entry.name)}
           onkeydown={(e) => e.key === "Enter" && onOpenFolder(entry.name)}
+          oncontextmenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            ui.openGroupMenu(entry.name, e.clientX, e.clientY);
+          }}
         >
-          <div class="folder-preview">
-            {#each entry.instances.slice(0, 4) as inst (inst.id)}
-              <InstanceIcon instance={inst} size={folderIcon(c.w, c.h)} />
-            {/each}
-          </div>
-          <div class="folder-meta">
+          {#if cover}
+            <img class="folder-cover" src={cover} alt={entry.name} />
+            <div class="folder-scrim"></div>
+          {:else}
+            <div class="folder-preview">
+              {#each entry.instances.slice(0, 4) as inst (inst.id)}
+                <InstanceIcon instance={inst} size={folderIcon(c.w, c.h)} />
+              {/each}
+            </div>
+          {/if}
+          <div class="folder-meta" class:on-cover={!!cover}>
             <span class="folder-name" title={entry.name}>{entry.name}</span>
             <span class="folder-count">{entry.instances.length}</span>
           </div>
@@ -409,6 +423,7 @@
 
   /* Folder tile */
   .folder {
+    position: relative;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -423,6 +438,40 @@
   .folder:hover {
     border-color: var(--accent);
     transform: translateY(-2px);
+  }
+  /* Cover mode: a full-bleed image behind the folder name. */
+  .folder.has-cover {
+    padding: 0;
+    overflow: hidden;
+    justify-content: flex-end;
+  }
+  .folder-cover {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+  }
+  .folder-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.82) 0%,
+      rgba(0, 0, 0, 0.35) 34%,
+      rgba(0, 0, 0, 0) 62%
+    );
+    pointer-events: none;
+  }
+  .folder-meta.on-cover {
+    position: relative;
+    z-index: 1;
+    padding: 10px 12px;
+  }
+  .folder-meta.on-cover .folder-name {
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   }
   .folder-preview {
     flex: 1;

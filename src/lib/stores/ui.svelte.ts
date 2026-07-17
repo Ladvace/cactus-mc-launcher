@@ -9,6 +9,8 @@ class UiStore {
   instanceMenu = $state<{ instance: Instance; x: number; y: number } | null>(
     null
   );
+  // Right-click menu on a group (folder) tile.
+  groupMenu = $state<{ name: string; x: number; y: number } | null>(null);
   // Sticker/emoji picker: a title + a callback that receives the chosen image
   // as a data URI (null = closed). Used for instance icons and app backgrounds.
   stickerPicker = $state<{
@@ -34,14 +36,24 @@ class UiStore {
   }
 
   openInstanceMenu(instance: Instance, x: number, y: number) {
+    this.groupMenu = null;
     this.instanceMenu = { instance, x, y };
   }
   closeInstanceMenu() {
     this.instanceMenu = null;
   }
 
+  openGroupMenu(name: string, x: number, y: number) {
+    this.instanceMenu = null;
+    this.groupMenu = { name, x, y };
+  }
+  closeGroupMenu() {
+    this.groupMenu = null;
+  }
+
   openStickerPicker(title: string, onPick: (dataUri: string) => void) {
     this.instanceMenu = null;
+    this.groupMenu = null;
     this.stickerPicker = { title, onPick };
   }
   closeStickerPicker() {

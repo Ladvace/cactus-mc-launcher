@@ -3,6 +3,10 @@
   import InstanceCard from "./InstanceCard.svelte";
   import Icon from "./Icon.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { groupCovers } from "$lib/stores/groupCovers.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { fileToIconDataUri } from "$lib/image";
+  import { toast } from "$lib/stores/toast.svelte";
 
   interface Props {
     name: string | null; // null = closed
@@ -29,7 +33,32 @@
     if (!next || next === current) return;
     const members = instancesStore.instances.filter((i) => i.group === current);
     for (const i of members) await instancesStore.update(i.id, { group: next });
+    groupCovers.rename(current, next);
     current = next;
+  }
+
+  // --- Folder cover image ---
+  let coverInput = $state<HTMLInputElement>();
+  const cover = $derived(current ? groupCovers.get(current) : null);
+
+  async function onCoverFile(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file || !current) return;
+    try {
+      groupCovers.set(current, await fileToIconDataUri(file));
+    } catch (err) {
+      toast.error(String(err));
+    }
+  }
+  function pickCoverSticker() {
+    if (!current) return;
+    const name = current;
+    ui.openStickerPicker(`Cover for ${name}`, (uri) => groupCovers.set(name, uri));
+  }
+  function clearCover() {
+    if (current) groupCovers.clear(current);
   }
 
   async function removeFromFolder(id: string) {
@@ -161,6 +190,26 @@
     <button class="btn danger sm" onclick={ungroupAll}>Ungroup all</button>
   </div>
 
+  <div class="cover-controls">
+    <span class="cover-label">Cover</span>
+    <button class="btn ghost sm" onclick={() => coverInput?.click()}>
+      <Icon name="edit" size={13} /> Upload…
+    </button>
+    <button class="btn ghost sm" onclick={pickCoverSticker}>
+      <Icon name="sparkles" size={13} /> Stickers…
+    </button>
+    {#if cover}
+      <button class="btn ghost sm" onclick={clearCover}>Remove</button>
+    {/if}
+    <input
+      bind:this={coverInput}
+      type="file"
+      accept="image/png,image/jpeg,image/gif,image/webp"
+      style="display:none"
+      onchange={onCoverFile}
+    />
+  </div>
+
   {#if instances.length === 0}
     <p class="empty">This folder is empty.</p>
   {:else}
@@ -190,7 +239,17 @@
   .folder-head {
     display: flex;
     gap: 10px;
+    margin-bottom: 12px;
+  }
+  .cover-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 16px;
+  }
+  .cover-label {
+    font-size: 12px;
+    color: var(--text-muted);
   }
   .name {
     flex: 1;
