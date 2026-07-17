@@ -184,7 +184,7 @@
     </div>
   {:else if instancesStore.instances.length === 0}
     <div class="empty">
-      <div class="empty-mark"><Icon name="cube" size={40} /></div>
+      <img class="empty-art" src="/empty-cactus.png" alt="" />
       <h2>No instances yet</h2>
       <p>Create your first instance to start playing Minecraft.</p>
       <button class="btn primary" onclick={() => ui.openCreateInstance()}>
@@ -375,17 +375,14 @@
     padding: 72px 24px;
     color: var(--text-secondary);
   }
-  .empty-mark {
-    color: var(--text-muted);
-    background: var(--bg-card);
-    width: 88px;
-    height: 88px;
-    border-radius: 0;
-    border: 2px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 6px;
+  .empty-art {
+    width: 240px;
+    max-width: 60%;
+    height: auto;
+    margin-bottom: 4px;
+    image-rendering: pixelated;
+    -webkit-user-drag: none;
+    user-select: none;
   }
   .empty h2 {
     font-size: 18px;
