@@ -8,6 +8,7 @@
   import { recordImport } from "$lib/importedFrom";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { timeAgo } from "$lib/time";
   import type { Board } from "$lib/types";
 
   let { handle }: { handle: string } = $props();
@@ -39,15 +40,6 @@
       .finally(() => (loading = false));
   });
 
-  function timeAgo(iso: string): string {
-    const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
-    if (s < 90) return "just now";
-    const m = Math.round(s / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.round(m / 60);
-    if (h < 24) return `${h}h ago`;
-    return `${Math.round(h / 24)}d ago`;
-  }
 
   async function importInstance(id: string) {
     if (importingId) return;

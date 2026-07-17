@@ -4,6 +4,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "$lib/components/Icon.svelte";
+  import ProgressBar from "$lib/components/ProgressBar.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import {
     backgroundCss,
@@ -443,17 +444,7 @@
     {#if javaBusy || javaInstalled.length > 0 || javaError}
       <div class="java-status">
         {#if javaBusy}
-          <div class="progress-head">
-            <span>{javaLabel || "Preparing…"}</span>
-            {#if javaPct !== null}<span>{javaPct}%</span>{/if}
-          </div>
-          <div class="bar">
-            <div
-              class="bar-fill"
-              class:indeterminate={javaPct === null}
-              style={javaPct !== null ? `width:${javaPct}%` : ""}
-            ></div>
-          </div>
+          <ProgressBar label={javaLabel || "Preparing…"} pct={javaPct} />
         {:else if javaError}
           <p class="java-err">{javaError}</p>
         {:else}
@@ -935,43 +926,6 @@
   .java-status {
     padding: 0 0 14px;
     max-width: 100%;
-  }
-  .progress-head {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12.5px;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-  }
-  .bar {
-    height: 14px;
-    background: var(--bg-input);
-    border: 2px solid var(--border);
-    border-radius: 0;
-    overflow: hidden;
-    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
-  }
-  .bar-fill {
-    height: 100%;
-    background: var(--accent);
-    background-image: repeating-linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.18) 0 2px,
-      transparent 2px 8px
-    );
-    transition: width 0.2s steps(16);
-  }
-  .bar-fill.indeterminate {
-    width: 35%;
-    animation: slide 1.1s ease-in-out infinite;
-  }
-  @keyframes slide {
-    0% {
-      margin-left: -35%;
-    }
-    100% {
-      margin-left: 100%;
-    }
   }
   .java-ok {
     margin: 0;

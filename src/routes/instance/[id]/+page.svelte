@@ -14,6 +14,7 @@
   import PlayersList from "$lib/components/PlayersList.svelte";
   import WorldsList from "$lib/components/WorldsList.svelte";
   import InstanceJavaSettings from "$lib/components/InstanceJavaSettings.svelte";
+  import ProgressBar from "$lib/components/ProgressBar.svelte";
 
   const id = $derived($page.params.id ?? "");
   const instance = $derived(instancesStore.get(id));
@@ -275,17 +276,7 @@
 
       {#if launchBusy}
         <div class="progress">
-          <div class="progress-head">
-            <span>{progressLabel}</span>
-            {#if progressPct !== null}<span>{progressPct}%</span>{/if}
-          </div>
-          <div class="bar">
-            <div
-              class="bar-fill"
-              class:indeterminate={progressPct === null}
-              style={progressPct !== null ? `width:${progressPct}%` : ""}
-            ></div>
-          </div>
+          <ProgressBar label={progressLabel} pct={progressPct} />
         </div>
       {:else if runtime.state === "error"}
         <div class="launch-error">
@@ -705,43 +696,6 @@
   .progress {
     margin-top: 18px;
     max-width: 520px;
-  }
-  .progress-head {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12.5px;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-  }
-  .bar {
-    height: 14px;
-    background: var(--bg-input);
-    border: 2px solid var(--border);
-    border-radius: 0;
-    overflow: hidden;
-    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
-  }
-  .bar-fill {
-    height: 100%;
-    background: var(--accent);
-    background-image: repeating-linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.18) 0 2px,
-      transparent 2px 8px
-    );
-    transition: width 0.2s steps(16);
-  }
-  .bar-fill.indeterminate {
-    width: 35%;
-    animation: slide 1.1s steps(8) infinite;
-  }
-  @keyframes slide {
-    0% {
-      margin-left: -35%;
-    }
-    100% {
-      margin-left: 100%;
-    }
   }
   .launch-error {
     margin-top: 16px;

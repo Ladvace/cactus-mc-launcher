@@ -3,6 +3,7 @@
   import Icon from "./Icon.svelte";
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
+  import { timeAgo } from "$lib/time";
   import type { WorldInfo } from "$lib/types";
 
   let { id, running = false }: { id: string; running?: boolean } = $props();
@@ -78,17 +79,6 @@
     if (mb < 1024) return `${mb.toFixed(1)} MB`;
     return `${(mb / 1024).toFixed(2)} GB`;
   }
-
-  function fmtWhen(iso: string | null): string {
-    if (!iso) return "never";
-    const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
-    if (s < 90) return "just now";
-    const m = Math.round(s / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.round(m / 60);
-    if (h < 24) return `${h}h ago`;
-    return `${Math.round(h / 24)}d ago`;
-  }
 </script>
 
 <div class="worlds">
@@ -116,7 +106,7 @@
               <span class="name" title={w.folder}>{w.name}</span>
               <span class="loc">{w.location === "server" ? "server" : "save"}</span>
             </div>
-            <span class="sub">{fmtSize(w.sizeBytes)} · saved {fmtWhen(w.lastModified)}</span>
+            <span class="sub">{fmtSize(w.sizeBytes)} · saved {timeAgo(w.lastModified)}</span>
           </div>
           <div class="acts">
             <button class="btn ghost sm" title="Show in file manager" onclick={() => reveal(w)}>

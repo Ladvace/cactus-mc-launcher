@@ -1,8 +1,8 @@
-// External links shown in Settings → About. Fill in the blanks and they appear.
+// External links shown in Settings → About. Empty values are hidden.
 
 export const LINKS = {
   github: "https://github.com/Ladvace/cactus-mc-launcher",
-  discord: "", // e.g. "https://discord.gg/xxxxxxx"
-  website: "", // your site for the "Created by" credit
+  discord: "https://discord.gg/bfdUaMf7Mg",
+  website: "https://gianmarcocavallo.com",
   authorName: "Ladvace",
 };
