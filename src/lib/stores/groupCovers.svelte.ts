@@ -1,4 +1,4 @@
-import { browser } from "$app/environment";
+import { readJson, writeJson } from "$lib/storage";
 
 // Per-group (folder) cover images, keyed by group name. Groups are implicit
 // (just a label on instances), so their cover art lives here in localStorage.
@@ -6,19 +6,14 @@ import { browser } from "$app/environment";
 const KEY = "cactus:groupCovers";
 
 function load(): Record<string, string> {
-  if (!browser) return {};
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || "{}");
-  } catch {
-    return {};
-  }
+  return readJson<Record<string, string>>(KEY, {});
 }
 
 class GroupCovers {
   covers = $state<Record<string, string>>(load());
 
   private persist() {
-    if (browser) localStorage.setItem(KEY, JSON.stringify(this.covers));
+    writeJson(KEY, this.covers);
   }
 
   get(name: string): string | null {

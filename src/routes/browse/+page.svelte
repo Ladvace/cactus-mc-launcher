@@ -96,20 +96,24 @@
     search();
   });
 
+  function searchParams(from: number) {
+    return {
+      query: debounced,
+      projectType: activeType,
+      gameVersion: gameVersion || null,
+      loader: showLoader ? loader || null : null,
+      sort,
+      offset: from,
+      limit: LIMIT,
+    };
+  }
+
   async function search() {
     loading = true;
     error = null;
     offset = 0;
     try {
-      const res = await api.searchContent(source, {
-        query: debounced,
-        projectType: activeType,
-        gameVersion: gameVersion || null,
-        loader: showLoader ? loader || null : null,
-        sort,
-        offset: 0,
-        limit: LIMIT,
-      });
+      const res = await api.searchContent(source, searchParams(0));
       hits = res.hits;
       totalHits = res.totalHits;
     } catch (e) {
@@ -124,15 +128,7 @@
     loadingMore = true;
     try {
       const next = offset + LIMIT;
-      const res = await api.searchContent(source, {
-        query: debounced,
-        projectType: activeType,
-        gameVersion: gameVersion || null,
-        loader: showLoader ? loader || null : null,
-        sort,
-        offset: next,
-        limit: LIMIT,
-      });
+      const res = await api.searchContent(source, searchParams(next));
       hits = [...hits, ...res.hits];
       offset = next;
     } catch (e) {

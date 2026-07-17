@@ -1,16 +1,11 @@
-import { browser } from "$app/environment";
 import { boardApi } from "$lib/boardApi";
+import { readJson, removeJson, writeJson } from "$lib/storage";
 import type { BoardSession } from "$lib/types";
 
 const KEY = "cactus:boardSession";
 
 function load(): BoardSession | null {
-  if (!browser) return null;
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || "null");
-  } catch {
-    return null;
-  }
+  return readJson<BoardSession | null>(KEY, null);
 }
 
 /// Boards-service session, authenticated with the player's Minecraft account.
@@ -31,7 +26,7 @@ class BoardAuth {
     this.error = null;
     try {
       this.session = await boardApi.login();
-      if (browser) localStorage.setItem(KEY, JSON.stringify(this.session));
+      writeJson(KEY, this.session);
     } catch (e) {
       this.error = String(e);
     } finally {
@@ -41,7 +36,7 @@ class BoardAuth {
 
   logout() {
     this.session = null;
-    if (browser) localStorage.removeItem(KEY);
+    removeJson(KEY);
   }
 }
 

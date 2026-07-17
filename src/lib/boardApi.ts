@@ -22,12 +22,15 @@ export function boardsConfigured(): boolean {
   return BASE.length > 0;
 }
 
+async function ensureOk(res: Response): Promise<void> {
+  if (res.ok) return;
+  const body = await res.json().catch(() => ({}));
+  throw new Error((body as any).error ?? `request failed (${res.status})`);
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as any).error ?? `request failed (${res.status})`);
-  }
+  await ensureOk(res);
   return res.json() as Promise<T>;
 }
 
@@ -44,10 +47,7 @@ async function authed<T>(
       Authorization: `Bearer ${token}`,
     },
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as any).error ?? `request failed (${res.status})`);
-  }
+  await ensureOk(res);
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 

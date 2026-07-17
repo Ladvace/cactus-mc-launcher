@@ -28,11 +28,16 @@
     editName = current;
   });
 
+  // Reassign every instance currently in this folder to `group` ("" ungroups).
+  async function setMembersGroup(group: string) {
+    const members = instancesStore.instances.filter((i) => i.group === current);
+    for (const i of members) await instancesStore.update(i.id, { group });
+  }
+
   async function rename() {
     const next = editName.trim();
     if (!next || next === current) return;
-    const members = instancesStore.instances.filter((i) => i.group === current);
-    for (const i of members) await instancesStore.update(i.id, { group: next });
+    await setMembersGroup(next);
     groupCovers.rename(current, next);
     current = next;
   }
@@ -170,8 +175,7 @@
   }
 
   async function ungroupAll() {
-    const members = instancesStore.instances.filter((i) => i.group === current);
-    for (const i of members) await instancesStore.update(i.id, { group: "" });
+    await setMembersGroup("");
     onClose();
   }
 </script>

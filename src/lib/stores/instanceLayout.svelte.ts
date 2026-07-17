@@ -1,4 +1,5 @@
 import { browser } from "$app/environment";
+import { writeJson } from "$lib/storage";
 
 // Per-instance tile layout (span + order), shared across every InstanceGrid so
 // grouped grids don't clobber each other's entries. Persisted to localStorage.
@@ -71,7 +72,7 @@ class InstanceLayout {
   }
 
   private save() {
-    if (browser) localStorage.setItem(KEY, JSON.stringify(this.cells));
+    writeJson(KEY, this.cells);
   }
 }
 

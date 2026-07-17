@@ -1,14 +1,9 @@
-import { browser } from "$app/environment";
+import { readJson, writeJson } from "$lib/storage";
 
 const KEY = "cactus:followedBoards";
 
 function load(): string[] {
-  if (!browser) return [];
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || "[]") ?? [];
-  } catch {
-    return [];
-  }
+  return readJson<string[]>(KEY, []);
 }
 
 /// Handles of boards the user follows — these become tabs in the Community view.
@@ -31,7 +26,7 @@ class FollowedBoards {
   }
 
   private save() {
-    if (browser) localStorage.setItem(KEY, JSON.stringify(this.handles));
+    writeJson(KEY, this.handles);
   }
 }
 

@@ -186,6 +186,16 @@
   }
 </script>
 
+{#snippet colorField(value: string, onPick: (v: string) => void)}
+  <input
+    type="color"
+    class="color-input"
+    {value}
+    oninput={(e) => onPick(e.currentTarget.value)}
+  />
+  <span class="hex">{value}</span>
+{/snippet}
+
 <div class="page">
   <header class="head">
     <h1>Settings</h1>
@@ -360,13 +370,7 @@
 
     {#if kind === "color"}
       <div class="bg-detail">
-        <input
-          type="color"
-          class="color-input"
-          value={colorValue}
-          oninput={(e) => setColor(e.currentTarget.value)}
-        />
-        <span class="hex">{colorValue}</span>
+        {@render colorField(colorValue, setColor)}
       </div>
     {:else if kind === "pattern"}
       <div class="bg-detail patterns">
@@ -383,13 +387,7 @@
       </div>
       <div class="bg-detail bg-color">
         <span class="bg-color-label">Base color</span>
-        <input
-          type="color"
-          class="color-input"
-          value={patternColor}
-          oninput={(e) => setPatternColor(e.currentTarget.value)}
-        />
-        <span class="hex">{patternColor}</span>
+        {@render colorField(patternColor, setPatternColor)}
       </div>
     {:else if kind === "image"}
       <div class="bg-detail">
@@ -402,13 +400,7 @@
       </div>
       <div class="bg-detail bg-color">
         <span class="bg-color-label">Tint</span>
-        <input
-          type="color"
-          class="color-input"
-          value={imageColor}
-          oninput={(e) => setImageColor(e.currentTarget.value)}
-        />
-        <span class="hex">{imageColor}</span>
+        {@render colorField(imageColor, setImageColor)}
       </div>
     {:else if kind === "texture"}
       <div class="bg-detail bg-color">

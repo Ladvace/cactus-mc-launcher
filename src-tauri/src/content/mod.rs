@@ -87,15 +87,20 @@ fn target_dir(app: &AppHandle, instance_id: &str, project_type: &str) -> Result<
     Ok(dir)
 }
 
+/// The on-disk file name for an item: the base name, plus a `.disabled` suffix
+/// when disabled.
+fn disk_name(file_name: &str, enabled: bool) -> String {
+    if enabled {
+        file_name.to_string()
+    } else {
+        format!("{file_name}.disabled")
+    }
+}
+
 /// The on-disk path of an item, accounting for the `.disabled` suffix.
 fn item_path(app: &AppHandle, instance_id: &str, item: &ContentItem) -> Result<PathBuf> {
     let dir = target_dir(app, instance_id, &item.project_type)?;
-    let name = if item.enabled {
-        item.file_name.clone()
-    } else {
-        format!("{}.disabled", item.file_name)
-    };
-    Ok(dir.join(name))
+    Ok(dir.join(disk_name(&item.file_name, item.enabled)))
 }
 
 /// Install a content version from a provider into an instance.
@@ -175,16 +180,8 @@ pub fn set_enabled(
 
     if item.enabled != enabled {
         let dir = target_dir(app, instance_id, &item.project_type)?;
-        let from = dir.join(if item.enabled {
-            item.file_name.clone()
-        } else {
-            format!("{}.disabled", item.file_name)
-        });
-        let to = dir.join(if enabled {
-            item.file_name.clone()
-        } else {
-            format!("{}.disabled", item.file_name)
-        });
+        let from = dir.join(disk_name(&item.file_name, item.enabled));
+        let to = dir.join(disk_name(&item.file_name, enabled));
         if from.exists() {
             std::fs::rename(&from, &to)?;
         }

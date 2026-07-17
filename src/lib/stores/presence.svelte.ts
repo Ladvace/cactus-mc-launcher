@@ -1,5 +1,5 @@
-import { browser } from "$app/environment";
 import { boardApi } from "$lib/boardApi";
+import { readJson, writeJson } from "$lib/storage";
 import { boardAuth } from "$lib/stores/boardAuth.svelte";
 import type { PresencePlayer } from "$lib/types";
 
@@ -22,12 +22,7 @@ function load(): Persisted {
     mcVersion: "",
     loader: "",
   };
-  if (!browser) return base;
-  try {
-    return { ...base, ...JSON.parse(localStorage.getItem(KEY) || "{}") };
-  } catch {
-    return base;
-  }
+  return { ...base, ...readJson<Partial<Persisted>>(KEY, {}) };
 }
 
 /// Opt-in "who's online" presence. While the panel is open it polls the list
@@ -55,17 +50,13 @@ class PresenceStore {
   }
 
   private persist() {
-    if (!browser) return;
-    localStorage.setItem(
-      KEY,
-      JSON.stringify({
-        enabled: this.enabled,
-        status: this.status,
-        serverAddress: this.serverAddress,
-        mcVersion: this.mcVersion,
-        loader: this.loader,
-      })
-    );
+    writeJson(KEY, {
+      enabled: this.enabled,
+      status: this.status,
+      serverAddress: this.serverAddress,
+      mcVersion: this.mcVersion,
+      loader: this.loader,
+    });
   }
 
   /** Start polling; call when the panel mounts. */
