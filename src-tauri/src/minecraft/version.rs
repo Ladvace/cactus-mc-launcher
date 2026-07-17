@@ -174,3 +174,24 @@ pub async fn fetch_detail(app: &AppHandle, id: &str, url: &str) -> Result<Versio
     std::fs::write(&cache, &text)?;
     Ok(detail)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn downloads_parses_with_server() {
+        let json = r#"{"client":{"sha1":"a","size":1,"url":"c"},"server":{"sha1":"b","size":2,"url":"s"}}"#;
+        let d: Downloads = serde_json::from_str(json).unwrap();
+        assert_eq!(d.client.url, "c");
+        assert_eq!(d.server.unwrap().url, "s");
+    }
+
+    #[test]
+    fn downloads_parses_without_server() {
+        let json = r#"{"client":{"sha1":"a","url":"c"}}"#;
+        let d: Downloads = serde_json::from_str(json).unwrap();
+        assert!(d.server.is_none());
+        assert_eq!(d.client.size, 0); // size defaults
+    }
+}

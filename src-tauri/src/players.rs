@@ -149,3 +149,18 @@ pub fn remove_whitelist(app: &AppHandle, id: &str, name: &str) -> Result<()> {
     list.retain(|p| !p.name.eq_ignore_ascii_case(name));
     write_json(&path, &list)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dash_uuid_inserts_hyphens() {
+        assert_eq!(
+            dash_uuid("0123456789abcdef0123456789abcdef"),
+            "01234567-89ab-cdef-0123-456789abcdef"
+        );
+        // wrong length passes through unchanged
+        assert_eq!(dash_uuid("short"), "short");
+    }
+}

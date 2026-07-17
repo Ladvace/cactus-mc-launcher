@@ -173,3 +173,17 @@ fn substitutions(detail: &VersionDetail, ctx: &LaunchContext) -> HashMap<String,
 
     m
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn offline_uuid_is_stable_and_v3() {
+        let a = offline_uuid("Player");
+        assert_eq!(a, offline_uuid("Player"), "same name → same uuid");
+        assert_ne!(a, offline_uuid("Steve"));
+        assert_eq!(a.len(), 36); // dashed
+        assert_eq!(a.as_bytes()[14], b'3'); // version 3 nibble
+    }
+}

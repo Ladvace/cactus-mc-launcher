@@ -555,3 +555,27 @@ pub fn remove(app: &AppHandle, instance_id: &str, version_id: &str) -> Result<()
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn safe_rel_blocks_escapes() {
+        assert!(safe_rel("").is_none());
+        assert!(safe_rel("/etc/passwd").is_none());
+        assert!(safe_rel("../secrets").is_none());
+        assert!(safe_rel("a/../b").is_none());
+        assert!(safe_rel("mods/cool.jar").is_some());
+        assert!(safe_rel("config/sub/file.toml").is_some());
+    }
+
+    #[test]
+    fn subdir_maps_project_types() {
+        assert_eq!(subdir("resourcepack"), "resourcepacks");
+        assert_eq!(subdir("shader"), "shaderpacks");
+        assert_eq!(subdir("datapack"), "datapacks");
+        assert_eq!(subdir("mod"), "mods");
+        assert_eq!(subdir("anything-else"), "mods");
+    }
+}

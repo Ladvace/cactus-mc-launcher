@@ -146,3 +146,30 @@ pub struct UpdateInstance {
     pub game_width: Option<u32>,
     pub game_height: Option<u32>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn instance_kind_defaults_to_client() {
+        assert_eq!(InstanceKind::default(), InstanceKind::Client);
+    }
+
+    #[test]
+    fn old_instance_json_deserializes_with_field_defaults() {
+        // A pre-server/pre-overrides instance.json (missing the newer fields).
+        let json = r#"{
+            "id":"abc","name":"Old","icon":null,"mcVersion":"1.20.1",
+            "loader":"fabric","loaderVersion":null,"group":null,
+            "created":"2024-01-01T00:00:00Z","lastPlayed":null,"totalPlaytimeSeconds":0
+        }"#;
+        let inst: Instance = serde_json::from_str(json).unwrap();
+        assert_eq!(inst.kind, InstanceKind::Client);
+        assert_eq!(inst.loader, ModLoader::Fabric);
+        assert!(!inst.cover_image);
+        assert!(inst.server_memory_mb.is_none());
+        assert!(inst.max_memory_mb.is_none());
+        assert!(inst.java_path.is_none());
+    }
+}

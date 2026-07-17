@@ -361,3 +361,17 @@ fn lwjgl_below_331(ver: &str) -> bool {
     }
     false // equal to 3.3.1 → has arm64 natives
 }
+
+#[cfg(test)]
+mod tests {
+    use super::lwjgl_below_331;
+
+    #[test]
+    fn lwjgl_version_threshold() {
+        assert!(lwjgl_below_331("3.2.2"));
+        assert!(lwjgl_below_331("3.3.0"));
+        assert!(!lwjgl_below_331("3.3.1"));
+        assert!(!lwjgl_below_331("3.3.2"));
+        assert!(!lwjgl_below_331("3.4.0"));
+    }
+}

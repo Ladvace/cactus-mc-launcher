@@ -378,3 +378,26 @@ fn copy_dir(src: &Path, dst: &Path) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_metadata_extracts_every_version() {
+        let xml = "<versions><version>1.20.1-47.2.0</version><version>1.20.1-47.2.1</version></versions>";
+        assert_eq!(parse_metadata_versions(xml), vec!["1.20.1-47.2.0", "1.20.1-47.2.1"]);
+    }
+
+    #[test]
+    fn forge_match_strips_the_mc_prefix() {
+        assert_eq!(match_version(ModLoader::Forge, "1.20.1", "1.20.1-47.2.0"), Some("47.2.0".into()));
+        assert_eq!(match_version(ModLoader::Forge, "1.20.1", "1.19.2-43.0.0"), None);
+    }
+
+    #[test]
+    fn neoforge_match_uses_encoded_mc_version() {
+        assert_eq!(match_version(ModLoader::NeoForge, "1.21.1", "21.1.66"), Some("21.1.66".into()));
+        assert_eq!(match_version(ModLoader::NeoForge, "1.20.1", "21.1.66"), None);
+    }
+}

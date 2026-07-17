@@ -690,3 +690,27 @@ fn safe_rel(path: &str) -> Option<PathBuf> {
     }
     Some(p)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn loader_string_round_trips() {
+        for l in [
+            ModLoader::Vanilla,
+            ModLoader::Fabric,
+            ModLoader::Quilt,
+            ModLoader::Forge,
+            ModLoader::NeoForge,
+        ] {
+            assert_eq!(parse_loader(loader_str(l)), l);
+        }
+    }
+
+    #[test]
+    fn parse_loader_defaults_to_vanilla() {
+        assert_eq!(parse_loader("nonsense"), ModLoader::Vanilla);
+        assert_eq!(parse_loader(""), ModLoader::Vanilla);
+    }
+}
