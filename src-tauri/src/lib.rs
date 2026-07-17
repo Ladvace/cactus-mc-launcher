@@ -4,7 +4,6 @@ mod content;
 mod error;
 mod instance;
 mod launch;
-mod link;
 mod loader;
 mod minecraft;
 mod modrinth;
@@ -33,7 +32,6 @@ pub fn run() {
         .manage(LaunchState::default())
         .manage(ServerState::default())
         .manage(AccountStore::default())
-        .manage(link::LinkState::default())
         .setup(|app| {
             let handle = app.handle().clone();
             app.state::<InstanceStore>().load(&handle)?;
@@ -92,9 +90,6 @@ pub fn run() {
             commands::get_capes,
             commands::set_cape,
             server_ping::ping_server,
-            link::link_host,
-            link::link_join,
-            link::link_stop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

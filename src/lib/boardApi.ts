@@ -172,15 +172,4 @@ export const boardApi = {
     get<{ samples: ServerSample[] }>(
       `/v1/servers/history?address=${encodeURIComponent(address)}&hours=${hours}`
     ).then((res) => res.samples),
-
-  // --- Cactus Link (zero-install relay tunnel; see PLAY_TOGETHER.md) ---
-
-  /** Host a session for the local server on `port`; returns a code to share. */
-  linkHost: (port = 25565) => invoke<string>("link_host", { apiBase: BASE, port }),
-
-  /** Join a session by code; returns the local port to Direct Connect to. */
-  linkJoin: (code: string) => invoke<number>("link_join", { apiBase: BASE, code }),
-
-  /** Tear down any running host/guest tunnel. */
-  linkStop: () => invoke<void>("link_stop"),
 };
