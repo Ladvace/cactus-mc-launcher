@@ -449,7 +449,7 @@
             </div>
           {:else if content.length === 0}
             <div class="content-empty">
-              <div class="mark"><Icon name="package" size={30} /></div>
+              <img class="empty-art" src="/empty-cactus.png" alt="" />
               <p>No content installed yet.</p>
               <button class="btn primary" onclick={() => goto("/browse")}>
                 <Icon name="compass" size={15} /> Find mods on Modrinth
@@ -710,15 +710,13 @@
     padding: 56px;
     color: var(--text-muted);
   }
-  .mark {
-    background: var(--bg-card);
-    width: 72px;
-    height: 72px;
-    border-radius: 0;
-    border: 2px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .content-empty .empty-art {
+    width: 200px;
+    max-width: 55%;
+    height: auto;
+    image-rendering: pixelated;
+    -webkit-user-drag: none;
+    user-select: none;
   }
   .settings-tab {
     display: flex;
