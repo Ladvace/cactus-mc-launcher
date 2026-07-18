@@ -6,6 +6,7 @@
   import InstanceIcon from "./InstanceIcon.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { installStore } from "$lib/stores/install.svelte";
+  import { launchStore } from "$lib/stores/launch.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { skinFace } from "$lib/skin";
@@ -228,9 +229,14 @@
           isActive(item.href)}
         {@const activeInstance =
           item.kind === "instance" && path === `/instance/${item.instance.id}`}
+        {@const running =
+          item.kind === "instance" && launchStore.isRunning(item.instance.id)}
+        {@const preparing =
+          item.kind === "instance" && launchStore.isBusy(item.instance.id) && !running}
         <button
           class="dock-item"
           class:active={active || activeInstance}
+          class:running
           style="--s:{scales[index] ?? 1}"
           onclick={(event) => activate(item, event)}
           aria-label={item.label}
@@ -255,6 +261,11 @@
               <InstanceIcon instance={item.instance} size={44} />
               {#if item.instance.kind === "server"}
                 <span class="kind-badge" title="Dedicated server">S</span>
+              {/if}
+              {#if running}
+                <span class="run-dot" title="Running"></span>
+              {:else if preparing}
+                <span class="run-dot preparing" title="Preparing…"></span>
               {/if}
               {#if installStore.isInstalling(item.instance.id)}
                 <span class="dock-dl">
@@ -446,6 +457,33 @@
   .dock-item.active {
     color: var(--accent);
     border-color: var(--border);
+  }
+  /* A running instance gets a green border + a glowing corner dot. */
+  .dock-item.running {
+    border-color: #57c84a;
+  }
+  .run-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    z-index: 3;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #57c84a;
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 0 6px rgba(87, 200, 74, 0.9);
+    pointer-events: none;
+  }
+  .run-dot.preparing {
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: run-pulse 1s ease-in-out infinite;
+  }
+  @keyframes run-pulse {
+    50% {
+      opacity: 0.35;
+    }
   }
   /* A fixed inner area so every item — line icon, instance icon, avatar —
      occupies the same centered footprint and lines up across the row. */
