@@ -39,6 +39,8 @@ pub struct ModRec {
     pub reason: String,
     /// Suggested default (all core mods are on by default; deps included).
     pub recommended: bool,
+    /// True if a version of this project is already installed in the instance.
+    pub installed: bool,
 }
 
 /// The full recommendation returned by [`recommend`].
@@ -182,6 +184,14 @@ pub async fn recommend(app: &AppHandle, instance_id: &str, mode: &str) -> Result
     let mut mods = Vec::new();
     let mut unavailable = Vec::new();
 
+    // Projects already installed in this instance, so we don't recommend adding
+    // them again (matched by project, not exact version).
+    let installed_ids: std::collections::HashSet<String> = content::list(app, instance_id)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|item| item.project_id)
+        .collect();
+
     if let Some(loader) = loader_str(instance.loader) {
         let mut wanted = core_mods(instance.loader);
         if mode == "visuals" {
@@ -191,13 +201,17 @@ pub async fn recommend(app: &AppHandle, instance_id: &str, mode: &str) -> Result
             match modrinth::get_versions(slug, Some(loader), Some(&instance.mc_version)).await {
                 Ok(versions) => match versions.into_iter().next() {
                     // Modrinth returns newest-first; take the latest compatible.
-                    Some(version) => mods.push(ModRec {
-                        slug: slug.to_string(),
-                        version_id: version.id,
-                        title: friendly_title(slug),
-                        reason: reason.to_string(),
-                        recommended: true,
-                    }),
+                    Some(version) => {
+                        let installed = installed_ids.contains(&version.project_id);
+                        mods.push(ModRec {
+                            slug: slug.to_string(),
+                            version_id: version.id,
+                            title: friendly_title(slug),
+                            reason: reason.to_string(),
+                            recommended: !installed,
+                            installed,
+                        });
+                    }
                     None => unavailable.push(friendly_title(slug)),
                 },
                 Err(_) => unavailable.push(friendly_title(slug)),

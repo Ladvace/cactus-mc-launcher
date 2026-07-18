@@ -399,6 +399,7 @@ export interface ModRec {
   title: string;
   reason: string;
   recommended: boolean;
+  installed: boolean;
 }
 
 export interface TuneupPlan {

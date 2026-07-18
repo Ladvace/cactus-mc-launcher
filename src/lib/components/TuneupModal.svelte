@@ -55,7 +55,12 @@
   // Keep a sane min-heap relative to the chosen max.
   const minMem = $derived(Math.min(maxMem, Math.max(1024, Math.floor(maxMem / 2 / 512) * 512)));
 
-  const chosenCount = $derived(plan ? plan.mods.filter((m) => picked[m.versionId]).length : 0);
+  const chosenCount = $derived(
+    plan ? plan.mods.filter((m) => !m.installed && picked[m.versionId]).length : 0,
+  );
+  const allModsInstalled = $derived(
+    !!plan && plan.mods.length > 0 && plan.mods.every((m) => m.installed),
+  );
   const nothingToDo = $derived(chosenCount === 0 && !applyMemory && !applyFlags);
 
   function gb(mb: number) {
@@ -66,7 +71,7 @@
     if (!plan || nothingToDo) return;
     applying = true;
     try {
-      const chosen = plan.mods.filter((m) => picked[m.versionId]);
+      const chosen = plan.mods.filter((m) => !m.installed && picked[m.versionId]);
       const count = await api.tuneupApply(instanceId, {
         mods: chosen.map((m) => ({ versionId: m.versionId, title: m.title })),
         applyMemory,
@@ -134,12 +139,23 @@
       </p>
     {:else if plan.mods.length}
       <h4>Performance mods</h4>
+      {#if allModsInstalled}
+        <p class="muted small">All recommended mods are already installed. 🎉</p>
+      {/if}
       <ul class="mods">
         {#each plan.mods as mod (mod.versionId)}
-          <li>
+          <li class:installed={mod.installed}>
             <label>
-              <input type="checkbox" bind:checked={picked[mod.versionId]} />
-              <span class="mod-name">{mod.title}</span>
+              <input
+                type="checkbox"
+                checked={mod.installed ? true : picked[mod.versionId]}
+                disabled={mod.installed}
+                onchange={(e) => (picked[mod.versionId] = e.currentTarget.checked)}
+              />
+              <span class="mod-name">
+                {mod.title}
+                {#if mod.installed}<span class="badge">Installed</span>{/if}
+              </span>
               <span class="mod-reason">{mod.reason}</span>
             </label>
           </li>
