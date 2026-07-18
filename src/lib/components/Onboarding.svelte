@@ -2,10 +2,13 @@
   import { fly } from "svelte/transition";
   import { quintOut } from "svelte/easing";
   import { settingsStore } from "$lib/stores/settings.svelte";
+  import { accountsStore } from "$lib/stores/accounts.svelte";
   import { THEME_PRESETS, type ThemePreset } from "$lib/themes";
   import { backgroundCss } from "$lib/background";
   import { ui } from "$lib/stores/ui.svelte";
   import { writeJson } from "$lib/storage";
+  import { toast } from "$lib/stores/toast.svelte";
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "./Icon.svelte";
 
   let { onDone }: { onDone: () => void } = $props();
@@ -49,7 +52,12 @@
   }
 
   function onKey(event: KeyboardEvent) {
-    if (event.key === "Enter" && (step === 0 || step === 1)) next();
+    if (event.key === "Enter" && step === 0) next();
+  }
+
+  function copyCode(code: string) {
+    navigator.clipboard.writeText(code);
+    toast.success("Code copied.");
   }
 </script>
 
@@ -78,15 +86,46 @@
           </button>
         {:else if step === 1}
           <span class="eyebrow">Your player</span>
-          <h1>What should we call you?</h1>
-          <p class="lead">Your in-game name for offline play. You can sign in with Microsoft anytime from the account menu.</p>
-          <input
-            class="name-input"
-            placeholder="Player"
-            maxlength="24"
-            bind:value={username}
-            onkeydown={(event) => event.key === "Enter" && next()}
-          />
+          <h1>Sign in to play</h1>
+          {#if accountsStore.active}
+            <p class="lead">
+              Signed in as <strong>{accountsStore.active.username}</strong>. You're
+              ready to play online.
+            </p>
+          {:else if accountsStore.deviceCode}
+            <p class="lead">Open the link and enter this code:</p>
+            <div class="code-row">
+              <button class="code" title="Copy" onclick={() => copyCode(accountsStore.deviceCode!.userCode)}>
+                {accountsStore.deviceCode.userCode}
+              </button>
+              <button class="btn ghost sm" onclick={() => openUrl(accountsStore.deviceCode!.verificationUri)}>
+                Open link
+              </button>
+            </div>
+            <p class="status">
+              <span class="spinner"></span>
+              {accountsStore.deviceCode.status === "authorizing"
+                ? "Signing you in…"
+                : "Waiting for you to authorize…"}
+            </p>
+          {:else}
+            {#if accountsStore.microsoftConfigured}
+              <p class="lead">Sign in with your Microsoft account to play online, or continue offline with just a name.</p>
+              <button class="btn primary lg" onclick={() => accountsStore.login()}>
+                <Icon name="user" size={15} /> Sign in with Microsoft
+              </button>
+              <div class="divider"><span>or play offline</span></div>
+            {:else}
+              <p class="lead">Pick a name for offline play. You can sign in with Microsoft later from the account menu.</p>
+            {/if}
+            <input
+              class="name-input"
+              placeholder="Player"
+              maxlength="24"
+              bind:value={username}
+              onkeydown={(event) => event.key === "Enter" && next()}
+            />
+          {/if}
           <div class="nav">
             <button class="btn ghost" onclick={back}>Back</button>
             <button class="btn primary" onclick={next}>Continue</button>
@@ -187,14 +226,13 @@
     position: relative;
     z-index: 1;
     width: min(560px, 100%);
-    min-height: 420px;
+    height: 500px;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     text-align: center;
-    gap: 4px;
-    padding: 40px 40px 28px;
+    padding: 32px 40px 22px;
     background: var(--bg-card);
     border: 2px solid var(--border);
     box-shadow:
@@ -203,11 +241,14 @@
       0 24px 60px rgba(0, 0, 0, 0.45);
   }
   .step {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 14px;
-    width: 100%;
   }
   .mascot {
     width: 180px;
@@ -261,19 +302,77 @@
     outline: none;
     border-color: var(--accent);
   }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: min(320px, 100%);
+    color: var(--text-muted);
+    font-size: 11.5px;
+  }
+  .divider::before,
+  .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .code-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .code {
+    font-family: var(--font-pixel);
+    font-size: 24px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.3);
+    padding: 8px 16px;
+    cursor: pointer;
+    user-select: all;
+  }
+  .code:hover {
+    border-color: var(--accent);
+  }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+  }
+  .spinner {
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
   .themes {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    width: 100%;
-    margin: 4px 0;
+    grid-template-columns: repeat(4, 64px);
+    justify-content: center;
+    gap: 9px;
+    max-height: 262px;
+    overflow-y: auto;
+    padding: 2px;
   }
   .theme {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 6px;
+    gap: 5px;
+    padding: 3px;
     background: none;
     border: 2px solid transparent;
     cursor: pointer;
@@ -282,8 +381,8 @@
     border-color: var(--accent);
   }
   .swatch {
-    width: 100%;
-    aspect-ratio: 1;
+    width: 58px;
+    height: 58px;
     border: 2px solid var(--border);
   }
   .theme-name {
@@ -307,7 +406,7 @@
   .dots {
     display: flex;
     gap: 8px;
-    margin-top: 24px;
+    margin-top: 14px;
   }
   .dot {
     width: 8px;
