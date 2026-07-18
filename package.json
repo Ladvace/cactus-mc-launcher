@@ -19,7 +19,7 @@
     "build-storybook": "storybook build",
     "prepare": "husky"
   },
-  "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@hackernoon/pixel-icon-library": "^1.1.0",
     "@tauri-apps/api": "^2",

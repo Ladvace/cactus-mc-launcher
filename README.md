@@ -75,3 +75,7 @@ and `launch-log` events (see `src/lib/stores/launch.svelte.ts`).
 - [x] **Mod loaders (Fabric & Quilt)** — meta-driven profile merge (main class, libraries, args) at launch; loader-version picker in Create Instance.
 - [x] **Modrinth integration** — browse (search + facets), install mods/resource packs/shaders/datapacks into instances, per-instance content manager (enable/disable/remove), and one-click `.mrpack` modpack install (creates an instance).
 - [x] **Mod loaders (Forge & NeoForge)** — runs the official installer headlessly (`--installClient`) on first launch, merges the generated profile into the launch command (main class, module-path args, generated libraries).
+
+## License
+
+Licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
