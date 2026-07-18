@@ -153,8 +153,8 @@ export const api = {
     }),
 
   // Adaptive tune-up
-  tuneupRecommend: (instanceId: string) =>
-    invoke<TuneupPlan>("tuneup_recommend", { instanceId }),
+  tuneupRecommend: (instanceId: string, mode: "performance" | "visuals" = "performance") =>
+    invoke<TuneupPlan>("tuneup_recommend", { instanceId, mode }),
 
   tuneupApply: (instanceId: string, selection: TuneupSelection) =>
     invoke<number>("tuneup_apply", { instanceId, selection }),

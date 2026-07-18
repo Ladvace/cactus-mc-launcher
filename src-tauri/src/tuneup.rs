@@ -128,6 +128,20 @@ fn loader_str(loader: ModLoader) -> Option<&'static str> {
     }
 }
 
+/// Extra mods for the "visuals" mode — shader support on top of the core set.
+/// (Sodium/Embeddium from the core set are the required rendering base.)
+fn visuals_mods(loader: ModLoader) -> Vec<(&'static str, &'static str)> {
+    match loader {
+        ModLoader::Vanilla => vec![],
+        ModLoader::Fabric | ModLoader::Quilt => {
+            vec![("iris", "Shader support (runs on top of Sodium)")]
+        }
+        ModLoader::Forge | ModLoader::NeoForge => {
+            vec![("oculus", "Shader support for Forge/NeoForge (Iris port)")]
+        }
+    }
+}
+
 /// Curated core performance mods per loader family, as `(slug, reason)`. These
 /// are all open-source, safe (no visual change, no anti-cheat concerns), and
 /// resolved against the instance's exact loader + Minecraft version at runtime.
@@ -154,8 +168,9 @@ fn core_mods(loader: ModLoader) -> Vec<(&'static str, &'static str)> {
     }
 }
 
-/// Build a tailored tune-up recommendation for an instance.
-pub async fn recommend(app: &AppHandle, instance_id: &str) -> Result<TuneupPlan> {
+/// Build a tailored tune-up recommendation for an instance. `mode` is
+/// `"performance"` (core mods only) or `"visuals"` (core + shader support).
+pub async fn recommend(app: &AppHandle, instance_id: &str, mode: &str) -> Result<TuneupPlan> {
     let instance = app
         .state::<InstanceStore>()
         .get(instance_id)
@@ -168,7 +183,11 @@ pub async fn recommend(app: &AppHandle, instance_id: &str) -> Result<TuneupPlan>
     let mut unavailable = Vec::new();
 
     if let Some(loader) = loader_str(instance.loader) {
-        for (slug, reason) in core_mods(instance.loader) {
+        let mut wanted = core_mods(instance.loader);
+        if mode == "visuals" {
+            wanted.extend(visuals_mods(instance.loader));
+        }
+        for (slug, reason) in wanted {
             match modrinth::get_versions(slug, Some(loader), Some(&instance.mc_version)).await {
                 Ok(versions) => match versions.into_iter().next() {
                     // Modrinth returns newest-first; take the latest compatible.
@@ -246,6 +265,8 @@ fn friendly_title(slug: &str) -> String {
         "immediatelyfast" => "ImmediatelyFast",
         "dynamic-fps" => "Dynamic FPS",
         "embeddium" => "Embeddium",
+        "iris" => "Iris Shaders",
+        "oculus" => "Oculus (Shaders)",
         other => other,
     }
     .to_string()

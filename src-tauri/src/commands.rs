@@ -925,9 +925,14 @@ pub async fn set_cape(store: State<'_, AccountStore>, cape_id: Option<String>) -
 // ---------------------------------------------------------------------------
 
 /// Inspect the machine + instance and return a tailored performance plan.
+/// `mode` is "performance" (default) or "visuals" (adds shader support).
 #[tauri::command]
-pub async fn tuneup_recommend(app: AppHandle, instance_id: String) -> Result<crate::tuneup::TuneupPlan> {
-    crate::tuneup::recommend(&app, &instance_id).await
+pub async fn tuneup_recommend(
+    app: AppHandle,
+    instance_id: String,
+    mode: Option<String>,
+) -> Result<crate::tuneup::TuneupPlan> {
+    crate::tuneup::recommend(&app, &instance_id, mode.as_deref().unwrap_or("performance")).await
 }
 
 /// Apply a tune-up selection: install chosen mods and optionally set heap/flags.

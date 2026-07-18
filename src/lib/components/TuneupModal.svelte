@@ -16,25 +16,30 @@
   let loading = $state(false);
   let applying = $state(false);
   let error = $state<string | null>(null);
+  let mode = $state<"performance" | "visuals">("performance");
 
   // Which mods are ticked (by versionId), and whether to apply memory / flags.
   let picked = $state<Record<string, boolean>>({});
   let applyMemory = $state(true);
   let applyFlags = $state(true);
+  // User-adjustable max heap (MB); seeded from the recommendation.
+  let maxMem = $state(4096);
 
-  // (Re)load the recommendation whenever the modal opens.
+  // (Re)load the recommendation whenever the modal opens or the mode changes.
   $effect(() => {
     if (!open) return;
+    const currentMode = mode;
     let cancelled = false;
     loading = true;
     error = null;
     plan = null;
     api
-      .tuneupRecommend(instanceId)
+      .tuneupRecommend(instanceId, currentMode)
       .then((result) => {
         if (cancelled) return;
         plan = result;
         picked = Object.fromEntries(result.mods.map((m) => [m.versionId, m.recommended]));
+        maxMem = result.maxMemMb;
       })
       .catch((e) => {
         if (!cancelled) error = String(e);
@@ -46,6 +51,9 @@
       cancelled = true;
     };
   });
+
+  // Keep a sane min-heap relative to the chosen max.
+  const minMem = $derived(Math.min(maxMem, Math.max(1024, Math.floor(maxMem / 2 / 512) * 512)));
 
   const chosenCount = $derived(plan ? plan.mods.filter((m) => picked[m.versionId]).length : 0);
   const nothingToDo = $derived(chosenCount === 0 && !applyMemory && !applyFlags);
@@ -63,8 +71,8 @@
         mods: chosen.map((m) => ({ versionId: m.versionId, title: m.title })),
         applyMemory,
         applyFlags,
-        maxMemMb: plan.maxMemMb,
-        minMemMb: plan.minMemMb,
+        maxMemMb: maxMem,
+        minMemMb: minMem,
         jvmArgs: plan.jvmArgs,
       });
       const bits: string[] = [];
@@ -92,6 +100,25 @@
       Recommendations tailored to this machine and instance. Everything here is
       optional — review and untick anything you don't want.
     </p>
+
+    <div class="modes" role="tablist" aria-label="Tune-up mode">
+      <button
+        role="tab"
+        aria-selected={mode === "performance"}
+        class:active={mode === "performance"}
+        onclick={() => (mode = "performance")}
+      >
+        Performance
+      </button>
+      <button
+        role="tab"
+        aria-selected={mode === "visuals"}
+        class:active={mode === "visuals"}
+        onclick={() => (mode = "visuals")}
+      >
+        Visuals
+      </button>
+    </div>
 
     <div class="specs">
       <span><strong>{gb(plan.specs.totalRamMb)} GB</strong> RAM</span>
@@ -129,8 +156,20 @@
     <h4>Java tuning</h4>
     <label class="row">
       <input type="checkbox" bind:checked={applyMemory} />
-      <span>Set memory to <strong>{gb(plan.maxMemMb)} GB</strong> max ({gb(plan.minMemMb)} GB min)</span>
+      <span>Set memory allocation</span>
     </label>
+    <div class="heap" class:disabled={!applyMemory}>
+      <input
+        type="range"
+        min="1024"
+        max={Math.max(2048, plan.specs.totalRamMb)}
+        step="512"
+        bind:value={maxMem}
+        disabled={!applyMemory}
+        aria-label="Maximum memory"
+      />
+      <span class="heap-val"><strong>{gb(maxMem)} GB</strong> max · {gb(minMem)} GB min</span>
+    </div>
     <label class="row">
       <input type="checkbox" bind:checked={applyFlags} />
       <span>Apply tuned JVM flags{plan.jvmArgs.includes("MaxGCPauseMillis") ? " (Aikar's G1GC)" : ""}</span>
@@ -150,6 +189,47 @@
     margin: 0 0 0.75rem;
     color: var(--text-muted);
     font-size: 0.9rem;
+  }
+  .modes {
+    display: inline-flex;
+    gap: 0;
+    margin-bottom: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 8px);
+    overflow: hidden;
+  }
+  .modes button {
+    padding: 0.35rem 0.9rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+  }
+  .modes button.active {
+    background: var(--accent);
+    color: var(--accent-contrast, #1a1a1a);
+    font-weight: 600;
+  }
+  .heap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 0 0.35rem 1.7rem;
+  }
+  .heap.disabled {
+    opacity: 0.45;
+  }
+  .heap input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .heap-val {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    white-space: nowrap;
   }
   .specs {
     display: flex;
