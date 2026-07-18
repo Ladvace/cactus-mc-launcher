@@ -14,7 +14,7 @@
 
   let { onDone }: { onDone: () => void } = $props();
 
-  const STEPS = 4;
+  const STEPS = 5;
   let step = $state(0);
   let dir = $state(1);
   let username = $state(settingsStore.settings.offlineUsername || "Player");
@@ -149,6 +149,17 @@
             <button class="btn ghost" onclick={back}>Back</button>
             <button class="btn primary" onclick={next}>Continue</button>
           </div>
+        {:else if step === 3}
+          <img class="illustration" src="/no-ads.png" alt="" />
+          <h1>No ads. No catch.</h1>
+          <p class="lead">
+            Cactus is free and open-source — no ads, no tracking, no upsells,
+            no premium tier. Just you and your worlds, forever.
+          </p>
+          <div class="nav">
+            <button class="btn ghost" onclick={back}>Back</button>
+            <button class="btn primary" onclick={next}>Continue</button>
+          </div>
         {:else}
           <img class="mascot" src="/empty-cactus.png" alt="" />
           <h1>You're all set{username.trim() ? `, ${username.trim()}` : ""}!</h1>
@@ -269,6 +280,14 @@
     height: auto;
     image-rendering: pixelated;
     filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.4));
+    -webkit-user-drag: none;
+  }
+  /* Painted illustration (not pixel art) — no pixelation, a touch larger. */
+  .illustration {
+    width: 230px;
+    max-width: 66%;
+    height: auto;
+    filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
     -webkit-user-drag: none;
   }
   h1 {
