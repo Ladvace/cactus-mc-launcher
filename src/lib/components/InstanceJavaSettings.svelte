@@ -2,12 +2,22 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { requiredJavaMajor } from "$lib/java";
   import type { Instance } from "$lib/types";
 
   let { instance, isServer = false }: { instance: Instance; isServer?: boolean } =
     $props();
 
   const globals = $derived(settingsStore.settings);
+
+  // The Java this version actually uses, and where it comes from by default.
+  const javaMajor = $derived(requiredJavaMajor(instance.mcVersion));
+  const javaPlaceholder = $derived.by(() => {
+    const perMajor = globals.javaPaths?.[String(javaMajor)]?.trim();
+    if (perMajor) return `Java ${javaMajor} · ${perMajor}`;
+    if (globals.javaPath?.trim()) return `Global · ${globals.javaPath}`;
+    return `Managed Java ${javaMajor}`;
+  });
 
   // Local string drafts (empty = "use global default").
   let maxMem = $state("");
@@ -93,8 +103,8 @@
     </label>
 
     <label class="field wide">
-      <span>Java path</span>
-      <input class="input" placeholder={globals.javaPath?.trim() ? `Global · ${globals.javaPath}` : "Auto (bundled runtime)"} bind:value={javaPath} spellcheck="false" />
+      <span>Java path <small class="hint">· this version runs on Java {javaMajor}</small></span>
+      <input class="input" placeholder={javaPlaceholder} bind:value={javaPath} spellcheck="false" />
     </label>
 
     {#if !isServer}
@@ -153,6 +163,10 @@
   }
   .field.wide {
     grid-column: 1 / -1;
+  }
+  .hint {
+    color: var(--text-muted);
+    font-weight: 400;
   }
   .actions {
     display: flex;

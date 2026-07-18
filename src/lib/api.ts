@@ -159,6 +159,9 @@ export const api = {
 
   contentCacheStats: () => invoke<CacheStats>("content_cache_stats"),
 
+  /** Installed managed Java paths keyed by major version (8/17/21). */
+  resolvedJavaPaths: () => invoke<Record<string, string>>("resolved_java_paths"),
+
   /** Empty the shared content cache; returns the (now empty) stats. */
   clearContentCache: () => invoke<CacheStats>("clear_content_cache"),
 

@@ -164,11 +164,32 @@
   // Managed Java already covers these majors; these let you point a version at
   // your own JDK instead (matches what each Minecraft version requires).
   const JAVA_MAJORS = [8, 17, 21];
+  // Installed managed Java paths (shown when a major is auto-managed).
+  let managedPaths = $state<Record<string, string>>({});
+  $effect(() => {
+    api.resolvedJavaPaths().then((paths) => (managedPaths = paths)).catch(() => {});
+  });
+  // Which majors the user has switched to a custom path.
+  let javaEditing = $state<Record<string, boolean>>({});
+
+  function javaManaged(major: number): boolean {
+    const key = String(major);
+    return !(javaEditing[key] ?? Boolean(draft.javaPaths[key]?.trim()));
+  }
   function setJavaPath(major: number, value: string) {
     const paths = { ...draft.javaPaths };
     if (value) paths[String(major)] = value;
     else delete paths[String(major)];
     draft.javaPaths = paths;
+  }
+  function toggleJavaManaged(major: number, auto: boolean) {
+    const key = String(major);
+    javaEditing = { ...javaEditing, [key]: !auto };
+    if (auto) {
+      setJavaPath(major, ""); // back to managed
+    } else if (!draft.javaPaths[key]) {
+      setJavaPath(major, managedPaths[key] ?? ""); // prefill with the managed path
+    }
   }
 
   async function browseInstancesDir() {
@@ -225,6 +246,7 @@
     javaTotal = 0;
     try {
       javaInstalled = await api.setupJava();
+      managedPaths = await api.resolvedJavaPaths();
     } catch (err) {
       javaError = String(err);
     } finally {
@@ -526,15 +548,36 @@
     </div>
     {#each JAVA_MAJORS as major (major)}
       <div class="setting java-major">
-        <div class="label"><span>Java {major}</span></div>
-        <input
-          class="input narrow"
-          placeholder="Managed (auto)"
-          value={draft.javaPaths[String(major)] ?? ""}
-          oninput={(event) => setJavaPath(major, event.currentTarget.value)}
-          spellcheck="false"
-        />
+        <div class="label">
+          <span>Java {major}</span>
+          <small>
+            {javaManaged(major)
+              ? managedPaths[String(major)]
+                ? "Managed by Cactus"
+                : "Downloaded automatically when needed"
+              : "Using your own Java"}
+          </small>
+        </div>
+        <label class="switch" title="Manage automatically">
+          <input
+            type="checkbox"
+            checked={javaManaged(major)}
+            onchange={(event) => toggleJavaManaged(major, event.currentTarget.checked)}
+          />
+          <span class="track"><span class="thumb"></span></span>
+        </label>
       </div>
+      <input
+        class="input java-input"
+        class:managed={javaManaged(major)}
+        disabled={javaManaged(major)}
+        placeholder="/path/to/java"
+        value={javaManaged(major)
+          ? (managedPaths[String(major)] ?? "")
+          : (draft.javaPaths[String(major)] ?? "")}
+        oninput={(event) => setJavaPath(major, event.currentTarget.value)}
+        spellcheck="false"
+      />
     {/each}
     <div class="setting">
       <div class="label">
@@ -990,6 +1033,18 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+  }
+  .java-major {
+    padding-bottom: 2px;
+  }
+  .java-input {
+    width: 100%;
+    margin: 0 0 10px;
+    font-size: 12.5px;
+  }
+  .java-input.managed {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
   /* Segmented control (dock position). */
   .seg {

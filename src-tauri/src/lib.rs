@@ -77,6 +77,7 @@ pub fn run() {
             commands::add_whitelist,
             commands::remove_whitelist,
             commands::setup_java,
+            commands::resolved_java_paths,
             commands::login_microsoft,
             commands::get_accounts,
             commands::set_active_account,

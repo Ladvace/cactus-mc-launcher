@@ -105,6 +105,27 @@ fn is_installed(install_dir: &Path) -> bool {
     complete_marker(install_dir).exists() && locate_java(install_dir).is_some()
 }
 
+/// The managed runtime component that provides a given major version.
+fn component_for_major(major: u32) -> Option<&'static str> {
+    match major {
+        8 => Some("jre-legacy"),
+        17 => Some("java-runtime-gamma"),
+        21 => Some("java-runtime-delta"),
+        _ => None,
+    }
+}
+
+/// Path to the already-installed managed `java` for a major version, if present.
+/// Used to show what the app would use (and to autofill the settings inputs).
+pub fn managed_java_path(app: &AppHandle, major: u32) -> Option<String> {
+    let component = component_for_major(major)?;
+    let dir = paths::java_dir(app)
+        .ok()?
+        .join(component)
+        .join(platform_key(false));
+    locate_java(&dir).map(|path| path.to_string_lossy().into_owned())
+}
+
 /// Find the `java` executable within an installed runtime directory.
 fn locate_java(install_dir: &Path) -> Option<PathBuf> {
     let suffix = java_binary_name();

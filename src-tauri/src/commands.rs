@@ -449,6 +449,19 @@ pub async fn setup_java(app: AppHandle) -> Result<Vec<String>> {
     Ok(installed)
 }
 
+/// The installed managed Java path for each common major (8/17/21), for showing
+/// and autofilling the Settings inputs. Missing = not downloaded yet.
+#[tauri::command]
+pub fn resolved_java_paths(app: AppHandle) -> std::collections::HashMap<u32, String> {
+    let mut out = std::collections::HashMap::new();
+    for major in [8u32, 17, 21] {
+        if let Some(path) = launch::java::managed_java_path(&app, major) {
+            out.insert(major, path);
+        }
+    }
+    out
+}
+
 // ---------------------------------------------------------------------------
 // Accounts / Microsoft auth
 // ---------------------------------------------------------------------------
