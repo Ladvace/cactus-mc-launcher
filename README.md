@@ -19,7 +19,7 @@ Built with **Tauri v2** · **SvelteKit** · **Svelte 5 (runes)** · **Rust**
 
 ## Screenshots
 
-> Drop images into `docs/screenshots/` with these names and they'll appear here.
+> Generated with `bun run shot <name>` — see [`docs/screenshots/`](docs/screenshots/).
 
 |  |  |
 | --- | --- |
@@ -31,7 +31,7 @@ Built with **Tauri v2** · **SvelteKit** · **Svelte 5 (runes)** · **Rust**
 ## Why Cactus
 
 - 🚫 **No ads, ever.** Free and open-source — no tracking, no upsells, no premium tier.
-- 🪶 **Tiny & light.** A **~10 MB** release binary (see [Lightweight](#lightweight)). It uses your OS's native WebView instead of bundling a whole Chromium runtime like Electron apps do.
+- 🪶 **Small.** An **~11 MB** download (see [Lightweight](#lightweight)) — it runs on your OS's native WebView instead of bundling a whole Chromium runtime.
 - 🎨 **Make it yours.** Themeable backgrounds, gradient/decor presets, a customizable dock, and drag-to-group instances with cover images.
 - 🔒 **Your keys stay yours.** No secrets are baked into the client; online features are optional and off by default.
 
@@ -49,14 +49,9 @@ Built with **Tauri v2** · **SvelteKit** · **Svelte 5 (runes)** · **Rust**
 
 ## Lightweight
 
-Cactus is built on **Tauri**, so the UI runs in the operating system's built-in WebView (WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux) and the core logic is native **Rust**. There's no bundled browser engine — the single biggest reason Electron apps are hundreds of megabytes and heavy on memory.
+Cactus is built on **Tauri**: the UI runs in the operating system's built-in WebView (WKWebView on macOS, WebView2 on Windows, WebKitGTK on Linux) and the core logic is native **Rust**. There's no bundled browser engine, so the app stays small — the macOS download is an **~11 MB `.dmg`** (15 MB installed), measured from `tauri build` on Apple Silicon.
 
-| Metric | Cactus |
-| --- | --- |
-| Release binary (macOS, arm64, stripped + LTO) | **10.2 MB** |
-| Bundled browser runtime | **None** (uses the OS WebView) |
-
-> Measured from `cargo build --release` on Apple Silicon. Memory footprint is dominated by the shared system WebView; contributions of reproducible cross-platform benchmarks are welcome.
+> We don't publish an idle-RAM figure yet — a native-WebView app has a lower baseline than a bundled-Chromium one, but we'd rather measure it reproducibly before quoting a number.
 
 ## Getting started
 
