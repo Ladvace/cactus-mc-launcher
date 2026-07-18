@@ -179,6 +179,9 @@
               </button>
             {/if}
           </div>
+          <p class="tip">
+            Enable stickers (Giphy) and server sharing (ngrok) anytime in Settings.
+          </p>
         {/if}
       </div>
     {/key}
@@ -418,6 +421,11 @@
     display: flex;
     gap: 10px;
     margin-top: 6px;
+  }
+  .tip {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: var(--text-muted);
   }
   .social {
     display: inline-flex;
