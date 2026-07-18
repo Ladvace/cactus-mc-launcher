@@ -97,7 +97,11 @@
 
 <Modal title="Tune-up" {open} {onClose} width={560}>
   {#if loading}
-    <p class="muted">Inspecting your machine…</p>
+    <div class="loading">
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="loading-text">Inspecting your machine and finding compatible mods…</p>
+      <p class="loading-sub">This can take a few seconds.</p>
+    </div>
   {:else if error}
     <p class="error">{error}</p>
   {:else if plan}
@@ -205,6 +209,38 @@
     margin: 0 0 0.75rem;
     color: var(--text-muted);
     font-size: 0.9rem;
+  }
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 2.5rem 1rem;
+    text-align: center;
+  }
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: tuneup-spin 0.7s linear infinite;
+  }
+  @keyframes tuneup-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .loading-text {
+    margin: 0;
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  .loading-sub {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
   }
   .modes {
     display: inline-flex;

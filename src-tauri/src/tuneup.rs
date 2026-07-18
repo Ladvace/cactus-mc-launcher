@@ -197,10 +197,19 @@ pub async fn recommend(app: &AppHandle, instance_id: &str, mode: &str) -> Result
         if mode == "visuals" {
             wanted.extend(visuals_mods(instance.loader));
         }
-        for (slug, reason) in wanted {
-            match modrinth::get_versions(slug, Some(loader), Some(&instance.mc_version)).await {
+        // Resolve every mod's latest compatible version concurrently — sequential
+        // lookups are the slow part of a tune-up. join_all preserves input order.
+        let lookups = wanted.into_iter().map(|(slug, reason)| {
+            let mc = instance.mc_version.clone();
+            async move {
+                let result = modrinth::get_versions(slug, Some(loader), Some(&mc)).await;
+                (slug, reason, result)
+            }
+        });
+        for (slug, reason, result) in futures::future::join_all(lookups).await {
+            match result {
+                // Modrinth returns newest-first; take the latest compatible.
                 Ok(versions) => match versions.into_iter().next() {
-                    // Modrinth returns newest-first; take the latest compatible.
                     Some(version) => {
                         let installed = installed_ids.contains(&version.project_id);
                         mods.push(ModRec {
