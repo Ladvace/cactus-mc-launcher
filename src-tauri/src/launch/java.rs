@@ -92,6 +92,19 @@ fn java_binary_name() -> &'static str {
     }
 }
 
+/// Marker written after a runtime finishes downloading, so an interrupted
+/// download (which may have left `bin/java` but not e.g. `lib/server/libjvm`)
+/// isn't mistaken for a complete install.
+fn complete_marker(install_dir: &Path) -> PathBuf {
+    install_dir.join(".cactus-complete")
+}
+
+/// A runtime counts as installed only when its `java` binary exists AND the
+/// completion marker is present (the whole file set was downloaded).
+fn is_installed(install_dir: &Path) -> bool {
+    complete_marker(install_dir).exists() && locate_java(install_dir).is_some()
+}
+
 /// Find the `java` executable within an installed runtime directory.
 fn locate_java(install_dir: &Path) -> Option<PathBuf> {
     let suffix = java_binary_name();
@@ -234,8 +247,10 @@ where
         )?;
 
     let install_dir = paths::java_dir(app)?.join(&component).join(platform_key(force_x64));
-    if let Some(java) = locate_java(&install_dir) {
-        return Ok(java);
+    if is_installed(&install_dir) {
+        if let Some(java) = locate_java(&install_dir) {
+            return Ok(java);
+        }
     }
 
     download_runtime(client, &manifest_url, &install_dir, on_progress).await?;
@@ -274,7 +289,7 @@ where
         let label = format!("Java {major}");
 
         let install_dir = paths::java_dir(app)?.join(component).join(platform_key(false));
-        if locate_java(&install_dir).is_some() {
+        if is_installed(&install_dir) {
             installed.push(label);
             continue;
         }
@@ -353,6 +368,9 @@ where
             let _ = &link;
         }
     }
+
+    // All files + links are in place — mark the runtime complete.
+    std::fs::write(complete_marker(install_dir), b"")?;
 
     Ok(())
 }
