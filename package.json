@@ -17,6 +17,7 @@
     "e2e:ui": "playwright test --ui",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
+    "shot": "python3 scripts/screenshot.py",
     "prepare": "husky"
   },
   "license": "AGPL-3.0-only",
