@@ -2,6 +2,7 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { api } from "$lib/api";
   import { listen } from "@tauri-apps/api/event";
+  import { getVersion } from "@tauri-apps/api/app";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "$lib/components/Icon.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
@@ -59,6 +60,11 @@
       cacheLoading = false;
     }
   }
+
+  let appVersion = $state("");
+  $effect(() => {
+    getVersion().then((version) => (appVersion = version)).catch(() => {});
+  });
 
   let clearingCache = $state(false);
   async function clearCache() {
@@ -741,6 +747,8 @@
       {saving ? "Saving…" : "Save changes"}
     </button>
   </div>
+
+  <p class="app-version">Cactus Launcher{appVersion ? ` v${appVersion}` : ""}</p>
 </div>
 
 <Modal title="Reset everything?" open={resetOpen} onClose={() => (resetOpen = false)} width={430}>
@@ -1037,6 +1045,12 @@
   .java-input.managed {
     opacity: 0.55;
     cursor: not-allowed;
+  }
+  .app-version {
+    margin: 20px 0 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
   }
   /* Segmented control (dock position). */
   .seg {
