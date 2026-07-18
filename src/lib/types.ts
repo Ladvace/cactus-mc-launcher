@@ -383,3 +383,45 @@ export const SUPPORTED_LOADERS: ModLoader[] = [
   "forge",
   "neoforge",
 ];
+
+// --- Adaptive tune-up -------------------------------------------------------
+
+export interface HostSpecs {
+  totalRamMb: number;
+  cpuCores: number;
+  os: string;
+  arch: string;
+}
+
+export interface ModRec {
+  slug: string;
+  versionId: string;
+  title: string;
+  reason: string;
+  recommended: boolean;
+}
+
+export interface TuneupPlan {
+  specs: HostSpecs;
+  mcVersion: string;
+  loader: string;
+  maxMemMb: number;
+  minMemMb: number;
+  jvmArgs: string;
+  mods: ModRec[];
+  unavailable: string[];
+}
+
+export interface SelectedMod {
+  versionId: string;
+  title: string;
+}
+
+export interface TuneupSelection {
+  mods: SelectedMod[];
+  applyMemory: boolean;
+  applyFlags: boolean;
+  maxMemMb: number;
+  minMemMb: number;
+  jvmArgs: string;
+}

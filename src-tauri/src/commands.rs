@@ -919,3 +919,24 @@ pub async fn set_cape(store: State<'_, AccountStore>, cape_id: Option<String>) -
     }
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Adaptive tune-up (hardware-aware performance recommendation)
+// ---------------------------------------------------------------------------
+
+/// Inspect the machine + instance and return a tailored performance plan.
+#[tauri::command]
+pub async fn tuneup_recommend(app: AppHandle, instance_id: String) -> Result<crate::tuneup::TuneupPlan> {
+    crate::tuneup::recommend(&app, &instance_id).await
+}
+
+/// Apply a tune-up selection: install chosen mods and optionally set heap/flags.
+/// Returns the number of mods installed.
+#[tauri::command]
+pub async fn tuneup_apply(
+    app: AppHandle,
+    instance_id: String,
+    selection: crate::tuneup::TuneupSelection,
+) -> Result<usize> {
+    crate::tuneup::apply(&app, &instance_id, selection).await
+}

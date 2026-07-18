@@ -19,6 +19,8 @@ import type {
   Settings,
   Source,
   Sticker,
+  TuneupPlan,
+  TuneupSelection,
   UpdateInstance,
   VersionList,
   WorldInfo,
@@ -149,6 +151,13 @@ export const api = {
       versionId,
       iconUrl: iconUrl ?? null,
     }),
+
+  // Adaptive tune-up
+  tuneupRecommend: (instanceId: string) =>
+    invoke<TuneupPlan>("tuneup_recommend", { instanceId }),
+
+  tuneupApply: (instanceId: string, selection: TuneupSelection) =>
+    invoke<number>("tuneup_apply", { instanceId, selection }),
 
   // Stickers (Giphy)
 

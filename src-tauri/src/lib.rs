@@ -17,6 +17,7 @@ mod snapshot;
 mod tunnel;
 mod sources;
 mod stickers;
+mod tuneup;
 mod worlds;
 
 use auth::AccountStore;
@@ -91,6 +92,8 @@ pub fn run() {
             commands::set_content_enabled,
             commands::remove_content,
             commands::install_modpack,
+            commands::tuneup_recommend,
+            commands::tuneup_apply,
             commands::search_stickers,
             commands::download_image,
             commands::content_cache_stats,

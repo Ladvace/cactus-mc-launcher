@@ -16,6 +16,7 @@
   import PlayersList from "$lib/components/PlayersList.svelte";
   import WorldsList from "$lib/components/WorldsList.svelte";
   import InstanceJavaSettings from "$lib/components/InstanceJavaSettings.svelte";
+  import TuneupModal from "$lib/components/TuneupModal.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
   import { pickFolder } from "$lib/dialog";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -167,6 +168,7 @@
 
   let renameOpen = $state(false);
   let deleteOpen = $state(false);
+  let tuneupOpen = $state(false);
   let renameValue = $state("");
   let busy = $state(false);
 
@@ -315,6 +317,16 @@
                 : isServer
                   ? "Start server"
                   : "Play"}
+            </button>
+          {/if}
+          {#if !isServer}
+            <button
+              class="btn ghost"
+              onclick={() => (tuneupOpen = true)}
+              title="Tune-up: hardware-aware performance recommendations"
+              aria-label="Tune-up"
+            >
+              <Icon name="sparkles" size={16} />
             </button>
           {/if}
           <button class="btn ghost" onclick={openRename} aria-label="Rename">
@@ -564,6 +576,13 @@
     </div>
   </div>
 {/if}
+
+<TuneupModal
+  instanceId={id}
+  open={tuneupOpen}
+  onClose={() => (tuneupOpen = false)}
+  onApplied={loadContent}
+/>
 
 <Modal title="Rename instance" open={renameOpen} onClose={() => (renameOpen = false)} width={420}>
   <label class="field-label" for="rename-input">Name</label>
