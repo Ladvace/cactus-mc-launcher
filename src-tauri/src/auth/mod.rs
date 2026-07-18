@@ -173,9 +173,7 @@ impl AccountStore {
 // --- Login orchestration ----------------------------------------------------
 
 fn http_client() -> Result<reqwest::Client> {
-    Ok(reqwest::Client::builder()
-        .user_agent(concat!("cactus-launcher/", env!("CARGO_PKG_VERSION")))
-        .build()?)
+    crate::http::client()
 }
 
 #[derive(Clone, Serialize)]

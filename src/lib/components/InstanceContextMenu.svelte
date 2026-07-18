@@ -89,13 +89,16 @@
         icon: "expand",
         disabled: !inst.icon,
         onSelect: () =>
-          instancesStore.update(inst.id, { coverImage: !inst.coverImage }),
+          instancesStore
+            .update(inst.id, { coverImage: !inst.coverImage })
+            .catch((e) => toast.error(String(e))),
       },
       {
         label: "Reset image",
         icon: "refresh",
         disabled: !inst.icon,
-        onSelect: () => instancesStore.resetIcon(inst.id),
+        onSelect: () =>
+          instancesStore.resetIcon(inst.id).catch((e) => toast.error(String(e))),
       },
       { separator: true },
       ...(shareOnline
@@ -183,8 +186,7 @@
   async function copyServerAddress(id: string) {
     try {
       const addr = await localServerAddress(id);
-      await navigator.clipboard.writeText(addr);
-      toast.success(`Copied ${addr}`);
+      await copyText(addr, `Copied ${addr}`);
     } catch (error) {
       toast.error(String(error));
     }

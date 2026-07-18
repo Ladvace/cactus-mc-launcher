@@ -76,6 +76,29 @@ fn emit_status(app: &AppHandle, id: &str, state: &str, message: Option<String>) 
     );
 }
 
+/// Strip inherited `DYLD_*` overrides from a command. In dev, `cargo run` sets
+/// `DYLD_FALLBACK_LIBRARY_PATH` to Rust build dirs; inheriting it in the game
+/// process breaks macOS OpenGL loading (GL dispatch LOAD_ERROR -> SIGABRT).
+fn strip_dyld(cmd: &mut tokio::process::Command) {
+    for (key, _) in std::env::vars() {
+        if key.starts_with("DYLD_") {
+            cmd.env_remove(key);
+        }
+    }
+}
+
+/// Add the elapsed session time to an instance's total playtime and stamp
+/// `last_played`. No-op if the instance was deleted while running.
+fn record_playtime(app: &AppHandle, instance_id: &str, started: Instant) {
+    let elapsed = started.elapsed().as_secs();
+    let store = app.state::<InstanceStore>();
+    if let Some(mut instance) = store.get(instance_id) {
+        instance.total_playtime_seconds += elapsed;
+        instance.last_played = Some(Utc::now());
+        let _ = store.save(app, &instance);
+    }
+}
+
 /// Spawn the game process and monitor it in a background task: stream stdout/
 /// stderr as log events, honor a kill signal, and update playtime on exit.
 pub fn spawn_and_monitor(
@@ -102,15 +125,7 @@ pub fn spawn_and_monitor(
         .current_dir(&game_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::from(stderr_file));
-
-    // Strip inherited `DYLD_*` overrides. In dev, `cargo run` sets
-    // DYLD_FALLBACK_LIBRARY_PATH to Rust build dirs; inheriting it in the game
-    // process breaks macOS OpenGL loading (GL dispatch LOAD_ERROR -> SIGABRT).
-    for (key, _) in std::env::vars() {
-        if key.starts_with("DYLD_") {
-            cmd.env_remove(key);
-        }
-    }
+    strip_dyld(&mut cmd);
 
     let mut child = cmd
         .spawn()
@@ -174,13 +189,7 @@ pub fn spawn_and_monitor(
             }
         }
 
-        let elapsed = started.elapsed().as_secs();
-        let store = app.state::<InstanceStore>();
-        if let Some(mut instance) = store.get(&instance_id) {
-            instance.total_playtime_seconds += elapsed;
-            instance.last_played = Some(Utc::now());
-            let _ = store.save(&app, &instance);
-        }
+        record_playtime(&app, &instance_id, started);
 
         app.state::<LaunchState>().unregister(&instance_id);
         emit_status(&app, &instance_id, "exited", Some(exit_message));
@@ -212,12 +221,7 @@ pub fn spawn_server(
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-
-    for (key, _) in std::env::vars() {
-        if key.starts_with("DYLD_") {
-            cmd.env_remove(key);
-        }
-    }
+    strip_dyld(&mut cmd);
 
     let mut child = cmd
         .spawn()
@@ -293,13 +297,7 @@ pub fn spawn_server(
 
         eprintln!("[server] instance {instance_id} {exit_message}");
 
-        let elapsed = started.elapsed().as_secs();
-        let store = app.state::<InstanceStore>();
-        if let Some(mut instance) = store.get(&instance_id) {
-            instance.total_playtime_seconds += elapsed;
-            instance.last_played = Some(Utc::now());
-            let _ = store.save(&app, &instance);
-        }
+        record_playtime(&app, &instance_id, started);
 
         app.state::<ServerState>().unregister(&instance_id);
         emit_status(&app, &instance_id, "exited", Some(exit_message));

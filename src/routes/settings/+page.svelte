@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { api } from "$lib/api";
   import { listen } from "@tauri-apps/api/event";
@@ -11,6 +12,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { toPct } from "$lib/stores/install.svelte";
   import {
     backgroundCss,
     bgKind,
@@ -244,10 +246,12 @@
     if (folder) draft.instancesDir = folder;
   }
 
-  // Sync the draft once settings finish loading.
+  // Sync the draft once settings finish loading. Only react to the `loaded`
+  // transition — reading `settings` untracked so later mutations don't re-run
+  // this effect and clobber in-progress draft edits.
   $effect(() => {
     if (settingsStore.loaded) {
-      draft = { ...settingsStore.settings };
+      draft = { ...untrack(() => settingsStore.settings) };
     }
   });
 
@@ -258,11 +262,10 @@
   let javaInstalled = $state<string[]>([]);
   let javaError = $state<string | null>(null);
 
-  const javaPct = $derived(
-    javaTotal > 0 ? Math.round((javaCur / javaTotal) * 100) : null
-  );
+  const javaPct = $derived(toPct(javaCur, javaTotal));
 
   $effect(() => {
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
     listen<{ label: string; current: number; total: number }>(
       "java-setup",
@@ -271,8 +274,16 @@
         javaCur = event.payload.current;
         javaTotal = event.payload.total;
       }
-    ).then((fn) => (unlisten = fn));
-    return () => unlisten?.();
+    )
+      .then((fn) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   });
 
   async function setupJava() {

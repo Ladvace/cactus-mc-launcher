@@ -6,8 +6,10 @@ use tauri::AppHandle;
 
 use super::download::{download_all, DownloadTask};
 use crate::error::{AppError, Result};
+use crate::instance::Instance;
 use crate::minecraft::version::JavaVersion;
 use crate::paths;
+use crate::settings::Settings;
 
 const JAVA_RUNTIME_MANIFEST: &str =
     "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
@@ -126,18 +128,37 @@ pub fn managed_java_path(app: &AppHandle, major: u32) -> Option<String> {
     locate_java(&dir).map(|path| path.to_string_lossy().into_owned())
 }
 
+/// Resolve which Java executable an instance should use: a per-instance override
+/// first, then the per-major setting matching the required Java, then the legacy
+/// global path. `None` = let [`ensure_java`] auto-manage a runtime.
+pub fn resolve_path<'a>(
+    instance: &'a Instance,
+    settings: &'a Settings,
+    major: u32,
+) -> Option<&'a str> {
+    instance
+        .java_path
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            settings
+                .java_paths
+                .get(&major)
+                .map(String::as_str)
+                .filter(|s| !s.trim().is_empty())
+        })
+        .or(settings.java_path.as_deref())
+}
+
 /// Find the `java` executable within an installed runtime directory.
 fn locate_java(install_dir: &Path) -> Option<PathBuf> {
     let suffix = java_binary_name();
-    for candidate in [
+    [
         install_dir.join(suffix),
         install_dir.join("jre.bundle/Contents/Home").join(suffix),
-    ] {
-        if candidate.exists() {
-            return Some(candidate);
-        }
-    }
-    None
+    ]
+    .into_iter()
+    .find(|candidate| candidate.exists())
 }
 
 /// The Java major version a component provides. Known components are mapped

@@ -69,7 +69,7 @@ pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Stick
         params.push(("q", trimmed_query));
     }
 
-    let resp: GiphyResp = reqwest::Client::new()
+    let resp: GiphyResp = crate::http::client()?
         .get(format!("{API_BASE}/{endpoint}"))
         .query(&params)
         .send()

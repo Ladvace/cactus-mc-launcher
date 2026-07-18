@@ -6,11 +6,10 @@
 //! a future CurseForge provider maps its API responses into these same types.
 
 pub mod curseforge;
-pub mod ftb;
 
 use serde::Deserialize;
 
-use crate::error::{AppError, Result};
+use crate::error::Result;
 use crate::modrinth::{self, SearchParams, SearchResults, Version};
 
 /// A content provider.
@@ -20,7 +19,6 @@ pub enum Source {
     #[default]
     Modrinth,
     CurseForge,
-    Ftb,
 }
 
 /// Which sources are available (CurseForge only if its API key is set).
@@ -38,8 +36,6 @@ pub fn available() -> Vec<SourceInfo> {
             id: "curseforge".into(),
             enabled: curseforge::is_configured(),
         },
-        // FTB browsing needs no key; installing resolves mods via CurseForge.
-        SourceInfo { id: "ftb".into(), enabled: true },
     ]
 }
 
@@ -48,7 +44,6 @@ pub async fn search(source: Source, params: SearchParams) -> Result<SearchResult
     match source {
         Source::Modrinth => modrinth::search(params).await,
         Source::CurseForge => curseforge::search(params).await,
-        Source::Ftb => ftb::search(params).await,
     }
 }
 
@@ -62,7 +57,6 @@ pub async fn get_versions(
     match source {
         Source::Modrinth => modrinth::get_versions(project_id, loader, game_version).await,
         Source::CurseForge => curseforge::get_versions(project_id, loader, game_version).await,
-        Source::Ftb => ftb::get_versions(project_id).await,
     }
 }
 
@@ -71,8 +65,5 @@ pub async fn get_version(source: Source, version_id: &str) -> Result<Version> {
     match source {
         Source::Modrinth => modrinth::get_version(version_id).await,
         Source::CurseForge => curseforge::get_version(version_id).await,
-        Source::Ftb => Err(AppError::Other(
-            "FTB provides modpacks only; install them from the Modpacks tab".into(),
-        )),
     }
 }

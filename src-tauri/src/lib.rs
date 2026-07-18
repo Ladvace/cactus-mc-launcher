@@ -2,6 +2,7 @@ mod auth;
 mod commands;
 mod content;
 mod error;
+mod http;
 mod instance;
 mod launch;
 mod loader;

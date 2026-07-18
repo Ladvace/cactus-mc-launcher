@@ -48,13 +48,9 @@
 
   const LIMIT = 20;
   const showLoader = $derived(activeType === "mod" || activeType === "modpack");
-  // FTB only has modpacks — restrict the tabs and force the type.
-  const visibleTabs = $derived(
-    source === "ftb" ? tabs.filter((tab) => tab.type === "modpack") : tabs
+  const sourceLabel = $derived(
+    SOURCES.find((option) => option.value === source)?.label ?? "the content source"
   );
-  $effect(() => {
-    if (source === "ftb" && activeType !== "modpack") activeType = "modpack";
-  });
 
   // Debounce the search text.
   $effect(() => {
@@ -150,7 +146,7 @@
   </header>
 
   <div class="tabs">
-    {#each visibleTabs as tab}
+    {#each tabs as tab}
       <button
         class="tab"
         class:active={activeType === tab.type}
@@ -195,7 +191,7 @@
 
   {#if error}
     <div class="status error">
-      <p>Couldn't reach Modrinth.</p>
+      <p>Couldn't reach {sourceLabel}.</p>
       <p class="err-detail">{error}</p>
       <button class="btn ghost" onclick={search}>Retry</button>
     </div>

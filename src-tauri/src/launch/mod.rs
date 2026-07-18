@@ -7,7 +7,7 @@ pub mod process;
 pub mod rules;
 pub mod server;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use serde::Serialize;
@@ -21,10 +21,13 @@ use crate::minecraft::version::JavaVersion;
 use crate::settings::Settings;
 use crate::paths;
 
-/// Tracks running game processes so they can be stopped.
+/// Tracks running game processes so they can be stopped. `starting` additionally
+/// holds instances that are preparing to launch (downloading, before the process
+/// spawns) so a second launch click during that window is rejected.
 #[derive(Default)]
 pub struct LaunchState {
     running: Mutex<HashMap<String, oneshot::Sender<()>>>,
+    starting: Mutex<HashSet<String>>,
 }
 
 impl LaunchState {
@@ -36,6 +39,18 @@ impl LaunchState {
     }
     pub fn is_running(&self, id: &str) -> bool {
         self.running.lock().unwrap().contains_key(id)
+    }
+    /// Mark an instance as starting. Returns false if it is already starting or
+    /// running, letting the caller reject a duplicate launch before the (slow)
+    /// prepare phase begins. Pair every `true` with `finish_start`.
+    pub fn try_begin_start(&self, id: &str) -> bool {
+        if self.is_running(id) {
+            return false;
+        }
+        self.starting.lock().unwrap().insert(id.to_string())
+    }
+    pub fn finish_start(&self, id: &str) {
+        self.starting.lock().unwrap().remove(id);
     }
     /// Signal the monitor task to kill the process.
     pub fn kill(&self, id: &str) {
@@ -159,9 +174,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     let id = &instance.id;
     emit_status(app, id, "preparing", Some("Resolving version…".into()));
 
-    let client = reqwest::Client::builder()
-        .user_agent(concat!("cactus-launcher/", env!("CARGO_PKG_VERSION")))
-        .build()?;
+    let client = crate::http::client()?;
 
     let manifest = minecraft::fetch_versions().await?;
     let entry = manifest
@@ -183,20 +196,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     // Apple Silicon: versions with LWJGL < 3.3.1 have no arm64 natives, so run
     // them with an x86_64 (Rosetta) Java to match the x86_64 native libraries.
     let force_x64 = macos_needs_rosetta(&detail);
-    // Java path: per-instance override, else a per-major setting matching this
-    // version's required Java, else the legacy global path.
-    let java_path = instance
-        .java_path
-        .as_deref()
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| {
-            settings
-                .java_paths
-                .get(&java_version.major_version)
-                .map(String::as_str)
-                .filter(|s| !s.trim().is_empty())
-        })
-        .or(settings.java_path.as_deref());
+    let java_path = java::resolve_path(instance, settings, java_version.major_version);
     let java = {
         let app_cb = app.clone();
         let id_cb = id.clone();
@@ -213,37 +213,35 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
 
     // --- Apply the mod loader profile on top of vanilla ---
     use crate::instance::ModLoader;
-    if instance.loader != ModLoader::Vanilla {
-        emit_status(app, id, "preparing", Some("Resolving mod loader…".into()));
-        match instance.loader {
-            ModLoader::Fabric | ModLoader::Quilt => {
-                crate::loader::apply_loader(
-                    &mut detail,
-                    instance.loader,
-                    &instance.mc_version,
-                    instance.loader_version.as_deref(),
-                )
-                .await?;
-            }
-            ModLoader::Forge | ModLoader::NeoForge => {
-                emit_status(
-                    app,
-                    id,
-                    "preparing",
-                    Some("Installing Forge/NeoForge (first run can take a minute)…".into()),
-                );
-                crate::loader::forge::apply(
-                    &mut detail,
-                    app,
-                    &client,
-                    &java,
-                    instance.loader,
-                    &instance.mc_version,
-                    instance.loader_version.as_deref(),
-                )
-                .await?;
-            }
-            ModLoader::Vanilla => unreachable!(),
+    match instance.loader {
+        ModLoader::Vanilla => {}
+        ModLoader::Fabric | ModLoader::Quilt => {
+            emit_status(app, id, "preparing", Some("Resolving mod loader…".into()));
+            crate::loader::apply_loader(
+                &mut detail,
+                instance.loader,
+                &instance.mc_version,
+                instance.loader_version.as_deref(),
+            )
+            .await?;
+        }
+        ModLoader::Forge | ModLoader::NeoForge => {
+            emit_status(
+                app,
+                id,
+                "preparing",
+                Some("Installing Forge/NeoForge (first run can take a minute)…".into()),
+            );
+            crate::loader::forge::apply(
+                &mut detail,
+                app,
+                &client,
+                &java,
+                instance.loader,
+                &instance.mc_version,
+                instance.loader_version.as_deref(),
+            )
+            .await?;
         }
     }
 
@@ -354,10 +352,10 @@ fn macos_needs_rosetta(detail: &version::VersionDetail) -> bool {
 fn lwjgl_below_331(version: &str) -> bool {
     let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
     let target = [3u32, 3, 1];
-    for index in 0..3 {
+    for (index, &want) in target.iter().enumerate() {
         let part = parts.get(index).copied().unwrap_or(0);
-        if part != target[index] {
-            return part < target[index];
+        if part != want {
+            return part < want;
         }
     }
     false // equal to 3.3.1 → has arm64 natives

@@ -26,7 +26,7 @@ pub async fn login(app: &AppHandle, api_base: &str) -> Result<BoardSession> {
         .ok_or_else(|| AppError::Other("Sign in with your Microsoft account first.".into()))?;
 
     let base = api_base.trim_end_matches('/');
-    let client = reqwest::Client::new();
+    let client = crate::http::client()?;
 
     // 1. Get a one-shot serverId challenge from the backend.
     let challenge: serde_json::Value = client

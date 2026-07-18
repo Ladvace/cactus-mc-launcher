@@ -7,7 +7,6 @@
 //   "image:#rrggbb|<uri>"   → an image with a chosen scrim tint
 
 export const PATTERNS = ["dots", "grid", "diagonal", "checker"] as const;
-export type PatternName = (typeof PATTERNS)[number];
 
 export const DEFAULT_COLOR = "#17161a";
 
@@ -25,7 +24,7 @@ export function parseImage(bg: string): { uri: string; color: string | null } {
 }
 
 /** Split `tile:[#color|]<uri>` (a repeating decor-sprite wallpaper). */
-export function parseTile(bg: string): { uri: string; color: string | null } {
+function parseTile(bg: string): { uri: string; color: string | null } {
   return parsePrefixed(bg, "tile:");
 }
 
@@ -127,7 +126,7 @@ export function backgroundCss(bg: string): string {
   return "var(--bg-app)";
 }
 
-export type BgKind = "default" | "color" | "pattern" | "image" | "tile" | "texture";
+type BgKind = "default" | "color" | "pattern" | "image" | "tile" | "texture";
 
 export function bgKind(bg: string): BgKind {
   if (bg.startsWith("color:")) return "color";

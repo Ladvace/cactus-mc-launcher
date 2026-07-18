@@ -16,10 +16,12 @@ pub enum AppError {
     #[error("network error: {0}")]
     Http(#[from] reqwest::Error),
 
+    #[error("zip error: {0}")]
+    Zip(#[from] zip::result::ZipError),
+
     #[error("instance not found: {0}")]
     InstanceNotFound(String),
 
-    #[allow(dead_code)] // used by upcoming launch/auth milestones
     #[error("{0}")]
     Other(String),
 }

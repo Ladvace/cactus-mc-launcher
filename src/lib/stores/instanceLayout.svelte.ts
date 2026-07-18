@@ -1,7 +1,7 @@
 import { readJson, writeJson } from "$lib/storage";
 
-// Per-instance tile layout (span + order), shared across every InstanceGrid so
-// grouped grids don't clobber each other's entries. Persisted to localStorage.
+// Per-instance tile layout (span + order), shared across every grid so grouped
+// grids don't clobber each other's entries. Persisted to localStorage.
 export interface Cell {
   w: number;
   h: number;

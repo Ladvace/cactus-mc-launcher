@@ -315,8 +315,7 @@ pub async fn install_modpack(
     // Read the pack index from the zip.
     let index: MrIndex = {
         let file = std::fs::File::open(&mrpack)?;
-        let mut zip = zip::ZipArchive::new(file)
-            .map_err(|error| AppError::Other(format!("invalid .mrpack: {error}")))?;
+        let mut zip = zip::ZipArchive::new(file)?;
         let mut entry = zip
             .by_name("modrinth.index.json")
             .map_err(|_| AppError::Other("modpack is missing modrinth.index.json".into()))?;
@@ -394,138 +393,14 @@ pub async fn install_modpack(
     Ok(instance)
 }
 
-/// Install a Feed The Beast modpack (`packId:versionId`) as a new instance.
-/// FTB manifests mix directly-hosted files with CurseForge references, so the
-/// latter are resolved through the CurseForge module (needs its API key).
-pub async fn install_ftb_modpack(
-    app: &AppHandle,
-    composite_id: &str,
-    icon_url: Option<String>,
-) -> Result<Instance> {
-    let (pack_id, version_id) = composite_id
-        .split_once(':')
-        .and_then(|(pack, version)| Some((pack.parse::<u64>().ok()?, version.parse::<u64>().ok()?)))
-        .ok_or_else(|| AppError::Other("invalid FTB modpack id".into()))?;
-
-    emit_progress(app, None, 0, 0, "Reading FTB pack…");
-    let manifest = crate::sources::ftb::fetch_manifest(pack_id, version_id).await?;
-
-    // Resolve Minecraft version + loader from the pack targets.
-    let mc_version = manifest
-        .targets
-        .iter()
-        .find(|target| target.kind == "game" && target.name == "minecraft")
-        .map(|target| target.version.clone())
-        .ok_or_else(|| AppError::Other("FTB pack has no Minecraft version".into()))?;
-
-    let loader_target = manifest.targets.iter().find(|target| target.kind == "modloader");
-    let (loader, loader_version) = match loader_target.map(|target| target.name.as_str()) {
-        Some("fabric") => (ModLoader::Fabric, loader_target.map(|target| target.version.clone())),
-        Some("quilt") => (ModLoader::Quilt, loader_target.map(|target| target.version.clone())),
-        Some("neoforge") => (ModLoader::NeoForge, loader_target.map(|target| target.version.clone())),
-        Some("forge") => (ModLoader::Forge, loader_target.map(|target| target.version.clone())),
-        _ => (ModLoader::Vanilla, None),
-    };
-
-    // Client files (skip server-only).
-    let client_files: Vec<&crate::sources::ftb::FtbFile> =
-        manifest.files.iter().filter(|file| !file.serveronly).collect();
-    let cf_count = client_files.iter().filter(|file| file.curseforge.is_some()).count();
-    if cf_count > 0 && !crate::sources::curseforge::is_configured() {
-        return Err(AppError::Other(format!(
-            "This FTB pack uses {cf_count} mods hosted on CurseForge, which isn't \
-             configured (the backend proxy is unavailable)."
-        )));
-    }
-
-    let client = crate::sources::ftb::client()?;
-
-    let name = if manifest.name.is_empty() {
-        format!("FTB pack {pack_id}")
-    } else {
-        manifest.name.clone()
-    };
-    let icon = match icon_url.as_deref().filter(|url| !url.is_empty()) {
-        Some(url) => fetch_icon_data_uri(&client, url).await,
-        None => None,
-    };
-    let instance = Instance::new(name, InstanceKind::Client, mc_version, loader, loader_version, icon);
-    app.state::<InstanceStore>().save(app, &instance)?;
-    let game_dir = paths::instance_game_dir(app, &instance.id)?;
-
-    // Direct files -> tasks now; CurseForge files -> resolve concurrently.
-    let mut tasks: Vec<DownloadTask> = Vec::new();
-    let mut cf_jobs: Vec<(u64, u64, PathBuf, Option<String>)> = Vec::new();
-    for file in &client_files {
-        let Some(rel) = ftb_dest(&file.path, &file.name) else {
-            continue;
-        };
-        let dest = game_dir.join(rel);
-        let sha1 = (!file.sha1.is_empty()).then(|| file.sha1.clone());
-        if !file.url.is_empty() {
-            tasks.push(DownloadTask { url: file.url.clone(), dest, sha1, executable: false });
-        } else if let Some(cf) = &file.curseforge {
-            cf_jobs.push((cf.project, cf.file, dest, sha1));
-        }
-    }
-
-    if !cf_jobs.is_empty() {
-        emit_progress(app, Some(&instance.id), 0, 0, "Resolving mods from CurseForge…");
-        use futures::stream::{self, StreamExt};
-        let resolved: Vec<Option<DownloadTask>> = stream::iter(cf_jobs)
-            .map(|(project, file, dest, sha1)| async move {
-                cf_download_url(project, file)
-                    .await
-                    .map(|url| DownloadTask { url, dest, sha1, executable: false })
-            })
-            .buffer_unordered(10)
-            .collect()
-            .await;
-        tasks.extend(resolved.into_iter().flatten());
-    }
-
-    emit_progress(app, Some(&instance.id), 0, tasks.len(), "Downloading modpack…");
-    {
-        let app_cb = app.clone();
-        let id = instance.id.clone();
-        cache::install_all(&client, app, tasks, 12, move |cur, total| {
-            emit_progress(&app_cb, Some(&id), cur, total, "Downloading modpack…");
-        })
-        .await?;
-    }
-
-    emit_progress(app, Some(&instance.id), 1, 1, "Done");
-    Ok(instance)
-}
-
-/// Resolve a CurseForge project/file to a download URL (None if opt-out/failed).
-async fn cf_download_url(project: u64, file: u64) -> Option<String> {
-    let version = crate::sources::curseforge::get_version(&format!("{project}:{file}"))
-        .await
-        .ok()?;
-    version
-        .primary_file()
-        .map(|file| file.url.clone())
-        .filter(|url| !url.is_empty())
-}
-
-/// Sanitize an FTB `path` (e.g. "./mods/") + `name` into a safe relative path.
-fn ftb_dest(path: &str, name: &str) -> Option<PathBuf> {
-    let dir = path.trim_start_matches("./").trim_start_matches('/');
-    let combined = format!("{dir}/{name}");
-    safe_rel(combined.trim_start_matches('/'))
-}
-
 /// Extract `overrides/` and `client-overrides/` from the pack into the game dir.
 fn apply_overrides(mrpack: &PathBuf, game_dir: &std::path::Path) -> Result<()> {
     let file = std::fs::File::open(mrpack)?;
-    let mut zip = zip::ZipArchive::new(file)
-        .map_err(|error| AppError::Other(format!("invalid .mrpack: {error}")))?;
+    let mut zip = zip::ZipArchive::new(file)?;
 
     for index in 0..zip.len() {
         let mut entry = zip
-            .by_index(index)
-            .map_err(|error| AppError::Other(format!("bad zip entry: {error}")))?;
+            .by_index(index)?;
         let name = entry.name().to_string();
         let rel = name
             .strip_prefix("overrides/")

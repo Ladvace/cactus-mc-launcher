@@ -3,14 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::error::Result;
 
 const API_BASE: &str = "https://api.modrinth.com/v2";
-const USER_AGENT: &str = concat!(
-    "cactus-launcher/",
-    env!("CARGO_PKG_VERSION"),
-    " (tauri desktop launcher)"
-);
 
 pub fn client() -> Result<reqwest::Client> {
-    Ok(reqwest::Client::builder().user_agent(USER_AGENT).build()?)
+    crate::http::client()
 }
 
 // --- Search ----------------------------------------------------------------
@@ -116,7 +111,7 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
 
 // --- Versions --------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VersionHashes {
     #[serde(default)]
     pub sha1: Option<String>,
@@ -136,14 +131,6 @@ pub struct VersionFile {
     pub hashes: VersionHashes,
 }
 
-impl Default for VersionHashes {
-    fn default() -> Self {
-        Self {
-            sha1: None,
-            sha512: None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]

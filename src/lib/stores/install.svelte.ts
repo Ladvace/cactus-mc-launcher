@@ -54,7 +54,8 @@ class InstallStore {
     return this.progress[id];
   }
   pct(id: string): number | null {
-    return toPct(this.progress[id]);
+    const progress = this.progress[id];
+    return progress ? toPct(progress.current, progress.total) : null;
   }
 
   /** Clear the pre-creation phase (e.g. the install failed before an instance). */
@@ -73,7 +74,8 @@ class InstallStore {
   /** Representative percent for a global indicator (per-instance, else pending). */
   overallPct(): number | null {
     const id = this.primaryInstanceId();
-    return id ? this.pct(id) : toPct(this.pending ?? undefined);
+    if (id) return this.pct(id);
+    return this.pending ? toPct(this.pending.current, this.pending.total) : null;
   }
   overallMessage(): string {
     const id = this.primaryInstanceId();
@@ -81,10 +83,8 @@ class InstallStore {
   }
 }
 
-function toPct(progress: Progress | undefined): number | null {
-  return progress && progress.total > 0
-    ? Math.round((progress.current / progress.total) * 100)
-    : null;
+export function toPct(current: number, total: number): number | null {
+  return total > 0 ? Math.round((current / total) * 100) : null;
 }
 
 export const installStore = new InstallStore();

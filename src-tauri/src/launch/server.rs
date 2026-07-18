@@ -2,7 +2,7 @@
 //! server needs Java, a server jar (per loader), an accepted EULA, and a run
 //! directory — no assets, natives, LWJGL, accounts or window arguments.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use tauri::AppHandle;
 
@@ -29,9 +29,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     let id = &instance.id;
     super::emit_status(app, id, "preparing", Some("Resolving version…".into()));
 
-    let client = reqwest::Client::builder()
-        .user_agent(concat!("cactus-launcher/", env!("CARGO_PKG_VERSION")))
-        .build()?;
+    let client = crate::http::client()?;
 
     // Version metadata (for the Java requirement and the vanilla server jar).
     let manifest = minecraft::fetch_versions().await?;
@@ -50,18 +48,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         component: "jre-legacy".into(),
         major_version: 8,
     });
-    let java_path = instance
-        .java_path
-        .as_deref()
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| {
-            settings
-                .java_paths
-                .get(&java_version.major_version)
-                .map(String::as_str)
-                .filter(|s| !s.trim().is_empty())
-        })
-        .or(settings.java_path.as_deref());
+    let java_path = java::resolve_path(instance, settings, java_version.major_version);
     let java = {
         let app_cb = app.clone();
         let id_cb = id.clone();
@@ -295,6 +282,6 @@ fn write_eula(run_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn path_str(path: &PathBuf) -> String {
+fn path_str(path: &Path) -> String {
     path.to_string_lossy().to_string()
 }

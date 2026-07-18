@@ -158,7 +158,7 @@ fn zip_dir(src: &Path, out: &Path) -> Result<()> {
         .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| "world".into());
     add_dir(&mut zip, src, &root, opts)?;
-    zip.finish().map_err(|error| AppError::Other(format!("zip: {error}")))?;
+    zip.finish()?;
     Ok(())
 }
 
@@ -175,8 +175,7 @@ fn add_dir(
         if path.is_dir() {
             add_dir(zip, &path, &rel, opts)?;
         } else if path.is_file() {
-            zip.start_file(&rel, opts)
-                .map_err(|error| AppError::Other(format!("zip: {error}")))?;
+            zip.start_file(&rel, opts)?;
             let mut file = std::fs::File::open(&path)?;
             std::io::copy(&mut file, zip)?;
             let _ = zip.flush();

@@ -4,7 +4,7 @@
   import InstancePicker from "./InstancePicker.svelte";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
-  import { installStore } from "$lib/stores/install.svelte";
+  import { installStore, toPct } from "$lib/stores/install.svelte";
   import { formatCount } from "$lib/format";
   import { goto } from "$app/navigation";
   import { listen } from "@tauri-apps/api/event";
@@ -71,9 +71,7 @@
     instances.find((instance) => instance.id === selectedInstanceId)
   );
 
-  const mpPct = $derived(
-    mpTotal > 0 ? Math.round((mpCurrent / mpTotal) * 100) : null
-  );
+  const mpPct = $derived(toPct(mpCurrent, mpTotal));
 
   // Default the target instance (content installs only).
   $effect(() => {
@@ -95,6 +93,7 @@
 
   $effect(() => {
     if (!open || !isModpack) return;
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
     listen<{ current: number; total: number; message: string }>(
       "modpack-progress",
@@ -103,8 +102,16 @@
         mpTotal = event.payload.total;
         mpMessage = event.payload.message;
       }
-    ).then((unlistenFn) => (unlisten = unlistenFn));
-    return () => unlisten?.();
+    )
+      .then((unlistenFn) => {
+        if (cancelled) unlistenFn();
+        else unlisten = unlistenFn;
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   });
 
   async function loadModpackVersion(searchHit: SearchHit) {

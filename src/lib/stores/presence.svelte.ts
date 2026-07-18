@@ -93,7 +93,7 @@ class PresenceStore {
     this.mcVersion = fields.mcVersion;
     this.loader = fields.loader;
     this.persist();
-    if (this.enabled) void this.heartbeat();
+    if (this.enabled) void this.heartbeat().catch(() => {});
   }
 
   private async heartbeat() {

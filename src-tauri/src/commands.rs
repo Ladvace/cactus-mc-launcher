@@ -277,16 +277,31 @@ pub async fn get_loader_versions(
 #[tauri::command]
 pub async fn launch_instance(
     app: AppHandle,
+    launch: State<'_, LaunchState>,
+    servers: State<'_, ServerState>,
     instances: State<'_, InstanceStore>,
     settings: State<'_, SettingsStore>,
     id: String,
 ) -> Result<()> {
-    let instance = instances.get(&id).ok_or(AppError::InstanceNotFound(id))?;
+    // Reject a double-launch: `is_instance_running` only turns true once the
+    // process spawns, which is after a potentially minutes-long prepare phase,
+    // so guard the whole window (including prepare) via `try_begin_start`.
+    if servers.is_running(&id) || !launch.try_begin_start(&id) {
+        return Err(AppError::Other(
+            "This instance is already launching or running.".into(),
+        ));
+    }
+    let Some(instance) = instances.get(&id) else {
+        launch.finish_start(&id);
+        return Err(AppError::InstanceNotFound(id));
+    };
     let settings = settings.get();
-    match instance.kind {
+    let result = match instance.kind {
         InstanceKind::Server => launch::server::launch(app, instance, settings).await,
         InstanceKind::Client => launch::launch(app, instance, settings).await,
-    }
+    };
+    launch.finish_start(&id);
+    result
 }
 
 #[tauri::command]
@@ -421,9 +436,7 @@ struct JavaSetupEvent {
 /// via the `java-setup` event and returns the labels of installed runtimes.
 #[tauri::command]
 pub async fn setup_java(app: AppHandle) -> Result<Vec<String>> {
-    let client = reqwest::Client::builder()
-        .user_agent(concat!("cactus-launcher/", env!("CARGO_PKG_VERSION")))
-        .build()?;
+    let client = crate::http::client()?;
 
     let app_cb = app.clone();
     let installed = launch::java::setup_common(&app, &client, move |label, current, total| {
@@ -554,7 +567,6 @@ pub async fn install_modpack(
 ) -> Result<Instance> {
     match source {
         Source::Modrinth => content::install_modpack(&app, &version_id, icon_url).await,
-        Source::Ftb => content::install_ftb_modpack(&app, &version_id, icon_url).await,
         Source::CurseForge => Err(AppError::Other(
             "CurseForge modpack install isn't supported yet".into(),
         )),
@@ -819,7 +831,7 @@ pub async fn set_skin(
                 .mime_str("image/png")?,
         );
 
-    let resp = reqwest::Client::new()
+    let resp = crate::http::client()?
         .post("https://api.minecraftservices.com/minecraft/profile/skins")
         .bearer_auth(&account.mc_access_token)
         .multipart(form)
@@ -849,7 +861,7 @@ pub async fn get_capes(store: State<'_, AccountStore>) -> Result<Vec<Cape>> {
     let account = store
         .active_account()
         .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
-    let profile: serde_json::Value = reqwest::Client::new()
+    let profile: serde_json::Value = crate::http::client()?
         .get("https://api.minecraftservices.com/minecraft/profile")
         .bearer_auth(&account.mc_access_token)
         .send()
@@ -887,7 +899,7 @@ pub async fn set_cape(store: State<'_, AccountStore>, cape_id: Option<String>) -
     let account = store
         .active_account()
         .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
-    let client = reqwest::Client::new();
+    let client = crate::http::client()?;
     let url = "https://api.minecraftservices.com/minecraft/profile/capes/active";
     let resp = match cape_id {
         Some(id) => {

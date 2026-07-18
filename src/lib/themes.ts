@@ -7,7 +7,7 @@
 
 const spriteUrl = (id: number) => `/decor/sprites/${String(id).padStart(2, "0")}.png`;
 
-export interface Placement {
+interface Placement {
   sprite: string;
   /** CSS edge offsets, e.g. "bottom:6px; left:10px;". */
   at: string;
@@ -17,7 +17,7 @@ export interface Placement {
   flip?: boolean;
 }
 
-export interface DecorTheme {
+interface DecorTheme {
   id: string;
   placements: Placement[];
   /** A small sprite that perches on the corner of the dock. */

@@ -4,9 +4,11 @@
 //! what a hosted profile will later store and serve.
 //!
 //! Format `.cactuspack` (a zip):
-//!   - `index.json`   — loader + content refs (source/project/version) for BOTH
-//!                       Modrinth and CurseForge, so mixed packs survive.
-//!   - `overrides/…`  — bundled config files (options.txt, keybinds, config/…).
+//!
+//! - `index.json` — loader + content refs (source/project/version) for BOTH
+//!   Modrinth and CurseForge, so mixed packs survive.
+//! - `overrides/…` — bundled config files (options.txt, keybinds, config/…).
+//!
 //! Mods themselves are references, not files — the importer resolves and
 //! downloads them through the shared, deduplicated content cache.
 
@@ -94,7 +96,6 @@ fn parse_loader(text: &str) -> ModLoader {
 fn parse_source(text: &str) -> Source {
     match text {
         "curseforge" => Source::CurseForge,
-        "ftb" => Source::Ftb,
         _ => Source::Modrinth,
     }
 }
@@ -197,8 +198,7 @@ fn add_overrides(
         };
         total += data.len() as u64;
         let name = format!("overrides/{}", rel.to_string_lossy().replace('\\', "/"));
-        zip.start_file(name, opts)
-            .map_err(|error| AppError::Other(format!("zip: {error}")))?;
+        zip.start_file(name, opts)?;
         zip.write_all(&data)?;
     }
     Ok(())
@@ -276,11 +276,10 @@ fn export_cactuspack(
     };
 
     let mut zip = zip::ZipWriter::new(std::fs::File::create(out_path)?);
-    zip.start_file("index.json", opts)
-        .map_err(|error| AppError::Other(format!("zip: {error}")))?;
+    zip.start_file("index.json", opts)?;
     zip.write_all(serde_json::to_string_pretty(&index)?.as_bytes())?;
     add_overrides(&mut zip, opts, game_dir)?;
-    zip.finish().map_err(|error| AppError::Other(format!("zip: {error}")))?;
+    zip.finish()?;
     Ok(())
 }
 
@@ -350,11 +349,10 @@ async fn export_mrpack(
     };
 
     let mut zip = zip::ZipWriter::new(std::fs::File::create(out_path)?);
-    zip.start_file("modrinth.index.json", opts)
-        .map_err(|error| AppError::Other(format!("zip: {error}")))?;
+    zip.start_file("modrinth.index.json", opts)?;
     zip.write_all(serde_json::to_string_pretty(&index)?.as_bytes())?;
     add_overrides(&mut zip, opts, game_dir)?;
-    zip.finish().map_err(|error| AppError::Other(format!("zip: {error}")))?;
+    zip.finish()?;
     Ok(skipped)
 }
 
@@ -407,7 +405,7 @@ pub async fn publish(
         params.push(("changelog", changelog_text));
     }
 
-    let resp = reqwest::Client::new()
+    let resp = crate::http::client()?
         .post(format!("{base}/v1/snapshots"))
         .query(&params)
         .bearer_auth(access_token)
@@ -458,7 +456,7 @@ pub async fn import(app: &AppHandle, bytes: Vec<u8>) -> Result<ImportResult> {
 fn has_entry(pack: &Path, name: &str) -> Result<bool> {
     let file = std::fs::File::open(pack)?;
     let zip =
-        zip::ZipArchive::new(file).map_err(|error| AppError::Other(format!("bad zip: {error}")))?;
+        zip::ZipArchive::new(file)?;
     let found = zip.file_names().any(|entry_name| entry_name == name);
     Ok(found)
 }
@@ -581,7 +579,7 @@ fn read_mr_index(pack: &Path) -> Result<MrIndex> {
 fn read_zip_text(pack: &Path, entry: &str) -> Result<String> {
     let file = std::fs::File::open(pack)?;
     let mut zip =
-        zip::ZipArchive::new(file).map_err(|error| AppError::Other(format!("bad zip: {error}")))?;
+        zip::ZipArchive::new(file)?;
     let mut zip_entry = zip
         .by_name(entry)
         .map_err(|_| AppError::Other(format!("missing {entry}")))?;
@@ -654,11 +652,10 @@ struct MrEnv {
 fn extract_overrides(pack: &Path, game_dir: &Path) -> Result<()> {
     let file = std::fs::File::open(pack)?;
     let mut zip =
-        zip::ZipArchive::new(file).map_err(|error| AppError::Other(format!("bad zip: {error}")))?;
+        zip::ZipArchive::new(file)?;
     for index in 0..zip.len() {
         let mut entry = zip
-            .by_index(index)
-            .map_err(|error| AppError::Other(format!("bad zip entry: {error}")))?;
+            .by_index(index)?;
         let name = entry.name().to_string();
         let Some(rel) = name
             .strip_prefix("overrides/")

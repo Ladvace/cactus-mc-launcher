@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { toPct } from "$lib/stores/install.svelte";
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
   import { MOD_LOADERS, type ContentItem, type Source } from "$lib/types";
@@ -66,9 +67,7 @@
   const progressLabel = $derived(
     runtime.message ?? stageLabels[runtime.stage] ?? "Working…"
   );
-  const progressPct = $derived(
-    runtime.total > 0 ? Math.round((runtime.current / runtime.total) * 100) : null
-  );
+  const progressPct = $derived(toPct(runtime.current, runtime.total));
 
   let content = $state<ContentItem[]>([]);
   let contentLoading = $state(false);
@@ -78,6 +77,8 @@
     contentLoading = true;
     try {
       content = await api.listContent(id);
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       contentLoading = false;
     }
@@ -88,13 +89,21 @@
   });
 
   async function toggleContent(item: ContentItem) {
-    await api.setContentEnabled(id, item.versionId, !item.enabled);
-    await loadContent();
+    try {
+      await api.setContentEnabled(id, item.versionId, !item.enabled);
+      await loadContent();
+    } catch (err) {
+      toast.error(String(err));
+    }
   }
 
   async function removeContentItem(item: ContentItem) {
-    await api.removeContent(id, item.versionId);
-    await loadContent();
+    try {
+      await api.removeContent(id, item.versionId);
+      await loadContent();
+    } catch (err) {
+      toast.error(String(err));
+    }
   }
 
   // Update checking: map installed versionId -> available newer version.
@@ -125,6 +134,8 @@
         }
       }
       updates = found;
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       checkingUpdates = false;
     }
@@ -147,6 +158,8 @@
       delete next[item.versionId];
       updates = next;
       await loadContent();
+    } catch (err) {
+      toast.error(String(err));
     } finally {
       updatingId = null;
     }

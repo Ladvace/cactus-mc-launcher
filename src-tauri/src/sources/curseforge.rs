@@ -17,7 +17,6 @@ use crate::modrinth::{
 };
 
 const GAME_ID: u64 = 432; // Minecraft
-const USER_AGENT: &str = concat!("cactus-launcher/", env!("CARGO_PKG_VERSION"));
 
 /// CurseForge is reached through our backend proxy (which holds the API key
 /// server-side), never with a key baked into this client. The proxy base is
@@ -39,7 +38,7 @@ fn ensure_configured() -> Result<String> {
 }
 
 fn client() -> Result<reqwest::Client> {
-    Ok(reqwest::Client::builder().user_agent(USER_AGENT).build()?)
+    crate::http::client()
 }
 
 /// CurseForge class id for a project type.
