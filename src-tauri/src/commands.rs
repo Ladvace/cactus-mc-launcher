@@ -620,6 +620,78 @@ pub fn reset_app_data(
     Ok(())
 }
 
+/// The current app data directory (where instances, downloads, and settings live).
+#[tauri::command]
+pub fn get_data_dir(app: AppHandle) -> Result<String> {
+    Ok(crate::paths::data_dir(&app)?.to_string_lossy().into_owned())
+}
+
+/// Move all app data to `path` (or back to the default when null) and remember
+/// the location. The frontend should reload afterwards.
+#[tauri::command]
+pub fn set_data_dir(
+    app: AppHandle,
+    instances: State<'_, InstanceStore>,
+    settings: State<'_, SettingsStore>,
+    path: Option<String>,
+) -> Result<()> {
+    let old = crate::paths::data_dir(&app)?;
+    let default = crate::paths::default_data_dir(&app)?;
+    let target = match path.as_deref().map(str::trim).filter(|p| !p.is_empty()) {
+        Some(p) => std::path::PathBuf::from(p),
+        None => default.clone(),
+    };
+    if old == target {
+        return Ok(());
+    }
+    if target.starts_with(&old) {
+        return Err(AppError::Other(
+            "Choose a folder outside the current data folder.".into(),
+        ));
+    }
+
+    std::fs::create_dir_all(&target)?;
+    for entry in std::fs::read_dir(&old)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if name == "data-location.txt" {
+            continue; // the pointer stays in the default dir
+        }
+        move_entry(&entry.path(), &target.join(&name))?;
+    }
+
+    let location = if target == default {
+        String::new()
+    } else {
+        target.to_string_lossy().into_owned()
+    };
+    crate::paths::set_data_location(&app, &location)?;
+
+    // Reload in-memory state from the new location.
+    settings.load(&app)?;
+    instances.load(&app)?;
+    Ok(())
+}
+
+/// Move a single file or directory, falling back to copy+remove across volumes.
+fn move_entry(src: &std::path::Path, dest: &std::path::Path) -> Result<()> {
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    if std::fs::rename(src, dest).is_ok() {
+        return Ok(());
+    }
+    if src.is_dir() {
+        std::fs::create_dir_all(dest)?;
+        copy_tree(src, dest)?;
+        std::fs::remove_dir_all(src)?;
+    } else {
+        std::fs::copy(src, dest)?;
+        std::fs::remove_file(src)?;
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Snapshots (share / export-import)
 // ---------------------------------------------------------------------------

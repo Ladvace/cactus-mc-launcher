@@ -4,11 +4,46 @@ use crate::settings::SettingsStore;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-/// Root application data directory (e.g. `~/Library/Application Support/<id>` on macOS).
-pub fn data_dir(app: &AppHandle) -> Result<PathBuf> {
+/// The OS default app data dir (e.g. `~/Library/Application Support/<id>`). The
+/// data-location pointer always lives here, even when data is redirected.
+pub fn default_data_dir(app: &AppHandle) -> Result<PathBuf> {
     let dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&dir)?;
     Ok(dir)
+}
+
+/// File in the default dir holding the redirected data-dir path (if any).
+fn location_pointer(app: &AppHandle) -> Result<PathBuf> {
+    Ok(default_data_dir(app)?.join("data-location.txt"))
+}
+
+/// Root application data directory. Honours a user-chosen location (see
+/// `set_data_location`), falling back to the OS default when unset or when the
+/// chosen location is currently unavailable (e.g. an unplugged drive).
+pub fn data_dir(app: &AppHandle) -> Result<PathBuf> {
+    if let Ok(custom) = std::fs::read_to_string(location_pointer(app)?) {
+        let custom = custom.trim();
+        if !custom.is_empty() {
+            let path = PathBuf::from(custom);
+            if path.exists() {
+                return Ok(path);
+            }
+        }
+    }
+    default_data_dir(app)
+}
+
+/// Redirect the data dir to `dir` (empty clears it back to the default).
+pub fn set_data_location(app: &AppHandle, dir: &str) -> Result<()> {
+    let pointer = location_pointer(app)?;
+    if dir.trim().is_empty() {
+        if pointer.exists() {
+            std::fs::remove_file(pointer)?;
+        }
+    } else {
+        std::fs::write(pointer, dir.trim())?;
+    }
+    Ok(())
 }
 
 /// Directory holding one subfolder per instance. Each instance folder contains

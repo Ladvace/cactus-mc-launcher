@@ -168,6 +168,12 @@ export const api = {
   /** Factory reset: delete all instances, downloads, and settings. */
   resetAppData: () => invoke<void>("reset_app_data"),
 
+  /** The current app data directory. */
+  getDataDir: () => invoke<string>("get_data_dir"),
+
+  /** Move all app data to `path` (null = back to the default location). */
+  setDataDir: (path: string | null) => invoke<void>("set_data_dir", { path }),
+
   // Snapshots (share / export-import)
   exportSetup: (
     instanceId: string,

@@ -9,6 +9,8 @@
   import Modal from "$lib/components/Modal.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { instancesStore } from "$lib/stores/instances.svelte";
+  import { launchStore } from "$lib/stores/launch.svelte";
   import {
     backgroundCss,
     bgKind,
@@ -76,6 +78,44 @@
       toast.error(String(error));
     } finally {
       clearingCache = false;
+    }
+  }
+
+  // --- App data folder ---
+  let dataDir = $state("");
+  $effect(() => {
+    api.getDataDir().then((dir) => (dataDir = dir)).catch(() => {});
+  });
+  // Moving data while a game runs from it (esp. shared meta/) would break it.
+  const anyRunning = $derived(
+    instancesStore.instances.some(
+      (instance) => launchStore.isRunning(instance.id) || launchStore.isBusy(instance.id)
+    )
+  );
+  let pendingDataDir = $state<string | null>(null);
+  let dataMoveOpen = $state(false);
+  let movingData = $state(false);
+
+  async function browseDataDir() {
+    const folder = await pickFolder("Choose where Cactus stores its data");
+    if (folder && folder !== dataDir) {
+      pendingDataDir = folder;
+      dataMoveOpen = true;
+    }
+  }
+  function resetDataDir() {
+    pendingDataDir = null; // null = back to default
+    dataMoveOpen = true;
+  }
+  async function confirmMoveData() {
+    movingData = true;
+    try {
+      await api.setDataDir(pendingDataDir);
+      location.reload();
+    } catch (error) {
+      toast.error(String(error));
+      movingData = false;
+      dataMoveOpen = false;
     }
   }
 
@@ -654,6 +694,23 @@
     <h3>Storage</h3>
     <div class="setting">
       <div class="label">
+        <span>App data folder</span>
+        <small>
+          Everything Cactus stores — instances, downloads, and settings. Moving
+          it relocates all data and reloads the app.
+        </small>
+        <small class="path">{dataDir || "…"}</small>
+      </div>
+      <div class="folder-actions">
+        <button class="btn ghost" onclick={browseDataDir} disabled={anyRunning}>Move…</button>
+        <button class="btn ghost" onclick={resetDataDir} disabled={anyRunning}>Reset</button>
+      </div>
+    </div>
+    {#if anyRunning}
+      <p class="muted-note">Close running instances before moving the data folder.</p>
+    {/if}
+    <div class="setting">
+      <div class="label">
         <span>Instances folder</span>
         <small>
           Where new instances' game data (mods, saves, worlds) is installed.
@@ -750,6 +807,21 @@
 
   <p class="app-version">Cactus Launcher{appVersion ? ` v${appVersion}` : ""}</p>
 </div>
+
+<Modal title="Move app data?" open={dataMoveOpen} onClose={() => (dataMoveOpen = false)} width={440}>
+  <p class="reset-warn">
+    Move all app data to
+    <strong>{pendingDataDir ?? "the default folder"}</strong>
+    and reload? Existing files are moved — this can take a moment for large
+    downloads.
+  </p>
+  <div class="reset-actions">
+    <button class="btn ghost" onclick={() => (dataMoveOpen = false)}>Cancel</button>
+    <button class="btn primary" onclick={confirmMoveData} disabled={movingData}>
+      {movingData ? "Moving…" : "Move & reload"}
+    </button>
+  </div>
+</Modal>
 
 <Modal title="Reset everything?" open={resetOpen} onClose={() => (resetOpen = false)} width={430}>
   <p class="reset-warn">
@@ -1050,6 +1122,11 @@
     margin: 20px 0 0;
     text-align: center;
     font-size: 11px;
+    color: var(--text-muted);
+  }
+  .muted-note {
+    margin: 0 0 4px;
+    font-size: 12px;
     color: var(--text-muted);
   }
   /* Segmented control (dock position). */

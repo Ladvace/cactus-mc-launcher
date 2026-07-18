@@ -95,6 +95,8 @@ pub fn run() {
             commands::content_cache_stats,
             commands::clear_content_cache,
             commands::reset_app_data,
+            commands::get_data_dir,
+            commands::set_data_dir,
             commands::export_setup,
             commands::import_setup,
             commands::board_login,
