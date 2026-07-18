@@ -3,7 +3,7 @@
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
-  import { toast } from "$lib/stores/toast.svelte";
+  import { copyText } from "$lib/clipboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { DEFAULT_PORT, parseServerPort } from "$lib/serverAddress";
 
@@ -28,8 +28,10 @@
   $effect(() => {
     if (id && id !== lastId) {
       lastId = id;
-      address = "";
       loadPort();
+      // The tunnel is global (one at a time); restore its state so navigating
+      // away and back doesn't lose the running address / Stop button.
+      api.tunnelStatus().then((running) => (address = running ?? "")).catch(() => {});
     }
   });
   async function loadPort() {
@@ -78,23 +80,19 @@
   async function clearInstanceToken() {
     await instancesStore.update(id, { ngrokAuthtoken: "" });
   }
-
-  function copy(text: string) {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied.");
-  }
 </script>
 
 <div class="share">
   <span class="label"><Icon name="globe" size={13} /> Share online</span>
 
   {#if address}
-    <button class="chip" title="Copy" onclick={() => copy(address)}>
+    <button class="chip" title="Copy" onclick={() => copyText(address)}>
       <span class="host">{address}</span>
       <span class="tag">internet</span>
       <Icon name="copy" size={13} />
     </button>
     <button class="btn ghost sm" onclick={stop}>Stop</button>
+    <span class="warn">Anyone with this address can join — turn on the whitelist in Properties.</span>
   {:else if editingToken}
     <input
       class="input token"
@@ -189,5 +187,10 @@
     font-size: 12px;
     color: var(--danger);
     flex-basis: 100%;
+  }
+  .warn {
+    flex-basis: 100%;
+    font-size: 11.5px;
+    color: var(--text-muted);
   }
 </style>

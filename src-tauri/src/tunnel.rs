@@ -18,6 +18,7 @@ use crate::error::{AppError, Result};
 struct Running {
     session: ngrok::Session,
     forwarder: JoinHandle<()>,
+    address: String,
 }
 
 #[derive(Default)]
@@ -31,6 +32,10 @@ impl TunnelState {
             running.forwarder.abort();
             drop(running.session);
         }
+    }
+
+    fn address(&self) -> Option<String> {
+        self.running.lock().unwrap().as_ref().map(|r| r.address.clone())
     }
 }
 
@@ -74,11 +79,21 @@ pub async fn tunnel_start(
         }
     });
 
-    *state.running.lock().unwrap() = Some(Running { session, forwarder });
+    *state.running.lock().unwrap() = Some(Running {
+        session,
+        forwarder,
+        address: address.clone(),
+    });
     Ok(address)
 }
 
 #[tauri::command]
 pub fn tunnel_stop(state: State<'_, TunnelState>) {
     state.stop();
+}
+
+/// The public address of the running tunnel, if any (to restore the UI).
+#[tauri::command]
+pub fn tunnel_status(state: State<'_, TunnelState>) -> Option<String> {
+    state.address()
 }

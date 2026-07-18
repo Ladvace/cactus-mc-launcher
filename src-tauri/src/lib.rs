@@ -108,6 +108,7 @@ pub fn run() {
             server_ping::ping_server,
             tunnel::tunnel_start,
             tunnel::tunnel_stop,
+            tunnel::tunnel_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

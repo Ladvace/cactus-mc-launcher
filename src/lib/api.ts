@@ -218,4 +218,7 @@ export const api = {
 
   /** Stop the running ngrok tunnel. */
   tunnelStop: () => invoke<void>("tunnel_stop"),
+
+  /** The public address of the running tunnel, if any (to restore the UI). */
+  tunnelStatus: () => invoke<string | null>("tunnel_status"),
 };
