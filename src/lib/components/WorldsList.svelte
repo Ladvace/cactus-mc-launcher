@@ -25,47 +25,47 @@
     loading = true;
     try {
       worlds = await api.listWorlds(id);
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     } finally {
       loading = false;
     }
   }
 
-  async function reveal(w: WorldInfo) {
+  async function reveal(world: WorldInfo) {
     try {
-      await revealItemInDir(w.path);
-    } catch (e) {
-      toast.error(String(e));
+      await revealItemInDir(world.path);
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 
-  async function backup(w: WorldInfo) {
-    busyFolder = w.folder;
+  async function backup(world: WorldInfo) {
+    busyFolder = world.folder;
     try {
-      const path = await api.backupWorld(id, w.folder);
-      toast.success(`Backed up “${w.name}”.`);
+      const path = await api.backupWorld(id, world.folder);
+      toast.success(`Backed up “${world.name}”.`);
       try {
         await revealItemInDir(path);
       } catch {
         /* reveal is best-effort */
       }
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     } finally {
       busyFolder = null;
     }
   }
 
-  async function remove(w: WorldInfo) {
-    busyFolder = w.folder;
+  async function remove(world: WorldInfo) {
+    busyFolder = world.folder;
     try {
-      await api.deleteWorld(id, w.folder);
+      await api.deleteWorld(id, world.folder);
       confirmFolder = null;
-      toast.success(`Deleted “${w.name}”.`);
+      toast.success(`Deleted “${world.name}”.`);
       await load();
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     } finally {
       busyFolder = null;
     }
@@ -99,40 +99,40 @@
     </div>
   {:else}
     <ul class="list">
-      {#each worlds as w (w.folder)}
+      {#each worlds as world (world.folder)}
         <li class="world">
           <div class="info">
             <div class="name-row">
-              <span class="name" title={w.folder}>{w.name}</span>
-              <span class="loc">{w.location === "server" ? "server" : "save"}</span>
+              <span class="name" title={world.folder}>{world.name}</span>
+              <span class="loc">{world.location === "server" ? "server" : "save"}</span>
             </div>
-            <span class="sub">{fmtSize(w.sizeBytes)} · saved {timeAgo(w.lastModified)}</span>
+            <span class="sub">{fmtSize(world.sizeBytes)} · saved {timeAgo(world.lastModified)}</span>
           </div>
           <div class="acts">
-            <button class="btn ghost sm" title="Show in file manager" onclick={() => reveal(w)}>
+            <button class="btn ghost sm" title="Show in file manager" onclick={() => reveal(world)}>
               <Icon name="folder" size={13} />
             </button>
             <button
               class="btn ghost sm"
-              disabled={busyFolder === w.folder}
-              onclick={() => backup(w)}
+              disabled={busyFolder === world.folder}
+              onclick={() => backup(world)}
             >
-              {busyFolder === w.folder && confirmFolder !== w.folder ? "Zipping…" : "Backup"}
+              {busyFolder === world.folder && confirmFolder !== world.folder ? "Zipping…" : "Backup"}
             </button>
-            {#if confirmFolder === w.folder}
+            {#if confirmFolder === world.folder}
               <button
                 class="btn danger sm"
-                disabled={busyFolder === w.folder}
-                onclick={() => remove(w)}
+                disabled={busyFolder === world.folder}
+                onclick={() => remove(world)}
               >
-                {busyFolder === w.folder ? "Deleting…" : "Confirm"}
+                {busyFolder === world.folder ? "Deleting…" : "Confirm"}
               </button>
               <button class="btn ghost sm" onclick={() => (confirmFolder = null)}>Cancel</button>
             {:else}
               <button
                 class="btn ghost sm danger-text"
                 title="Delete world"
-                onclick={() => (confirmFolder = w.folder)}
+                onclick={() => (confirmFolder = world.folder)}
               >
                 <Icon name="trash" size={13} />
               </button>

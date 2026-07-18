@@ -61,17 +61,17 @@
       return;
     }
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
     const gap = 10;
     if (pos === "bottom")
-      overflowMenu = `left:${cx}px; bottom:${window.innerHeight - rect.top + gap}px; transform:translateX(-50%);`;
+      overflowMenu = `left:${centerX}px; bottom:${window.innerHeight - rect.top + gap}px; transform:translateX(-50%);`;
     else if (pos === "top")
-      overflowMenu = `left:${cx}px; top:${rect.bottom + gap}px; transform:translateX(-50%);`;
+      overflowMenu = `left:${centerX}px; top:${rect.bottom + gap}px; transform:translateX(-50%);`;
     else if (pos === "left")
-      overflowMenu = `left:${rect.right + gap}px; top:${cy}px; transform:translateY(-50%);`;
+      overflowMenu = `left:${rect.right + gap}px; top:${centerY}px; transform:translateY(-50%);`;
     else
-      overflowMenu = `right:${window.innerWidth - rect.left + gap}px; top:${cy}px; transform:translateY(-50%);`;
+      overflowMenu = `right:${window.innerWidth - rect.left + gap}px; top:${centerY}px; transform:translateY(-50%);`;
   }
 
   type Item =

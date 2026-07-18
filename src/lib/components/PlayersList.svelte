@@ -89,7 +89,7 @@
         placeholder="Player name"
         bind:value={opName}
         disabled={busy}
-        onkeydown={(e) => e.key === "Enter" && addOp()}
+        onkeydown={(event) => event.key === "Enter" && addOp()}
       />
       <button class="btn primary sm" disabled={busy || !opName.trim()} onclick={addOp}>Op</button>
     </div>
@@ -124,7 +124,7 @@
         placeholder="Player name"
         bind:value={wlName}
         disabled={busy}
-        onkeydown={(e) => e.key === "Enter" && addWl()}
+        onkeydown={(event) => event.key === "Enter" && addWl()}
       />
       <button class="btn primary sm" disabled={busy || !wlName.trim()} onclick={addWl}>Add</button>
     </div>

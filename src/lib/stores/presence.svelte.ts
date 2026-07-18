@@ -41,12 +41,12 @@ class PresenceStore {
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
-    const p = load();
-    this.enabled = p.enabled;
-    this.status = p.status;
-    this.serverAddress = p.serverAddress;
-    this.mcVersion = p.mcVersion;
-    this.loader = p.loader;
+    const persisted = load();
+    this.enabled = persisted.enabled;
+    this.status = persisted.status;
+    this.serverAddress = persisted.serverAddress;
+    this.mcVersion = persisted.mcVersion;
+    this.loader = persisted.loader;
   }
 
   private persist() {

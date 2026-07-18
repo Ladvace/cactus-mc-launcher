@@ -1,5 +1,4 @@
-import { browser } from "$app/environment";
-import { writeJson } from "$lib/storage";
+import { readJson, writeJson } from "$lib/storage";
 
 // Per-instance tile layout (span + order), shared across every InstanceGrid so
 // grouped grids don't clobber each other's entries. Persisted to localStorage.
@@ -20,22 +19,17 @@ const LEGACY: Record<string, [number, number]> = {
 };
 
 function load(): Record<string, Cell> {
-  if (!browser) return {};
-  try {
-    const raw = JSON.parse(localStorage.getItem(KEY) || "{}") ?? {};
-    const out: Record<string, Cell> = {};
-    for (const [id, value] of Object.entries<any>(raw)) {
-      if (value && typeof value.w === "number" && typeof value.h === "number") {
-        out[id] = { w: value.w, h: value.h, order: value.order ?? 0 };
-      } else if (value && typeof value.size === "string" && LEGACY[value.size]) {
-        const [width, height] = LEGACY[value.size];
-        out[id] = { w: width, h: height, order: value.order ?? 0 };
-      }
+  const raw = readJson<Record<string, any>>(KEY, {});
+  const out: Record<string, Cell> = {};
+  for (const [id, value] of Object.entries(raw)) {
+    if (value && typeof value.w === "number" && typeof value.h === "number") {
+      out[id] = { w: value.w, h: value.h, order: value.order ?? 0 };
+    } else if (value && typeof value.size === "string" && LEGACY[value.size]) {
+      const [width, height] = LEGACY[value.size];
+      out[id] = { w: width, h: height, order: value.order ?? 0 };
     }
-    return out;
-  } catch {
-    return {};
   }
+  return out;
 }
 
 class InstanceLayout {

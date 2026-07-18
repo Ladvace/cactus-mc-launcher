@@ -202,19 +202,19 @@
 
   async function exportSetup(id: string, format: "cactuspack" | "mrpack") {
     try {
-      const res = await api.exportSetup(id, format);
+      const result = await api.exportSetup(id, format);
       toast.success(
-        res.skipped.length
-          ? `Exported — ${res.skipped.length} non-Modrinth item(s) skipped.`
+        result.skipped.length
+          ? `Exported — ${result.skipped.length} non-Modrinth item(s) skipped.`
           : "Setup exported."
       );
       try {
-        await revealItemInDir(res.path);
+        await revealItemInDir(result.path);
       } catch {
         /* reveal is best-effort */
       }
-    } catch (err) {
-      toast.error(String(err));
+    } catch (error) {
+      toast.error(String(error));
     }
   }
 
@@ -228,9 +228,9 @@
     try {
       const uri = await fileToIconDataUri(file);
       await instancesStore.setIcon(id, uri);
-    } catch (err) {
-      toast.error(String(err));
-      console.error("icon upload failed", err);
+    } catch (error) {
+      toast.error(String(error));
+      console.error("icon upload failed", error);
     }
   }
 </script>

@@ -105,7 +105,7 @@ export function backgroundCss(bg: string): string {
   if (bg.startsWith("image:")) {
     const { uri, color } = parseImage(bg);
     // Scrim over the image so foreground text stays readable.
-    const scrim = color ? hexToRgba(color, 0.55) : "rgba(23, 22, 26, 0.55)";
+    const scrim = hexToRgba(color ?? DEFAULT_COLOR, 0.55);
     return `linear-gradient(${scrim}, ${scrim}), url("${uri}") center / cover no-repeat`;
   }
   if (bg.startsWith("tile:")) {
@@ -121,7 +121,7 @@ export function backgroundCss(bg: string): string {
     // busy image. Tiled at the image's intrinsic size (no fractional scaling)
     // so the repeats meet without a subpixel seam.
     const overlayAlpha = Math.max(0, Math.min(1, 1 - opacity));
-    const scrim = color ? hexToRgba(color, overlayAlpha) : `rgba(23, 22, 26, ${overlayAlpha})`;
+    const scrim = hexToRgba(color ?? DEFAULT_COLOR, overlayAlpha);
     return `linear-gradient(${scrim}, ${scrim}), url("${uri}") repeat`;
   }
   return "var(--bg-app)";

@@ -43,12 +43,12 @@
     }
   });
 
-  function str(n: number | null | undefined): string {
-    return n != null ? String(n) : "";
+  function str(value: number | null | undefined): string {
+    return value != null ? String(value) : "";
   }
-  function num(s: string): number {
-    const n = parseInt(s, 10);
-    return Number.isFinite(n) && n > 0 ? n : 0; // 0 = clear the override
+  function num(text: string): number {
+    const parsed = parseInt(text, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0; // 0 = clear the override
   }
 
   async function save() {
@@ -64,8 +64,8 @@
         serverMemoryMb: 0, // migrate any legacy value into maxMemoryMb
       });
       toast.success("Instance settings saved.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     } finally {
       saving = false;
     }

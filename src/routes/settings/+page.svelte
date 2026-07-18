@@ -39,13 +39,14 @@
   let cacheStats = $state<CacheStats | null>(null);
   let cacheLoading = $state(false);
 
-  // The Giphy key persists on its own (on blur) so it's remembered even without
-  // pressing "Save changes" — it behaves like connecting a credential.
-  async function saveGiphyKey() {
-    const key = draft.giphyApiKey.trim();
-    draft.giphyApiKey = key;
-    if (key === (settingsStore.settings.giphyApiKey ?? "")) return;
-    await settingsStore.save({ ...draft, giphyApiKey: key });
+  // Credential-style fields (Giphy key, ngrok token) persist on their own on
+  // blur so they're remembered even without pressing "Save changes". A per-server
+  // ngrok key set on an instance overrides the global token saved here.
+  async function persistCredential(field: "giphyApiKey" | "ngrokAuthtoken") {
+    const value = draft[field].trim();
+    draft[field] = value;
+    if (value === (settingsStore.settings[field] ?? "")) return;
+    await settingsStore.save({ ...draft, [field]: value });
   }
 
   async function loadCache() {
@@ -89,11 +90,11 @@
     loadCache();
   });
 
-  function formatBytes(n: number): string {
-    if (n <= 0) return "0 B";
+  function formatBytes(bytes: number): string {
+    if (bytes <= 0) return "0 B";
     const units = ["B", "KB", "MB", "GB", "TB"];
-    const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
-    return `${(n / Math.pow(1024, unitIndex)).toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+    const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    return `${(bytes / Math.pow(1024, unitIndex)).toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
   }
 
   const kind = $derived(bgKind(draft.background ?? ""));
@@ -195,15 +196,6 @@
   async function browseInstancesDir() {
     const folder = await pickFolder("Choose where new instances install");
     if (folder) draft.instancesDir = folder;
-  }
-
-  // The global ngrok key persists on its own (like a connected credential); a
-  // per-server key set on the instance overrides it.
-  async function saveNgrokToken() {
-    const token = draft.ngrokAuthtoken.trim();
-    draft.ngrokAuthtoken = token;
-    if (token === (settingsStore.settings.ngrokAuthtoken ?? "")) return;
-    await settingsStore.save({ ...draft, ngrokAuthtoken: token });
   }
 
   // Sync the draft once settings finish loading.
@@ -339,7 +331,7 @@
         type="password"
         placeholder="Paste key to enable"
         bind:value={draft.giphyApiKey}
-        onblur={saveGiphyKey}
+        onblur={() => persistCredential("giphyApiKey")}
         onkeydown={(event) => event.key === "Enter" && event.currentTarget.blur()}
         autocomplete="off"
         spellcheck="false"
@@ -644,7 +636,7 @@
         type="password"
         placeholder="Paste your ngrok authtoken"
         bind:value={draft.ngrokAuthtoken}
-        onblur={saveNgrokToken}
+        onblur={() => persistCredential("ngrokAuthtoken")}
         onkeydown={(event) => event.key === "Enter" && event.currentTarget.blur()}
         autocomplete="off"
         spellcheck="false"

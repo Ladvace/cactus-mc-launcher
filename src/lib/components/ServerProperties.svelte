@@ -35,7 +35,7 @@
     { key: "allow-flight", label: "Allow flight", type: "bool", def: "false" },
     { key: "enable-command-block", label: "Command blocks", type: "bool", def: "false" },
   ];
-  const MANAGED = new Set(FIELDS.map((f) => f.key));
+  const MANAGED = new Set(FIELDS.map((field) => field.key));
 
   type Line =
     | { kind: "kv"; key: string; value: string; raw: string }
@@ -49,11 +49,11 @@
 
   function parse(text: string): Line[] {
     return text.split(/\r?\n/).map((raw): Line => {
-      const t = raw.trimStart();
-      if (!t || t.startsWith("#")) return { kind: "raw", raw };
-      const eq = raw.indexOf("=");
-      if (eq < 0) return { kind: "raw", raw };
-      return { kind: "kv", key: raw.slice(0, eq).trim(), value: raw.slice(eq + 1), raw };
+      const trimmed = raw.trimStart();
+      if (!trimmed || trimmed.startsWith("#")) return { kind: "raw", raw };
+      const equalsIndex = raw.indexOf("=");
+      if (equalsIndex < 0) return { kind: "raw", raw };
+      return { kind: "kv", key: raw.slice(0, equalsIndex).trim(), value: raw.slice(equalsIndex + 1), raw };
     });
   }
 
@@ -64,14 +64,14 @@
       const lines = parse(text);
       rawLines = lines;
       const found: Record<string, string> = {};
-      for (const l of lines) if (l.kind === "kv") found[l.key] = l.value;
+      for (const line of lines) if (line.kind === "kv") found[line.key] = line.value;
       // Seed the form from the file, falling back to sensible defaults.
       const next: Record<string, string> = {};
-      for (const f of FIELDS) next[f.key] = found[f.key] ?? f.def;
+      for (const field of FIELDS) next[field.key] = found[field.key] ?? field.def;
       values = next;
       loaded = true;
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     } finally {
       loading = false;
     }
@@ -90,17 +90,17 @@
     saving = true;
     try {
       const seen = new Set<string>();
-      const out = rawLines.map((l) => {
-        if (l.kind === "kv" && MANAGED.has(l.key)) {
-          seen.add(l.key);
-          return `${l.key}=${values[l.key] ?? ""}`;
+      const out = rawLines.map((line) => {
+        if (line.kind === "kv" && MANAGED.has(line.key)) {
+          seen.add(line.key);
+          return `${line.key}=${values[line.key] ?? ""}`;
         }
-        return l.raw;
+        return line.raw;
       });
       // Append managed keys not already present (skip empty optional values).
-      for (const f of FIELDS) {
-        if (!seen.has(f.key) && (values[f.key] ?? "") !== "") {
-          out.push(`${f.key}=${values[f.key]}`);
+      for (const field of FIELDS) {
+        if (!seen.has(field.key) && (values[field.key] ?? "") !== "") {
+          out.push(`${field.key}=${values[field.key]}`);
         }
       }
       let text = out.join("\n");
@@ -109,8 +109,8 @@
       // Reflect the saved state so re-saving is stable.
       rawLines = parse(text);
       toast.success("Server properties saved.");
-    } catch (e) {
-      toast.error(String(e));
+    } catch (error) {
+      toast.error(String(error));
     } finally {
       saving = false;
     }
@@ -137,36 +137,36 @@
     <p class="muted">Loading…</p>
   {:else}
     <div class="grid">
-      {#each FIELDS as f (f.key)}
-        <div class="field" class:wide={f.type === "text"}>
-          {#if f.type === "bool"}
+      {#each FIELDS as field (field.key)}
+        <div class="field" class:wide={field.type === "text"}>
+          {#if field.type === "bool"}
             <label class="toggle">
               <input
                 type="checkbox"
-                checked={values[f.key] === "true"}
-                onchange={(e) =>
-                  (values[f.key] = (e.currentTarget as HTMLInputElement).checked ? "true" : "false")}
+                checked={values[field.key] === "true"}
+                onchange={(event) =>
+                  (values[field.key] = (event.currentTarget as HTMLInputElement).checked ? "true" : "false")}
               />
-              <span>{f.label}</span>
+              <span>{field.label}</span>
             </label>
           {:else}
-            <label class="field-label" for={`p-${f.key}`}>{f.label}</label>
-            {#if f.type === "select"}
-              <select id={`p-${f.key}`} class="select" bind:value={values[f.key]}>
-                {#each f.options ?? [] as o (o)}
-                  <option value={o}>{o}</option>
+            <label class="field-label" for={`p-${field.key}`}>{field.label}</label>
+            {#if field.type === "select"}
+              <select id={`p-${field.key}`} class="select" bind:value={values[field.key]}>
+                {#each field.options ?? [] as option (option)}
+                  <option value={option}>{option}</option>
                 {/each}
               </select>
             {:else}
               <input
-                id={`p-${f.key}`}
+                id={`p-${field.key}`}
                 class="input"
-                type={f.type === "number" ? "number" : "text"}
-                bind:value={values[f.key]}
+                type={field.type === "number" ? "number" : "text"}
+                bind:value={values[field.key]}
               />
             {/if}
           {/if}
-          {#if f.hint}<span class="hint">{f.hint}</span>{/if}
+          {#if field.hint}<span class="hint">{field.hint}</span>{/if}
         </div>
       {/each}
     </div>

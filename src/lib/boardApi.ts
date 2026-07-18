@@ -171,5 +171,5 @@ export const boardApi = {
   serverHistory: (address: string, hours = 24) =>
     get<{ samples: ServerSample[] }>(
       `/v1/servers/history?address=${encodeURIComponent(address)}&hours=${hours}`
-    ).then((res) => res.samples),
+    ).then((data) => data.samples),
 };

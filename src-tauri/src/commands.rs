@@ -187,24 +187,16 @@ pub fn set_instance_game_dir(
     let mut instance = store.get(&id).ok_or_else(|| AppError::InstanceNotFound(id.clone()))?;
 
     let old = crate::paths::instance_game_dir(&app, &id)?;
-    let has_custom = path
-        .as_deref()
-        .map(|p| !p.trim().is_empty())
-        .unwrap_or(false);
-    let target = if has_custom {
-        std::path::PathBuf::from(path.as_deref().unwrap().trim())
-    } else {
-        crate::paths::default_game_dir(&app, &id)?
+    let custom_dir = path.as_deref().map(str::trim).filter(|dir| !dir.is_empty());
+    let target = match custom_dir {
+        Some(dir) => std::path::PathBuf::from(dir),
+        None => crate::paths::default_game_dir(&app, &id)?,
     };
 
     if old != target {
         move_tree(&old, &target)?;
     }
-    instance.game_dir = if has_custom {
-        Some(target.to_string_lossy().into_owned())
-    } else {
-        None
-    };
+    instance.game_dir = custom_dir.map(|_| target.to_string_lossy().into_owned());
     store.save(&app, &instance)?;
     Ok(instance)
 }
