@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    test_tauri_rust_mc_launcher_lib::run()
+    cactus_launcher_lib::run()
 }

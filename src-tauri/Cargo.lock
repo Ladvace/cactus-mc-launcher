@@ -447,6 +447,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "cactus-launcher"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "futures",
+ "hex",
+ "md-5",
+ "ngrok",
+ "reqwest 0.12.28",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha1",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "thiserror 2.0.18",
+ "tokio",
+ "uuid",
+ "zip",
+]
+
+[[package]]
 name = "cairo-rs"
 version = "0.18.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4487,31 +4512,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fed54709c5b3a53d09bb1c113ea4f5ceafd1e772ddcb0030a82e1d56c087b08"
 dependencies = [
  "new_debug_unreachable",
-]
-
-[[package]]
-name = "test-tauri-rust-mc-launcher"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "futures",
- "hex",
- "md-5",
- "ngrok",
- "reqwest 0.12.28",
- "rustls",
- "serde",
- "serde_json",
- "sha1",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "thiserror 2.0.18",
- "tokio",
- "uuid",
- "zip",
 ]
 
 [[package]]
