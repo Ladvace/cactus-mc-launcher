@@ -160,8 +160,10 @@
     pointer-events: none;
   }
   .content {
+    /* No z-index here on purpose: a stacking context would trap fixed overlays
+       rendered by pages (modals, context menus, the instance picker) *below*
+       the Dock. Tree order already paints .content above the fixed .bg-layer. */
     position: relative;
-    z-index: 1;
     height: 100vh;
     width: 100%;
     overflow-y: auto;
