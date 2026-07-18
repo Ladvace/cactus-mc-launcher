@@ -155,9 +155,6 @@ export const api = {
   searchStickers: (query: string, offset = 0) =>
     invoke<Sticker[]>("search_stickers", { query, offset }),
 
-  /** Whether stickers are enabled (settings key or a baked-in .env key). */
-  giphyConfigured: () => invoke<boolean>("giphy_configured"),
-
   downloadImage: (url: string) => invoke<string>("download_image", { url }),
 
   contentCacheStats: () => invoke<CacheStats>("content_cache_stats"),

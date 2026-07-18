@@ -12,16 +12,8 @@
   const picker = $derived(ui.stickerPicker);
   const open = $derived(!!picker);
 
-  // Stickers are enabled once a Giphy key exists — from settings or a baked-in
-  // .env GIPHY_API_KEY (the env one isn't visible to `settings`, so ask the
-  // backend once).
-  let backendConfigured = $state(false);
-  $effect(() => {
-    api.giphyConfigured().then((value) => (backendConfigured = value)).catch(() => {});
-  });
-  const enabled = $derived(
-    settingsStore.settings.giphyApiKey.trim().length > 0 || backendConfigured
-  );
+  // Stickers are enabled only once the user provides a Giphy API key.
+  const enabled = $derived(settingsStore.settings.giphyApiKey.trim().length > 0);
 
   let tab = $state<"stickers" | "emoji" | "decor">("decor");
   let keyDraft = $state("");

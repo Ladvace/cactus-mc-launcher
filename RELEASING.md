@@ -11,6 +11,18 @@ git push origin v0.1.0
 
 Matrix: macOS (Apple Silicon + Intel), Linux (`ubuntu-22.04`), Windows.
 
+## Feature keys (compile-time)
+
+These are baked into the binary at build time by `build.rs`. Locally they come
+from `src-tauri/.env` (gitignored); in CI, `.env` isn't present, so add them as
+repo **Settings → Secrets and variables → Actions** secrets. Leave one unset to
+ship with that feature disabled.
+
+| Secret | Enables |
+| --- | --- |
+| `AZURE_CLIENT_ID` | Microsoft sign-in (device-code login) |
+| `CURSEFORGE_API_KEY` | The CurseForge content source + FTB modpacks |
+
 ## macOS signing + notarization
 
 The macOS jobs are Developer-ID signed and notarized when these repo

@@ -41,26 +41,8 @@ struct Rendition {
     url: String,
 }
 
-/// The Giphy key baked in at compile time from `.env` (see build.rs), if any.
-pub const ENV_KEY: Option<&str> = option_env!("GIPHY_API_KEY");
-
-/// The effective key: the user's runtime setting takes precedence, falling back
-/// to the compile-time `.env` key.
-pub fn effective_key(settings_key: &str) -> String {
-    let settings_key = settings_key.trim();
-    if !settings_key.is_empty() {
-        return settings_key.to_string();
-    }
-    ENV_KEY.unwrap_or("").trim().to_string()
-}
-
-/// Whether stickers are enabled from either source (settings or `.env`).
-pub fn is_configured(settings_key: &str) -> bool {
-    !effective_key(settings_key).is_empty()
-}
-
 /// Search stickers (or trending when the query is empty). `api_key` is the
-/// resolved Giphy key (see `effective_key`).
+/// user's Giphy key from settings.
 pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Sticker>> {
     let api_key = api_key.trim();
     if api_key.is_empty() {

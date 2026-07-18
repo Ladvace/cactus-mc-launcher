@@ -2,7 +2,7 @@ use std::path::Path;
 
 /// Secrets exposed to the crate via `option_env!`, read from the environment
 /// or a gitignored `.env` file. Leave unset to keep the feature disabled.
-const ENV_KEYS: &[&str] = &["AZURE_CLIENT_ID", "CURSEFORGE_API_KEY", "GIPHY_API_KEY"];
+const ENV_KEYS: &[&str] = &["AZURE_CLIENT_ID", "CURSEFORGE_API_KEY"];
 
 fn main() {
     load_env_vars();

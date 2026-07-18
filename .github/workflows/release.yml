@@ -58,6 +58,10 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # --- Compile-time feature keys (baked in by build.rs; empty = the
+          # feature stays disabled). Add these as repo secrets to enable them. ---
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           # --- Apple signing + notarization (used on the macOS jobs only) ---
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
