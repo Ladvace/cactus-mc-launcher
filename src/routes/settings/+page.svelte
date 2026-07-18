@@ -5,7 +5,9 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "$lib/components/Icon.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
+  import Modal from "$lib/components/Modal.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import {
     backgroundCss,
     bgKind,
@@ -54,6 +56,33 @@
       cacheStats = null;
     } finally {
       cacheLoading = false;
+    }
+  }
+
+  let clearingCache = $state(false);
+  async function clearCache() {
+    clearingCache = true;
+    try {
+      cacheStats = await api.clearContentCache();
+      toast.success("Cache cleared.");
+    } catch (error) {
+      toast.error(String(error));
+    } finally {
+      clearingCache = false;
+    }
+  }
+
+  let resetOpen = $state(false);
+  let resetting = $state(false);
+  async function resetEverything() {
+    resetting = true;
+    try {
+      await api.resetAppData();
+      localStorage.clear();
+      location.reload();
+    } catch (error) {
+      toast.error(String(error));
+      resetting = false;
     }
   }
   $effect(() => {
@@ -588,9 +617,14 @@
           into each instance — identical files never take space twice.</small
         >
       </div>
-      <button class="btn ghost" onclick={loadCache} disabled={cacheLoading}>
-        {cacheLoading ? "…" : "Refresh"}
-      </button>
+      <div class="folder-actions">
+        <button class="btn ghost" onclick={clearCache} disabled={cacheLoading || clearingCache}>
+          {clearingCache ? "Clearing…" : "Clear cache"}
+        </button>
+        <button class="btn ghost" onclick={loadCache} disabled={cacheLoading}>
+          {cacheLoading ? "…" : "Refresh"}
+        </button>
+      </div>
     </div>
     {#if cacheStats}
       <div class="stats">
@@ -608,6 +642,19 @@
         </div>
       </div>
     {/if}
+
+    <div class="setting danger-row">
+      <div class="label">
+        <span>Reset everything</span>
+        <small>
+          Delete all instances, downloads, and settings and start fresh. This
+          can't be undone.
+        </small>
+      </div>
+      <button class="btn danger" onclick={() => (resetOpen = true)}>
+        <Icon name="trash" size={14} /> Reset…
+      </button>
+    </div>
   </section>
 
   <section class="card-block">
@@ -642,6 +689,19 @@
     </button>
   </div>
 </div>
+
+<Modal title="Reset everything?" open={resetOpen} onClose={() => (resetOpen = false)} width={430}>
+  <p class="reset-warn">
+    This permanently deletes <strong>all instances, downloads, and settings</strong>
+    and restarts the app fresh. This can't be undone.
+  </p>
+  <div class="reset-actions">
+    <button class="btn ghost" onclick={() => (resetOpen = false)}>Cancel</button>
+    <button class="btn danger" onclick={resetEverything} disabled={resetting}>
+      {resetting ? "Resetting…" : "Delete everything"}
+    </button>
+  </div>
+</Modal>
 
 <style>
   .page {
@@ -894,6 +954,24 @@
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+  }
+  .danger-row {
+    border-top: 1px solid rgba(255, 91, 91, 0.2);
+    margin-top: 6px;
+    padding-top: 16px;
+  }
+  .danger-row .label > span:first-child {
+    color: var(--danger);
+  }
+  .reset-warn {
+    margin: 0 0 18px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .reset-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
   }
   /* Segmented control (dock position). */
   .seg {

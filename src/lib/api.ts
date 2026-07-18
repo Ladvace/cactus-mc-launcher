@@ -159,6 +159,12 @@ export const api = {
 
   contentCacheStats: () => invoke<CacheStats>("content_cache_stats"),
 
+  /** Empty the shared content cache; returns the (now empty) stats. */
+  clearContentCache: () => invoke<CacheStats>("clear_content_cache"),
+
+  /** Factory reset: delete all instances, downloads, and settings. */
+  resetAppData: () => invoke<void>("reset_app_data"),
+
   // Snapshots (share / export-import)
   exportSetup: (
     instanceId: string,

@@ -580,6 +580,41 @@ pub fn content_cache_stats(app: AppHandle) -> Result<content::CacheStats> {
     content::cache::stats(&app)
 }
 
+/// Empty the shared content cache. Instances keep their own copies (the cache
+/// blobs are extra hard links), so this is safe — only future installs re-fetch.
+#[tauri::command]
+pub fn clear_content_cache(app: AppHandle) -> Result<content::CacheStats> {
+    let dir = crate::paths::content_cache_dir(&app)?;
+    if dir.exists() {
+        std::fs::remove_dir_all(&dir)?;
+    }
+    crate::paths::content_cache_dir(&app)?; // recreate empty
+    content::cache::stats(&app)
+}
+
+/// Factory reset: delete every instance, all shared downloads (meta/), and
+/// settings, then reset in-memory state. The frontend should reload afterwards.
+/// Instances stored in a custom folder outside the app data dir aren't removed.
+#[tauri::command]
+pub fn reset_app_data(
+    app: AppHandle,
+    instances: State<'_, InstanceStore>,
+    settings: State<'_, SettingsStore>,
+) -> Result<()> {
+    for dir in [crate::paths::instances_dir(&app)?, crate::paths::meta_dir(&app)?] {
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir)?;
+        }
+    }
+    let settings_file = crate::paths::settings_file(&app)?;
+    if settings_file.exists() {
+        std::fs::remove_file(&settings_file)?;
+    }
+    settings.save(&app, Settings::default())?;
+    instances.load(&app)?;
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Snapshots (share / export-import)
 // ---------------------------------------------------------------------------

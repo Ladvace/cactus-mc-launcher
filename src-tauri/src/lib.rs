@@ -92,6 +92,8 @@ pub fn run() {
             commands::search_stickers,
             commands::download_image,
             commands::content_cache_stats,
+            commands::clear_content_cache,
+            commands::reset_app_data,
             commands::export_setup,
             commands::import_setup,
             commands::board_login,
