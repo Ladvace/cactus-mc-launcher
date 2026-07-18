@@ -61,7 +61,9 @@ jobs:
           # --- Compile-time feature keys (baked in by build.rs; empty = the
           # feature stays disabled). Add these as repo secrets to enable them. ---
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          # Backend URL for the CurseForge proxy (public; the CF key lives on the
+          # backend, not in the client).
+          CACTUS_API_BASE: ${{ secrets.CACTUS_API_BASE }}
           # --- Apple signing + notarization (used on the macOS jobs only) ---
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}

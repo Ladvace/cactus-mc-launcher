@@ -1,8 +1,9 @@
 //! CurseForge provider. Maps the CurseForge (Eternal) API into the normalized
 //! Modrinth-shaped types so the rest of the app is source-agnostic.
 //!
-//! Needs a free API key from https://console.curseforge.com, provided at build
-//! time via `CURSEFORGE_API_KEY` (see build.rs / .env).
+//! API calls go through our backend `/v1/curseforge` proxy (which holds the
+//! CurseForge API key server-side); the client only needs the backend URL,
+//! baked from `CACTUS_API_BASE`. File downloads hit CurseForge's CDN directly.
 //!
 //! Note: mod authors can opt out of third-party distribution. For those files
 //! the API returns a null download URL and we cannot fetch them — the file's
@@ -15,42 +16,30 @@ use crate::modrinth::{
     SearchHit, SearchParams, SearchResults, Version, VersionFile, VersionHashes,
 };
 
-const API_BASE: &str = "https://api.curseforge.com";
 const GAME_ID: u64 = 432; // Minecraft
 const USER_AGENT: &str = concat!("cactus-launcher/", env!("CARGO_PKG_VERSION"));
 
-const CF_API_KEY: &str = match option_env!("CURSEFORGE_API_KEY") {
-    Some(k) => k,
-    None => "",
-};
-
-pub fn is_configured() -> bool {
-    !CF_API_KEY.is_empty()
+/// CurseForge is reached through our backend proxy (which holds the API key
+/// server-side), never with a key baked into this client. The proxy base is
+/// baked from `CACTUS_API_BASE` (the deployed Worker URL — not a secret).
+/// `None` = CurseForge unavailable in this build.
+fn api_base() -> Option<String> {
+    let base = option_env!("CACTUS_API_BASE")?.trim().trim_end_matches('/');
+    (!base.is_empty()).then(|| format!("{base}/v1/curseforge"))
 }
 
-fn ensure_configured() -> Result<()> {
-    if CF_API_KEY.is_empty() {
-        return Err(AppError::Other(
-            "CurseForge isn't configured. Add a CURSEFORGE_API_KEY in \
-             src-tauri/.env (get one at https://console.curseforge.com)."
-                .into(),
-        ));
-    }
-    Ok(())
+pub fn is_configured() -> bool {
+    api_base().is_some()
+}
+
+fn ensure_configured() -> Result<String> {
+    api_base().ok_or_else(|| {
+        AppError::Other("CurseForge isn't available (backend proxy not configured).".into())
+    })
 }
 
 fn client() -> Result<reqwest::Client> {
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        "x-api-key",
-        CF_API_KEY
-            .parse()
-            .map_err(|_| AppError::Other("invalid CurseForge API key".into()))?,
-    );
-    Ok(reqwest::Client::builder()
-        .user_agent(USER_AGENT)
-        .default_headers(headers)
-        .build()?)
+    Ok(reqwest::Client::builder().user_agent(USER_AGENT).build()?)
 }
 
 /// CurseForge class id for a project type.
@@ -284,7 +273,7 @@ fn map_file(cf_file: CfFile) -> Version {
 // --- Provider entry points ---
 
 pub async fn search(params: SearchParams) -> Result<SearchResults> {
-    ensure_configured()?;
+    let base = ensure_configured()?;
 
     let class = class_id(&params.project_type).to_string();
     let sort = sort_field(params.sort.as_deref().unwrap_or("relevance")).to_string();
@@ -313,7 +302,7 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
     }
 
     let resp: SearchResponse = client()?
-        .get(format!("{API_BASE}/v1/mods/search"))
+        .get(format!("{base}/v1/mods/search"))
         .query(&query)
         .send()
         .await?
@@ -334,7 +323,7 @@ pub async fn get_versions(
     loader: Option<&str>,
     game_version: Option<&str>,
 ) -> Result<Vec<Version>> {
-    ensure_configured()?;
+    let base = ensure_configured()?;
 
     let mut query: Vec<(&str, String)> = vec![("pageSize", "50".to_string())];
     if let Some(version) = game_version.filter(|value| !value.is_empty()) {
@@ -348,7 +337,7 @@ pub async fn get_versions(
     }
 
     let resp: FilesResponse = client()?
-        .get(format!("{API_BASE}/v1/mods/{project_id}/files"))
+        .get(format!("{base}/v1/mods/{project_id}/files"))
         .query(&query)
         .send()
         .await?
@@ -360,13 +349,13 @@ pub async fn get_versions(
 }
 
 pub async fn get_version(version_id: &str) -> Result<Version> {
-    ensure_configured()?;
+    let base = ensure_configured()?;
     let (mod_id, file_id) = version_id
         .split_once(':')
         .ok_or_else(|| AppError::Other("invalid CurseForge version id".into()))?;
 
     let resp: FileResponse = client()?
-        .get(format!("{API_BASE}/v1/mods/{mod_id}/files/{file_id}"))
+        .get(format!("{base}/v1/mods/{mod_id}/files/{file_id}"))
         .send()
         .await?
         .error_for_status()?

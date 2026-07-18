@@ -2,7 +2,10 @@ use std::path::Path;
 
 /// Secrets exposed to the crate via `option_env!`, read from the environment
 /// or a gitignored `.env` file. Leave unset to keep the feature disabled.
-const ENV_KEYS: &[&str] = &["AZURE_CLIENT_ID", "CURSEFORGE_API_KEY"];
+// AZURE_CLIENT_ID is a public client id; CACTUS_API_BASE is the (public) backend
+// URL used to reach the CurseForge proxy. The CurseForge API key itself lives on
+// the backend, never in this binary.
+const ENV_KEYS: &[&str] = &["AZURE_CLIENT_ID", "CACTUS_API_BASE"];
 
 fn main() {
     load_env_vars();

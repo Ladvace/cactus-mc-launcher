@@ -433,8 +433,8 @@ pub async fn install_ftb_modpack(
     let cf_count = client_files.iter().filter(|file| file.curseforge.is_some()).count();
     if cf_count > 0 && !crate::sources::curseforge::is_configured() {
         return Err(AppError::Other(format!(
-            "This FTB pack uses {cf_count} mods hosted on CurseForge. Set a \
-             CURSEFORGE_API_KEY in src-tauri/.env to install FTB packs."
+            "This FTB pack uses {cf_count} mods hosted on CurseForge, which isn't \
+             configured (the backend proxy is unavailable)."
         )));
     }
 
