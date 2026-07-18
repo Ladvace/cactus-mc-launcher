@@ -9,6 +9,7 @@
   import GroupPicker from "$lib/components/GroupPicker.svelte";
   import DecorLayer from "$lib/components/DecorLayer.svelte";
   import Toaster from "$lib/components/Toaster.svelte";
+  import Onboarding from "$lib/components/Onboarding.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
@@ -16,10 +17,14 @@
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { backgroundCss } from "$lib/background";
+  import { readJson } from "$lib/storage";
   import { playClick } from "$lib/sound";
   import type { Snippet } from "svelte";
 
   let { children }: { children: Snippet } = $props();
+
+  // First-run onboarding, shown once (persisted in localStorage).
+  let onboarded = $state(readJson<boolean>("cactus:onboarded", false));
 
   const bg = $derived(backgroundCss(settingsStore.settings.background ?? ""));
 
@@ -88,6 +93,10 @@
 <StickerPicker />
 <GroupPicker />
 <Toaster />
+
+{#if !onboarded && settingsStore.loaded}
+  <Onboarding onDone={() => (onboarded = true)} />
+{/if}
 
 {#if splash}
   <div
