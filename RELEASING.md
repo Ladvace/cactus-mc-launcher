@@ -20,8 +20,17 @@ ship with that feature disabled.
 
 | Secret | Enables |
 | --- | --- |
-| `AZURE_CLIENT_ID` | Microsoft sign-in (device-code login) |
+| `AZURE_CLIENT_ID` | Microsoft sign-in (device-code login) — a public client ID, safe to bake |
 | `CURSEFORGE_API_KEY` | The CurseForge content source + FTB modpacks |
+
+> ⚠️ **CurseForge key + public distribution.** A baked `CURSEFORGE_API_KEY` is
+> extractable from the shipped binary, which is against CurseForge's API terms
+> (keys must stay server-side) and risks revocation. For a **publicly
+> distributed** build, do **not** set the `CURSEFORGE_API_KEY` secret — leave
+> CurseForge disabled, or proxy CurseForge calls through a server you control
+> (e.g. the Cloudflare Worker in `server/`) that holds the key. Baking it is fine
+> only for personal/internal builds. `AZURE_CLIENT_ID` is a public client ID and
+> is safe to bake.
 
 ## macOS signing + notarization
 

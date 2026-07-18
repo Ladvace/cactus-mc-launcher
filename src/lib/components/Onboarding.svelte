@@ -7,7 +7,7 @@
   import { backgroundCss } from "$lib/background";
   import { ui } from "$lib/stores/ui.svelte";
   import { writeJson } from "$lib/storage";
-  import { toast } from "$lib/stores/toast.svelte";
+  import { copyText } from "$lib/clipboard";
   import { LINKS } from "$lib/links";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "./Icon.svelte";
@@ -56,10 +56,7 @@
     if (event.key === "Enter" && step === 0) next();
   }
 
-  function copyCode(code: string) {
-    navigator.clipboard.writeText(code);
-    toast.success("Code copied.");
-  }
+  const copyCode = (code: string) => copyText(code, "Code copied.");
 </script>
 
 <svelte:window onkeydown={onKey} />

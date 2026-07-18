@@ -7,6 +7,7 @@
   import { skinFace } from "$lib/skin";
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
+  import { copyText } from "$lib/clipboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
 
   interface Props {
@@ -131,14 +132,7 @@
     }
   }
 
-  async function copyCode(code: string) {
-    try {
-      await navigator.clipboard.writeText(code);
-      toast.success("Code copied.");
-    } catch {
-      /* clipboard unavailable */
-    }
-  }
+  const copyCode = (code: string) => copyText(code, "Code copied.");
 </script>
 
 <Modal title="Accounts" {open} {onClose} width={460}>

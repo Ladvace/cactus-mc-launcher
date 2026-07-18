@@ -12,6 +12,7 @@
   import { fileToIconDataUri } from "$lib/image";
   import { toast } from "$lib/stores/toast.svelte";
   import { localServerAddress } from "$lib/serverAddress";
+  import { copyText } from "$lib/clipboard";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
   const shareOnline = boardApi.configured();
@@ -156,14 +157,8 @@
     }
   }
 
-  async function copyCode() {
-    if (!sharedCode) return;
-    try {
-      await navigator.clipboard.writeText(sharedCode);
-      toast.success("Copied!");
-    } catch {
-      /* clipboard may be unavailable */
-    }
+  function copyCode() {
+    if (sharedCode) copyText(sharedCode, "Copied!");
   }
 
   async function createServer(id: string) {
