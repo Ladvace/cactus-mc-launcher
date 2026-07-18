@@ -41,6 +41,14 @@ fn client() -> Result<reqwest::Client> {
     crate::http::client()
 }
 
+/// URL of the backend's authenticated download proxy for a CurseForge file.
+/// Empty if CurseForge isn't configured (treated as "no download available").
+fn proxied_download_url(mod_id: u64, file_id: u64) -> String {
+    api_base()
+        .map(|base| format!("{base}/download/{mod_id}/{file_id}"))
+        .unwrap_or_default()
+}
+
 /// CurseForge class id for a project type.
 fn class_id(project_type: &str) -> u64 {
     match project_type {
@@ -258,7 +266,16 @@ fn map_file(cf_file: CfFile) -> Version {
         game_versions,
         loaders,
         files: vec![VersionFile {
-            url: cf_file.download_url.unwrap_or_default(),
+            // Download through our proxy so the API key stays server-side (the
+            // CDN now requires it). An absent/empty download_url means the author
+            // opted out of third-party distribution — leave the url empty so
+            // install refuses and points the user to the CurseForge page.
+            url: match cf_file.download_url {
+                Some(ref cdn) if !cdn.is_empty() => {
+                    proxied_download_url(cf_file.mod_id, cf_file.id)
+                }
+                _ => String::new(),
+            },
             filename: cf_file.file_name,
             primary: true,
             size: cf_file.file_length,
