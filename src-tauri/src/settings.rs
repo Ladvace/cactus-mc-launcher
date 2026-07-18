@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -12,8 +13,14 @@ use crate::paths;
 pub struct Settings {
     /// "dark" | "light" | "system"
     pub theme: String,
-    /// Explicit Java executable path. `None` = auto-detect / managed runtime.
+    /// Explicit Java executable path applied to any version (legacy fallback).
+    /// `None` = auto-detect / managed runtime. Prefer `java_paths` per major.
     pub java_path: Option<String>,
+    /// Per-major-version Java executables (e.g. 8/17/21 -> path), chosen to match
+    /// the version's required Java. Empty = use the managed runtime. Overrides
+    /// `java_path` for the matching major.
+    #[serde(default)]
+    pub java_paths: HashMap<u32, String>,
     pub max_memory_mb: u32,
     pub min_memory_mb: u32,
     /// Extra JVM arguments appended at launch.
@@ -51,6 +58,7 @@ impl Default for Settings {
         Self {
             theme: "dark".into(),
             java_path: None,
+            java_paths: HashMap::new(),
             max_memory_mb: 4096,
             min_memory_mb: 1024,
             jvm_args: String::new(),

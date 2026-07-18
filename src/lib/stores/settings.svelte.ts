@@ -4,6 +4,7 @@ import type { Settings } from "$lib/types";
 const DEFAULTS: Settings = {
   theme: "dark",
   javaPath: null,
+  javaPaths: {},
   maxMemoryMb: 4096,
   minMemoryMb: 1024,
   jvmArgs: "",

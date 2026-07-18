@@ -161,6 +161,16 @@
     draft.gameHeight = 480;
   }
 
+  // Managed Java already covers these majors; these let you point a version at
+  // your own JDK instead (matches what each Minecraft version requires).
+  const JAVA_MAJORS = [8, 17, 21];
+  function setJavaPath(major: number, value: string) {
+    const paths = { ...draft.javaPaths };
+    if (value) paths[String(major)] = value;
+    else delete paths[String(major)];
+    draft.javaPaths = paths;
+  }
+
   async function browseInstancesDir() {
     const folder = await pickFolder("Choose where new instances install");
     if (folder) draft.instancesDir = folder;
@@ -506,18 +516,26 @@
     {/if}
     <div class="setting">
       <div class="label">
-        <span>Java path (optional)</span>
+        <span>Java runtimes (optional)</span>
         <small>
-          Leave empty to use managed Java. Only set this to force your own Java
-          executable.
+          Leave empty to use managed Java. Point a version at your own JDK if you
+          prefer — each Minecraft version uses the Java it needs (8 for old
+          versions, 17 for 1.17–1.20, 21 for 1.20.5+).
         </small>
       </div>
-      <input
-        class="input narrow"
-        placeholder="/path/to/java"
-        bind:value={draft.javaPath}
-      />
     </div>
+    {#each JAVA_MAJORS as major (major)}
+      <div class="setting java-major">
+        <div class="label"><span>Java {major}</span></div>
+        <input
+          class="input narrow"
+          placeholder="Managed (auto)"
+          value={draft.javaPaths[String(major)] ?? ""}
+          oninput={(event) => setJavaPath(major, event.currentTarget.value)}
+          spellcheck="false"
+        />
+      </div>
+    {/each}
     <div class="setting">
       <div class="label">
         <span>Maximum memory</span>

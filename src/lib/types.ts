@@ -190,6 +190,8 @@ export interface CacheStats {
 export interface Settings {
   theme: string;
   javaPath: string | null;
+  /** Per-major Java executables (e.g. "8"/"17"/"21" → path); overrides javaPath. */
+  javaPaths: Record<string, string>;
   maxMemoryMb: number;
   minMemoryMb: number;
   jvmArgs: string;

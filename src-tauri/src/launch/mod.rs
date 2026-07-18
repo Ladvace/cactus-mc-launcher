@@ -183,11 +183,19 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     // Apple Silicon: versions with LWJGL < 3.3.1 have no arm64 natives, so run
     // them with an x86_64 (Rosetta) Java to match the x86_64 native libraries.
     let force_x64 = macos_needs_rosetta(&detail);
-    // Per-instance Java path override, else the global one.
+    // Java path: per-instance override, else a per-major setting matching this
+    // version's required Java, else the legacy global path.
     let java_path = instance
         .java_path
         .as_deref()
         .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            settings
+                .java_paths
+                .get(&java_version.major_version)
+                .map(String::as_str)
+                .filter(|s| !s.trim().is_empty())
+        })
         .or(settings.java_path.as_deref());
     let java = {
         let app_cb = app.clone();
