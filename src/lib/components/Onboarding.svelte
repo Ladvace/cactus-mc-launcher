@@ -8,6 +8,7 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { writeJson } from "$lib/storage";
   import { toast } from "$lib/stores/toast.svelte";
+  import { LINKS } from "$lib/links";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "./Icon.svelte";
 
@@ -166,6 +167,18 @@
               I'll explore on my own
             </button>
           </div>
+          <div class="socials">
+            {#if LINKS.discord}
+              <button class="social" onclick={() => openUrl(LINKS.discord)}>
+                <Icon name="users" size={13} /> Join the Discord
+              </button>
+            {/if}
+            {#if LINKS.github}
+              <button class="social" onclick={() => openUrl(LINKS.github)}>
+                ★ Star on GitHub
+              </button>
+            {/if}
+          </div>
         {/if}
       </div>
     {/key}
@@ -251,8 +264,8 @@
     gap: 14px;
   }
   .mascot {
-    width: 180px;
-    max-width: 60%;
+    width: 150px;
+    max-width: 52%;
     height: auto;
     image-rendering: pixelated;
     filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.4));
@@ -360,12 +373,9 @@
   }
   .themes {
     display: grid;
-    grid-template-columns: repeat(4, 64px);
+    grid-template-columns: repeat(5, 62px);
     justify-content: center;
-    gap: 9px;
-    max-height: 262px;
-    overflow-y: auto;
-    padding: 2px;
+    gap: 8px;
   }
   .theme {
     display: flex;
@@ -381,12 +391,13 @@
     border-color: var(--accent);
   }
   .swatch {
-    width: 58px;
-    height: 58px;
+    width: 52px;
+    height: 52px;
     border: 2px solid var(--border);
   }
   .theme-name {
-    font-size: 10.5px;
+    font-size: 10px;
+    white-space: nowrap;
     color: var(--text-secondary);
   }
   .theme.on .theme-name {
@@ -402,6 +413,27 @@
     flex-direction: column;
     align-items: center;
     width: 100%;
+  }
+  .socials {
+    display: flex;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .social {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-input);
+    border: 2px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+  }
+  .social:hover {
+    border-color: var(--accent);
+    color: var(--accent);
   }
   .dots {
     display: flex;
