@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { launchStore } from "$lib/stores/launch.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { instanceLayout } from "$lib/stores/instanceLayout.svelte";
   import HomeGrid, { type Entry } from "$lib/components/HomeGrid.svelte";
@@ -46,7 +47,21 @@
   let code = $state("");
   let importing = $state(false);
 
+  const hasPlayable = $derived(
+    instancesStore.instances.some((instance) => instance.kind !== "server")
+  );
+
   const menuItems = $derived<MenuItem[]>([
+    ...(hasPlayable
+      ? [
+          {
+            label: "Play a random instance",
+            icon: "shuffle",
+            onSelect: playRandom,
+          } as MenuItem,
+          { separator: true } as MenuItem,
+        ]
+      : []),
     { label: "New instance", icon: "plus", onSelect: () => ui.openCreateInstance() },
     { separator: true },
     { label: "Import setup file…", icon: "download", onSelect: () => fileInput?.click() },
@@ -54,6 +69,20 @@
       ? [{ label: "Import from a code…", icon: "share", onSelect: () => (codeOpen = true) }]
       : []),
   ]);
+
+  // Launch a random playable (non-server) instance, preferring ones not already
+  // running, and open its page so the launch progress is visible.
+  function playRandom() {
+    const clients = instancesStore.instances.filter((instance) => instance.kind !== "server");
+    if (clients.length === 0) return;
+    const idle = clients.filter(
+      (instance) => !launchStore.isRunning(instance.id) && !launchStore.isBusy(instance.id)
+    );
+    const pool = idle.length > 0 ? idle : clients;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    goto(`/instance/${pick.id}`);
+    launchStore.launch(pick.id);
+  }
 
   function openMenu(event: MouseEvent) {
     event.preventDefault();
