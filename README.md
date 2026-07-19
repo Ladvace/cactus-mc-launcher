@@ -5,7 +5,9 @@
 # Cactus Launcher
 
 **A cozy, fast, ad-free Minecraft launcher.**
-Arrange your instances, install mods, run servers, and play together — spiky but not spooky.
+Arrange your instances, install mods, run servers, and play together.
+
+_Spiky, but not spooky._ 🌵
 
 [![CI](https://github.com/Ladvace/cactus-mc-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/Ladvace/cactus-mc-launcher/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
