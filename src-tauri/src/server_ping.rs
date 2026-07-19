@@ -32,6 +32,9 @@ pub struct ServerStatus {
     /// The server's icon as a `data:image/png;base64,…` URI, if it broadcasts one
     /// (the same icon the vanilla multiplayer list shows). `None` if absent.
     pub favicon: Option<String>,
+    /// The version name the server reports (e.g. "1.20.4", "Paper 1.21"). A hint
+    /// — servers running ViaVersion accept more than they advertise.
+    pub version: String,
 }
 
 #[tauri::command]
@@ -95,6 +98,7 @@ async fn ping(address: &str) -> Result<ServerStatus> {
             .as_str()
             .filter(|s| s.starts_with("data:image/"))
             .map(str::to_owned),
+        version: status["version"]["name"].as_str().unwrap_or("").to_string(),
     })
 }
 

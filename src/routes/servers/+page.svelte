@@ -16,10 +16,34 @@
   // Address of the card whose instance-chooser is open (multi-instance case).
   let chooserFor = $state<string | null>(null);
 
+  function majorMinor(v: string): string {
+    return v.match(/1\.\d+/)?.[0] ?? v;
+  }
+
+  // Best-effort: the server's reported version is a hint (ViaVersion accepts
+  // more), so an unknown version is treated as compatible.
+  function isCompatible(serverVersion: string | undefined, mcVersion: string): boolean {
+    if (!serverVersion) return true;
+    return serverVersion.includes(mcVersion) || serverVersion.includes(majorMinor(mcVersion));
+  }
+
+  function sortedInstances(address: string) {
+    const sv = pings[address]?.status?.version;
+    return clientInstances
+      .map((instance) => ({ instance, compat: isCompatible(sv, instance.mcVersion) }))
+      .sort((a, b) => Number(b.compat) - Number(a.compat));
+  }
+
   function play(address: string, instanceId: string) {
     chooserFor = null;
+    const inst = clientInstances.find((i) => i.id === instanceId);
+    const sv = pings[address]?.status?.version;
+    if (inst && sv && !isCompatible(sv, inst.mcVersion)) {
+      toast.info(`Launching ${inst.mcVersion} into a ${sv} server — it may not connect.`);
+    } else {
+      toast.success(`Launching into ${address}…`);
+    }
     launchStore.launch(instanceId, address);
-    toast.success(`Launching into ${address}…`);
     goto(`/instance/${instanceId}`);
   }
 
@@ -168,11 +192,15 @@
 
         {#if chooserFor === server.address}
           <div class="chooser">
-            <span class="chooser-label">Join with…</span>
-            {#each clientInstances as instance (instance.id)}
+            <span class="chooser-label">
+              Join with…{#if ping?.status?.version} <span class="chooser-srv">server runs {ping.status.version}</span>{/if}
+            </span>
+            {#each sortedInstances(server.address) as { instance, compat } (instance.id)}
               <button class="chooser-item" onclick={() => play(server.address, instance.id)}>
-                {instance.name}
-                <span class="chooser-ver">{instance.mcVersion}</span>
+                <span>{instance.name}</span>
+                <span class="chooser-ver" class:incompat={!compat}>
+                  {instance.mcVersion}{#if !compat} · may not connect{/if}
+                </span>
               </button>
             {/each}
           </div>
@@ -404,6 +432,13 @@
     font-size: 0.72rem;
     color: var(--text-muted);
     font-family: var(--font-mono, monospace);
+  }
+  .chooser-ver.incompat {
+    color: var(--warn, #d9a441);
+  }
+  .chooser-srv {
+    color: var(--text-muted);
+    font-weight: 400;
   }
   .disclaimer {
     margin: 2rem 0 0;
