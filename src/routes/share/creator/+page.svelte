@@ -17,8 +17,10 @@
   $effect(() => {
     const activeAccount = account;
     if (!ready || !activeAccount) return;
+    // Don't auto-retry after a failure (avoids an endless "Connecting…" loop).
     if (
       !boardAuth.loggingIn &&
+      !boardAuth.error &&
       (!boardAuth.signedIn || boardAuth.session?.uuid !== activeAccount.uuid)
     ) {
       boardAuth.login();
@@ -232,13 +234,21 @@
       </button>
     </div>
   {:else if !boardAuth.signedIn || boardAuth.session?.uuid !== account.uuid}
-    <div class="panel">
-      <p class="muted">Preparing your creator session as <strong>{account.username}</strong>…</p>
-      {#if boardAuth.error}
+    {#if boardAuth.error}
+      <div class="panel">
+        <p class="muted">Couldn't start your creator session as <strong>{account.username}</strong>.</p>
         <p class="err">{boardAuth.error}</p>
         <button class="btn ghost" onclick={() => boardAuth.login()}>Retry</button>
-      {/if}
-    </div>
+      </div>
+    {:else}
+      <div class="panel board-skeleton">
+        <span class="skeleton" style="width:44px;height:44px;border-radius:10px"></span>
+        <div class="board-skel-lines">
+          <span class="skeleton" style="width:40%;height:15px"></span>
+          <span class="skeleton" style="width:70%;height:11px"></span>
+        </div>
+      </div>
+    {/if}
   {:else}
     <div class="who">
       <span>Signed in as <strong>{boardAuth.session?.name}</strong></span>

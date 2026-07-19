@@ -31,6 +31,7 @@ pub async fn login(app: &AppHandle, api_base: &str) -> Result<BoardSession> {
     // 1. Get a one-shot serverId challenge from the backend.
     let challenge: serde_json::Value = client
         .post(format!("{base}/v1/auth/challenge"))
+        .timeout(std::time::Duration::from_secs(20))
         .send()
         .await?
         .error_for_status()?
@@ -45,6 +46,7 @@ pub async fn login(app: &AppHandle, api_base: &str) -> Result<BoardSession> {
     // 2. Prove account ownership to Mojang (our access token stays local).
     let join = client
         .post(MOJANG_JOIN)
+        .timeout(std::time::Duration::from_secs(20))
         .json(&serde_json::json!({
             "accessToken": account.mc_access_token,
             "selectedProfile": account.uuid,
@@ -62,6 +64,7 @@ pub async fn login(app: &AppHandle, api_base: &str) -> Result<BoardSession> {
     // 3. Backend confirms with Mojang (hasJoined) and issues a session token.
     let resp = client
         .post(format!("{base}/v1/auth/verify"))
+        .timeout(std::time::Duration::from_secs(20))
         .json(&serde_json::json!({ "username": account.username, "serverId": server_id }))
         .send()
         .await?;

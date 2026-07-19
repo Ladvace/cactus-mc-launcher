@@ -3,6 +3,7 @@
   import { boardApi } from "$lib/boardApi";
   import { boardAuth } from "$lib/stores/boardAuth.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { presence } from "$lib/stores/presence.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { skinFace } from "$lib/skin";
@@ -15,8 +16,11 @@
   $effect(() => {
     const activeAccount = account;
     if (!online || !activeAccount) return;
+    // Don't auto-retry after a failure (that loops forever on "Connecting…");
+    // the user retries via the button, and switching account clears the error.
     if (
       !boardAuth.loggingIn &&
+      !boardAuth.error &&
       (!boardAuth.signedIn || boardAuth.session?.uuid !== activeAccount.uuid)
     ) {
       boardAuth.login();
@@ -96,9 +100,25 @@
   <p class="offline">
     <Icon name="globe" size={13} /> Play Together is offline in this build.
   </p>
+{:else if !account}
+  {#if accountsStore.accounts.length > 0}
+    <p class="offline">
+      <Icon name="user" size={13} />
+      You're in offline mode — switch to your Microsoft account to see who's online.
+      <button class="link" onclick={() => ui.openAccounts()}>Switch account</button>
+    </p>
+  {:else}
+    <p class="offline">
+      <Icon name="user" size={13} /> Add a Microsoft account to see who's online.
+    </p>
+  {/if}
+{:else if boardAuth.loggingIn && !boardAuth.signedIn}
+  <p class="offline"><span class="spin"></span> Connecting…</p>
 {:else if !boardAuth.signedIn}
   <p class="offline">
-    <Icon name="user" size={13} /> Add a Microsoft account to see who's online.
+    <Icon name="user" size={13} />
+    Couldn't connect{boardAuth.error ? `: ${boardAuth.error}` : ""}.
+    <button class="link" onclick={() => boardAuth.login()}>Retry</button>
   </p>
 {:else}
   <section class="me">
@@ -233,9 +253,35 @@
   .offline {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
     color: var(--text-muted);
     font-size: 12.5px;
+  }
+  .offline .link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .spin {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
   .me {
     background: var(--bg-card);

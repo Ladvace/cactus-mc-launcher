@@ -582,6 +582,7 @@
     gap: 8px;
     max-height: 360px;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-right: 2px;
   }
   .decor-grid.busy {
@@ -589,6 +590,9 @@
     pointer-events: none;
   }
   .decor-cell {
+    /* Let 1fr tracks shrink below the images' intrinsic width so the grid wraps
+       into 5 columns and scrolls vertically instead of overflowing sideways. */
+    min-width: 0;
     aspect-ratio: 1;
     display: flex;
     align-items: center;

@@ -59,7 +59,8 @@
     return () => clearTimeout(timer);
   });
 
-  // Which sources are available (CurseForge only if its API key is set).
+  // Which sources are available (CurseForge only when the backend proxy is
+  // configured in this build; the API key lives on the backend, not here).
   $effect(() => {
     api
       .listSources()
@@ -161,7 +162,7 @@
     <select class="select filter" bind:value={source} title="Content source">
       {#each SOURCES as sourceOption}
         <option value={sourceOption.value} disabled={!sourceEnabled[sourceOption.value]}>
-          {sourceOption.label}{sourceEnabled[sourceOption.value] ? "" : " (add API key)"}
+          {sourceOption.label}{sourceEnabled[sourceOption.value] ? "" : " (unavailable)"}
         </option>
       {/each}
     </select>
