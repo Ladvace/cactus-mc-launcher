@@ -4,6 +4,25 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] — 2026-07-19
+
+### Fixed
+- **Play Together / Community now works in installed builds** — the boards
+  backend URL wasn't baked into release builds; it's now derived from the single
+  backend URL config, so the feature is available out of the box.
+- **"Online now" no longer flickers** in Play Together, and board sign-in shows
+  the real error (with a Retry) instead of an endless "Connecting…".
+- In offline mode, Play Together now guides you to switch to your Microsoft
+  account instead of wrongly saying "add a Microsoft account".
+- The Servers "add to instance" chooser opens as a floating menu instead of
+  stretching the whole card row.
+- The image picker's Cactus tab scrolls vertically instead of overflowing
+  sideways.
+
+### Changed
+- Faster networking — one shared, pooled HTTP client with a connect timeout, so
+  a cold/unreachable backend fails fast instead of hanging.
+
 ## [1.3.0] — 2026-07-19
 
 ### Added
@@ -80,6 +99,7 @@ Early builds establishing the foundation:
 - Adaptive **Tune-up** (hardware-aware performance recommendations), themes,
   a customizable dock, and click sounds.
 
+[1.3.1]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.1.0
