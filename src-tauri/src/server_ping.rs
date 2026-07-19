@@ -35,6 +35,9 @@ pub struct ServerStatus {
     /// The version name the server reports (e.g. "1.20.4", "Paper 1.21"). A hint
     /// — servers running ViaVersion accept more than they advertise.
     pub version: String,
+    /// Required mod ids advertised by Forge/NeoForge servers. Empty for vanilla
+    /// and Fabric/Quilt (Fabric doesn't expose its mods in the ping at all).
+    pub mods: Vec<String>,
 }
 
 #[tauri::command]
@@ -99,7 +102,27 @@ async fn ping(address: &str) -> Result<ServerStatus> {
             .filter(|s| s.starts_with("data:image/"))
             .map(str::to_owned),
         version: status["version"]["name"].as_str().unwrap_or("").to_string(),
+        mods: parse_mods(&status),
     })
+}
+
+/// Required mods from a Forge/NeoForge ping: `forgeData.mods[].modId` (1.13+) or
+/// the legacy `modinfo.modList[].modid` (1.7–1.12). Empty otherwise.
+fn parse_mods(status: &serde_json::Value) -> Vec<String> {
+    let collect = |arr: &[serde_json::Value], key: &str| -> Vec<String> {
+        arr.iter()
+            .filter_map(|m| m[key].as_str().map(str::to_owned))
+            .filter(|id| id != "minecraft" && id != "forge" && id != "neoforge")
+            .take(100)
+            .collect()
+    };
+    if let Some(arr) = status["forgeData"]["mods"].as_array() {
+        return collect(arr, "modId");
+    }
+    if let Some(arr) = status["modinfo"]["modList"].as_array() {
+        return collect(arr, "modid");
+    }
+    Vec::new()
 }
 
 /// Split `host`, `host:port`, or a bare IPv4 into its host and port, defaulting

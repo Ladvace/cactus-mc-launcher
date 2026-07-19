@@ -6,6 +6,8 @@ export interface FeaturedServer {
   description: string;
   tags: string[];
   website?: string;
+  /** A mod/modpack the server needs (e.g. "Cobblemon") — shown as a hint. */
+  requires?: string;
 }
 
 export const FEATURED_SERVERS: FeaturedServer[] = [

@@ -50,7 +50,15 @@
 
   function play(address: string, instanceId: string) {
     chooserFor = null;
-    toast.success(`Launching into ${address}…`);
+    const server = serversStore.servers.find((s) => s.address === address);
+    const modded = (pings[address]?.status?.mods?.length ?? 0) > 0;
+    if (server?.requires) {
+      toast.info(`${server.name} needs ${server.requires} — make sure this instance has it.`);
+    } else if (modded) {
+      toast.info("This is a modded server — make sure your instance has its mods.");
+    } else {
+      toast.success(`Launching into ${address}…`);
+    }
     launchStore.launch(instanceId, address);
     goto(`/instance/${instanceId}`);
   }
@@ -79,6 +87,7 @@
   let showAdd = $state(false);
   let newName = $state("");
   let newAddress = $state("");
+  let newRequires = $state("");
 
   function pingOne(address: string) {
     pings[address] = { state: "loading" };
@@ -101,13 +110,21 @@
     event.preventDefault();
     const address = newAddress.trim();
     if (!address) return;
-    if (!serversStore.add({ name: newName.trim() || address, address, description: "", tags: [] })) {
+    const added = serversStore.add({
+      name: newName.trim() || address,
+      address,
+      description: "",
+      tags: [],
+      requires: newRequires.trim() || undefined,
+    });
+    if (!added) {
       toast.error("That server is already in your list.");
       return;
     }
     pingOne(address);
     newName = "";
     newAddress = "";
+    newRequires = "";
     showAdd = false;
   }
 
@@ -138,6 +155,7 @@
     <form class="add-form" onsubmit={addServer}>
       <input class="in" placeholder="Name (optional)" bind:value={newName} maxlength="40" />
       <input class="in" placeholder="Address, e.g. play.example.net" bind:value={newAddress} maxlength="120" />
+      <input class="in" placeholder="Requires mod/modpack (optional)" bind:value={newRequires} maxlength="60" />
       <button class="btn primary sm" type="submit">Add</button>
       <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>Cancel</button>
     </form>
@@ -185,6 +203,12 @@
           <div class="tags">
             {#each server.tags as tag}<span class="tag">{tag}</span>{/each}
           </div>
+        {/if}
+
+        {#if server.requires}
+          <span class="req"><Icon name="package" size={12} /> Requires {server.requires}</span>
+        {:else if ping?.status?.mods?.length}
+          <span class="req"><Icon name="package" size={12} /> Modded · {ping.status.mods.length} mods</span>
         {/if}
 
         <div class="addr-row">
@@ -389,6 +413,13 @@
     border-radius: 999px;
     color: var(--text-muted);
     background: color-mix(in srgb, var(--text) 8%, transparent);
+  }
+  .req {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    color: var(--accent);
   }
   .addr-row {
     display: flex;
