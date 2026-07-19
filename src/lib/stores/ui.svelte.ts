@@ -3,6 +3,9 @@ import type { Instance } from "$lib/types";
 /// Small shared UI state (modals, transient flags).
 class UiStore {
   createInstanceOpen = $state(false);
+  // Optional prefill for the create modal: preselect a version and, after
+  // creating, auto-join a server (used by the Servers page quick-connect).
+  createPrefill = $state<{ mcVersion?: string; joinServer?: string } | null>(null);
   accountsOpen = $state(false);
 
   // Right-click menu on an instance tile.
@@ -21,11 +24,13 @@ class UiStore {
   // "Move to group" picker target instance (null = closed).
   groupFor = $state<Instance | null>(null);
 
-  openCreateInstance() {
+  openCreateInstance(prefill?: { mcVersion?: string; joinServer?: string }) {
+    this.createPrefill = prefill ?? null;
     this.createInstanceOpen = true;
   }
   closeCreateInstance() {
     this.createInstanceOpen = false;
+    this.createPrefill = null;
   }
 
   openAccounts() {

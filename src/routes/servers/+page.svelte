@@ -6,6 +6,7 @@
   import { serversStore } from "$lib/stores/servers.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import type { ServerStatus } from "$lib/types";
   import Icon from "$lib/components/Icon.svelte";
@@ -13,50 +14,63 @@
   const clientInstances = $derived(
     instancesStore.instances.filter((i) => i.kind === "client"),
   );
-  // Address of the card whose instance-chooser is open (multi-instance case).
+  // Address of the card whose instance-chooser is open (2+ compatible case).
   let chooserFor = $state<string | null>(null);
 
-  function majorMinor(v: string): string {
-    return v.match(/1\.\d+/)?.[0] ?? v;
+  const VER = /\d+\.\d+(?:\.\d+)?/g;
+
+  function cmpVer(a: string, b: string): number {
+    const pa = a.split(".").map(Number);
+    const pb = b.split(".").map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+      if (d) return d;
+    }
+    return 0;
   }
 
-  // Best-effort: the server's reported version is a hint (ViaVersion accepts
-  // more), so an unknown version is treated as compatible.
+  // Best-effort compatibility: does the server's reported version share this
+  // instance's exact version or its major.minor? Unknown version → assume ok.
   function isCompatible(serverVersion: string | undefined, mcVersion: string): boolean {
     if (!serverVersion) return true;
-    return serverVersion.includes(mcVersion) || serverVersion.includes(majorMinor(mcVersion));
+    const mm = mcVersion.match(/\d+\.\d+/)?.[0] ?? mcVersion;
+    return serverVersion.includes(mcVersion) || serverVersion.includes(mm);
   }
 
-  function sortedInstances(address: string) {
+  // The newest version the server advertises — what a new instance should target.
+  function targetVersion(serverVersion: string | undefined): string {
+    const tokens = serverVersion?.match(VER) ?? [];
+    return [...tokens].sort(cmpVer).at(-1) ?? "";
+  }
+
+  function compatibleFor(address: string) {
     const sv = pings[address]?.status?.version;
-    return clientInstances
-      .map((instance) => ({ instance, compat: isCompatible(sv, instance.mcVersion) }))
-      .sort((a, b) => Number(b.compat) - Number(a.compat));
+    return clientInstances.filter((i) => isCompatible(sv, i.mcVersion));
   }
 
   function play(address: string, instanceId: string) {
     chooserFor = null;
-    const inst = clientInstances.find((i) => i.id === instanceId);
-    const sv = pings[address]?.status?.version;
-    if (inst && sv && !isCompatible(sv, inst.mcVersion)) {
-      toast.info(`Launching ${inst.mcVersion} into a ${sv} server — it may not connect.`);
-    } else {
-      toast.success(`Launching into ${address}…`);
-    }
+    toast.success(`Launching into ${address}…`);
     launchStore.launch(instanceId, address);
     goto(`/instance/${instanceId}`);
   }
 
   function onPlayClick(address: string) {
-    if (clientInstances.length === 0) {
-      toast.error("Create an instance first to join a server.");
-      return;
+    const compatible = compatibleFor(address);
+    if (compatible.length === 1) {
+      play(address, compatible[0].id);
+    } else if (compatible.length > 1) {
+      chooserFor = chooserFor === address ? null : address;
+    } else {
+      // No compatible instance — offer to create one (pre-filled), then join.
+      const target = targetVersion(pings[address]?.status?.version);
+      ui.openCreateInstance({ mcVersion: target || undefined, joinServer: address });
+      toast.info(
+        target
+          ? `No ${target}-compatible instance — create one to join.`
+          : "No compatible instance — create one to join.",
+      );
     }
-    if (clientInstances.length === 1) {
-      play(address, clientInstances[0].id);
-      return;
-    }
-    chooserFor = chooserFor === address ? null : address;
   }
 
   type Ping = { state: "loading" | "online" | "offline"; status?: ServerStatus };
@@ -193,14 +207,12 @@
         {#if chooserFor === server.address}
           <div class="chooser">
             <span class="chooser-label">
-              Join with…{#if ping?.status?.version} <span class="chooser-srv">server runs {ping.status.version}</span>{/if}
+              Choose an instance{#if ping?.status?.version} <span class="chooser-srv">server runs {ping.status.version}</span>{/if}
             </span>
-            {#each sortedInstances(server.address) as { instance, compat } (instance.id)}
+            {#each compatibleFor(server.address) as instance (instance.id)}
               <button class="chooser-item" onclick={() => play(server.address, instance.id)}>
                 <span>{instance.name}</span>
-                <span class="chooser-ver" class:incompat={!compat}>
-                  {instance.mcVersion}{#if !compat} · may not connect{/if}
-                </span>
+                <span class="chooser-ver">{instance.mcVersion}</span>
               </button>
             {/each}
           </div>
@@ -432,9 +444,6 @@
     font-size: 0.72rem;
     color: var(--text-muted);
     font-family: var(--font-mono, monospace);
-  }
-  .chooser-ver.incompat {
-    color: var(--warn, #d9a441);
   }
   .chooser-srv {
     color: var(--text-muted);

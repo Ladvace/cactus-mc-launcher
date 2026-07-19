@@ -85,6 +85,7 @@
 
 <CreateInstanceModal
   open={ui.createInstanceOpen}
+  prefill={ui.createPrefill}
   onClose={() => ui.closeCreateInstance()}
 />
 
