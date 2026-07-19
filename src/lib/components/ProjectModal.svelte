@@ -73,6 +73,23 @@
 
   const mpPct = $derived(toPct(mpCurrent, mpTotal));
 
+  // Reset transient install/progress state when a different project is shown, so
+  // a still-running install from a previously-opened modpack doesn't leak its
+  // progress bar into this one (the modal is a single reused instance).
+  let shownProjectId: string | null = null;
+  $effect(() => {
+    const id = hit?.projectId ?? null;
+    if (id === shownProjectId) return;
+    shownProjectId = id;
+    installing = false;
+    done = false;
+    error = null;
+    installedItem = null;
+    mpCurrent = 0;
+    mpTotal = 0;
+    mpMessage = "";
+  });
+
   // Default the target instance (content installs only).
   $effect(() => {
     if (open && !isModpack && !selectedInstanceId && instances.length > 0) {
