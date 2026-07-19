@@ -421,6 +421,67 @@ export interface SelectedMod {
   title: string;
 }
 
+// --- Achievements & lifetime stats ---
+
+export interface AchievementsPayload {
+  player: { name: string; worldsScanned: number; instancesScanned: number };
+  hasData: boolean;
+  completion: { earned: number; total: number; percent: number };
+  categories: { key: string; earned: number; total: number }[];
+  advancements: AdvancementView[];
+  custom: CustomAchievement[];
+  stats: LifetimeStats;
+  instances: InstanceBreakdown[];
+}
+
+export interface AdvancementView {
+  id: string;
+  name: string;
+  category: string;
+  done: boolean;
+  hidden: boolean;
+  earnedAt: string | null;
+  earnedIn: string | null;
+}
+
+export interface CustomAchievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  earned: boolean;
+  progress: number;
+}
+
+export interface StatEntry {
+  key: string;
+  count: number;
+}
+
+export interface LifetimeStats {
+  playTimeTicks: number;
+  blocksMined: number;
+  mobsKilled: number;
+  deaths: number;
+  distanceCm: number;
+  jumps: number;
+  itemsPickedUp: number;
+  damageDealt: number;
+  timesSlept: number;
+  topMined: StatEntry[];
+  topKilled: StatEntry[];
+}
+
+export interface InstanceBreakdown {
+  id: string;
+  name: string;
+  worlds: number;
+  playTimeTicks: number;
+  blocksMined: number;
+  mobsKilled: number;
+  deaths: number;
+}
+
 export interface TuneupSelection {
   mods: SelectedMod[];
   applyMemory: boolean;

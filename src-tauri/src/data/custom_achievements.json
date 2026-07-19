@@ -1,0 +1,95 @@
+[
+  {
+    "id": "pacifist",
+    "name": "Pacifist",
+    "description": "Played 10+ hours without killing a single mob.",
+    "icon": "heart",
+    "conditions": [
+      { "stat": "minecraft:custom/minecraft:play_time", "op": "gte", "value": 720000 },
+      { "stat": "sum:minecraft:killed", "op": "eq", "value": 0 }
+    ]
+  },
+  {
+    "id": "clumsy",
+    "name": "Clumsy",
+    "description": "Died 100 or more times.",
+    "icon": "bolt",
+    "conditions": [
+      { "stat": "minecraft:custom/minecraft:deaths", "op": "gte", "value": 100 }
+    ]
+  },
+  {
+    "id": "marathoner",
+    "name": "Marathoner",
+    "description": "Walked a full marathon — 42+ km on foot.",
+    "icon": "trending",
+    "conditions": [
+      { "stat": "minecraft:custom/minecraft:walk_one_cm", "op": "gte", "value": 4219500 }
+    ]
+  },
+  {
+    "id": "hoarder",
+    "name": "Hoarder",
+    "description": "Picked up 10,000 or more items.",
+    "icon": "package",
+    "conditions": [
+      { "stat": "sum:minecraft:picked_up", "op": "gte", "value": 10000 }
+    ]
+  },
+  {
+    "id": "insomniac",
+    "name": "Insomniac",
+    "description": "Played 24+ hours and never once slept.",
+    "icon": "moon",
+    "conditions": [
+      { "stat": "minecraft:custom/minecraft:play_time", "op": "gte", "value": 1728000 },
+      { "stat": "minecraft:custom/minecraft:sleep_in_bed", "op": "eq", "value": 0 }
+    ]
+  },
+  {
+    "id": "glass_cannon",
+    "name": "Glass Cannon",
+    "description": "Dealt and took 1,000+ points of damage.",
+    "icon": "fire",
+    "conditions": [
+      { "stat": "minecraft:custom/minecraft:damage_dealt", "op": "gte", "value": 10000 },
+      { "stat": "minecraft:custom/minecraft:damage_taken", "op": "gte", "value": 10000 }
+    ]
+  },
+  {
+    "id": "big_game_hunter",
+    "name": "Big Game Hunter",
+    "description": "Defeated 1,000 mobs across your worlds.",
+    "icon": "trophy",
+    "conditions": [
+      { "stat": "sum:minecraft:killed", "op": "gte", "value": 1000 }
+    ]
+  },
+  {
+    "id": "well_rested",
+    "name": "Well Rested",
+    "description": "Slept in a bed 100 times.",
+    "icon": "star",
+    "conditions": [
+      { "stat": "minecraft:custom/minecraft:sleep_in_bed", "op": "gte", "value": 100 }
+    ]
+  },
+  {
+    "id": "dedicated",
+    "name": "Dedicated",
+    "description": "Racked up 100 hours of playtime.",
+    "icon": "clock",
+    "conditions": [
+      { "stat": "minecraft:custom/minecraft:play_time", "op": "gte", "value": 7200000 }
+    ]
+  },
+  {
+    "id": "spelunker",
+    "name": "Spelunker",
+    "description": "Mined 10,000 blocks in total.",
+    "icon": "crown",
+    "conditions": [
+      { "stat": "sum:minecraft:mined", "op": "gte", "value": 10000 }
+    ]
+  }
+]

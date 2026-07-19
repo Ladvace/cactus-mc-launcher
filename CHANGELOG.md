@@ -7,6 +7,12 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 ## [1.3.0] — Unreleased
 
 ### Added
+- **Achievements & stats dashboard** — a Steam-style page that aggregates your
+  advancements and lifetime stats across *every* instance and world, not per-save
+  like vanilla. Shows overall completion, per-category progress, locked/hidden
+  advancements, launcher-exclusive "Cactus Challenges" (e.g. Pacifist, Marathoner),
+  lifetime totals, top mined blocks / mobs, and a per-instance breakdown. Reads
+  only local vanilla files — no mods required.
 - **Command palette** — press `⌘K` / `Ctrl+K` to fuzzy-search your instances,
   jump between pages, and run actions (create instance, accounts, check for updates).
 - **CurseForge modpack install** — install CurseForge modpacks (not just Modrinth),

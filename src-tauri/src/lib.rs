@@ -1,3 +1,4 @@
+mod achievements;
 mod auth;
 mod commands;
 mod content;
@@ -76,6 +77,7 @@ pub fn run() {
             commands::delete_world,
             commands::get_local_ip,
             commands::add_server_to_instance,
+            commands::get_achievements,
             commands::read_ops,
             commands::read_whitelist,
             commands::add_op,

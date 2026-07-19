@@ -96,6 +96,7 @@
     { kind: "nav", href: "/", icon: "home", label: "Home" },
     { kind: "nav", href: "/browse", icon: "compass", label: "Browse" },
     { kind: "nav", href: "/servers", icon: "globe", label: "Servers" },
+    { kind: "nav", href: "/achievements", icon: "trophy", label: "Achievements" },
     { kind: "nav", href: "/share", icon: "users", label: "Community" },
     { kind: "sep" },
     ...pinned.map(

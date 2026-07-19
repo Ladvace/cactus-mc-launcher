@@ -31,6 +31,7 @@
     { id: "nav-home", label: "Home", hint: "Go to", icon: "home", run: () => goto("/") },
     { id: "nav-browse", label: "Browse mods", hint: "Go to", icon: "compass", run: () => goto("/browse") },
     { id: "nav-servers", label: "Servers", hint: "Go to", icon: "globe", run: () => goto("/servers") },
+    { id: "nav-achievements", label: "Achievements", hint: "Go to", icon: "trophy", run: () => goto("/achievements") },
     { id: "nav-community", label: "Community", hint: "Go to", icon: "users", run: () => goto("/share") },
     { id: "nav-settings", label: "Settings", hint: "Go to", icon: "cog", run: () => goto("/settings") },
     { id: "act-create", label: "Create instance", hint: "Action", icon: "plus", run: () => ui.openCreateInstance() },

@@ -36,6 +36,16 @@
     users: "users",
     video: "video-camera",
     globe: "globe",
+    trophy: "trophy",
+    star: "star",
+    heart: "heart",
+    moon: "moon",
+    fire: "fire",
+    flag: "flag-checkered",
+    crown: "crown",
+    bolt: "bolt",
+    trending: "trending",
+    book: "book",
   };
 
   const iconClass = $derived(`hn hn-${MAP[name] ?? "grid"}`);

@@ -365,6 +365,12 @@ pub fn list_worlds(app: AppHandle, id: String) -> Result<Vec<crate::worlds::Worl
     crate::worlds::list(&app, &id)
 }
 
+/// Aggregated cross-instance advancements + lifetime stats for the player.
+#[tauri::command]
+pub fn get_achievements(app: AppHandle) -> Result<crate::achievements::AchievementsPayload> {
+    crate::achievements::compute(&app)
+}
+
 /// Zip a world into the instance's `backups/` folder; returns the zip path.
 #[tauri::command]
 pub fn backup_world(app: AppHandle, id: String, folder: String) -> Result<String> {

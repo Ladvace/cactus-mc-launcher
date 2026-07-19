@@ -21,6 +21,7 @@ import type {
   Sticker,
   TuneupPlan,
   TuneupSelection,
+  AchievementsPayload,
   UpdateInstance,
   VersionList,
   WorldInfo,
@@ -65,6 +66,8 @@ export const api = {
 
   addServerToInstance: (instanceId: string, name: string, address: string) =>
     invoke<void>("add_server_to_instance", { instanceId, name, address }),
+
+  getAchievements: () => invoke<AchievementsPayload>("get_achievements"),
 
   stopInstance: (id: string) => invoke<void>("stop_instance", { id }),
 
