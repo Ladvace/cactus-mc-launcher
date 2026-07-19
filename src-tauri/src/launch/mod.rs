@@ -160,9 +160,14 @@ fn emit_progress(app: &AppHandle, id: &str, stage: &str, current: usize, total: 
 
 /// Prepare (download everything required) and launch an instance. Returns once
 /// the process has spawned; a background task streams logs and handles exit.
-pub async fn launch(app: AppHandle, instance: Instance, settings: Settings) -> Result<()> {
+pub async fn launch(
+    app: AppHandle,
+    instance: Instance,
+    settings: Settings,
+    server: Option<String>,
+) -> Result<()> {
     let id = instance.id.clone();
-    let result = prepare_and_spawn(&app, &instance, &settings).await;
+    let result = prepare_and_spawn(&app, &instance, &settings, server).await;
     if let Err(error) = &result {
         eprintln!("[launch] error for instance {id}: {error}");
         emit_status(&app, &id, "error", Some(error.to_string()));
@@ -170,7 +175,12 @@ pub async fn launch(app: AppHandle, instance: Instance, settings: Settings) -> R
     result
 }
 
-async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Settings) -> Result<()> {
+async fn prepare_and_spawn(
+    app: &AppHandle,
+    instance: &Instance,
+    settings: &Settings,
+    server: Option<String>,
+) -> Result<()> {
     let id = &instance.id;
     emit_status(app, id, "preparing", Some("Resolving version…".into()));
 
@@ -325,6 +335,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         min_mem: instance.min_memory_mb.unwrap_or(settings.min_memory_mb),
         max_mem: instance.max_memory_mb.unwrap_or(settings.max_memory_mb),
         extra_jvm: jvm_args_src.split_whitespace().map(String::from).collect(),
+        server,
     };
     let command_args = args::build(&detail, &ctx);
 

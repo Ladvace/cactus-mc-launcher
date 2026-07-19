@@ -282,6 +282,7 @@ pub async fn launch_instance(
     instances: State<'_, InstanceStore>,
     settings: State<'_, SettingsStore>,
     id: String,
+    server: Option<String>,
 ) -> Result<()> {
     // Reject a double-launch: `is_instance_running` only turns true once the
     // process spawns, which is after a potentially minutes-long prepare phase,
@@ -298,7 +299,7 @@ pub async fn launch_instance(
     let settings = settings.get();
     let result = match instance.kind {
         InstanceKind::Server => launch::server::launch(app, instance, settings).await,
-        InstanceKind::Client => launch::launch(app, instance, settings).await,
+        InstanceKind::Client => launch::launch(app, instance, settings, server).await,
     };
     launch.finish_start(&id);
     result

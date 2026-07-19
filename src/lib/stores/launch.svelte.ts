@@ -81,7 +81,7 @@ class LaunchStore {
     return this.byId[id]?.state === "running";
   }
 
-  async launch(id: string) {
+  async launch(id: string, server?: string | null) {
     const runtime = this.ensure(id);
     runtime.logs = [];
     runtime.state = "preparing";
@@ -89,7 +89,7 @@ class LaunchStore {
     runtime.current = 0;
     runtime.total = 0;
     try {
-      await api.launchInstance(id);
+      await api.launchInstance(id, server);
     } catch (error) {
       runtime.state = "error";
       runtime.message = String(error);

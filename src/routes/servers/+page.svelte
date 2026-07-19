@@ -1,11 +1,39 @@
 <script lang="ts">
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { goto } from "$app/navigation";
   import { api } from "$lib/api";
   import { copyText } from "$lib/clipboard";
   import { serversStore } from "$lib/stores/servers.svelte";
+  import { instancesStore } from "$lib/stores/instances.svelte";
+  import { launchStore } from "$lib/stores/launch.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import type { ServerStatus } from "$lib/types";
   import Icon from "$lib/components/Icon.svelte";
+
+  const clientInstances = $derived(
+    instancesStore.instances.filter((i) => i.kind === "client"),
+  );
+  // Address of the card whose instance-chooser is open (multi-instance case).
+  let chooserFor = $state<string | null>(null);
+
+  function play(address: string, instanceId: string) {
+    chooserFor = null;
+    launchStore.launch(instanceId, address);
+    toast.success(`Launching into ${address}…`);
+    goto(`/instance/${instanceId}`);
+  }
+
+  function onPlayClick(address: string) {
+    if (clientInstances.length === 0) {
+      toast.error("Create an instance first to join a server.");
+      return;
+    }
+    if (clientInstances.length === 1) {
+      play(address, clientInstances[0].id);
+      return;
+    }
+    chooserFor = chooserFor === address ? null : address;
+  }
 
   type Ping = { state: "loading" | "online" | "offline"; status?: ServerStatus };
 
@@ -89,27 +117,26 @@
 
         <div class="card-head">
           <div class="icon">
-            {#if ping?.status?.favicon}
+            {#if !ping || ping.state === "loading"}
+              <span class="skeleton" style="width:100%;height:100%;border-radius:6px"></span>
+            {:else if ping.status?.favicon}
               <img src={ping.status.favicon} alt="" />
             {:else}
               <Icon name="globe" size={18} />
             {/if}
           </div>
           <h2>{server.name}</h2>
-          <span
-            class="status"
-            class:online={ping?.state === "online"}
-            class:offline={ping?.state === "offline"}
-            class:loading={!ping || ping.state === "loading"}
-          >
-            {#if !ping || ping.state === "loading"}
-              Checking…
-            {:else if ping.state === "online"}
-              ● {ping.status?.online?.toLocaleString()} online
-            {:else}
-              ● Offline
-            {/if}
-          </span>
+          {#if !ping || ping.state === "loading"}
+            <span class="skeleton" style="width:66px;height:12px"></span>
+          {:else}
+            <span class="status" class:online={ping.state === "online"} class:offline={ping.state === "offline"}>
+              {#if ping.state === "online"}
+                ● {ping.status?.online?.toLocaleString()} online
+              {:else}
+                ● Offline
+              {/if}
+            </span>
+          {/if}
         </div>
 
         {#if server.description}
@@ -125,8 +152,11 @@
         <div class="addr-row">
           <code class="addr">{server.address}</code>
           <div class="actions">
+            <button class="btn primary sm" onclick={() => onPlayClick(server.address)} title="Launch Minecraft and join">
+              <Icon name="play" size={13} /> Play
+            </button>
             <button class="btn sm" onclick={() => copyText(server.address, `Copied ${server.address}`)} title="Copy address">
-              <Icon name="copy" size={13} /> Copy
+              <Icon name="copy" size={13} />
             </button>
             {#if server.website}
               <button class="btn ghost sm" onclick={() => openUrl(server.website!)} title="Open website">
@@ -135,6 +165,18 @@
             {/if}
           </div>
         </div>
+
+        {#if chooserFor === server.address}
+          <div class="chooser">
+            <span class="chooser-label">Join with…</span>
+            {#each clientInstances as instance (instance.id)}
+              <button class="chooser-item" onclick={() => play(server.address, instance.id)}>
+                {instance.name}
+                <span class="chooser-ver">{instance.mcVersion}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
     {/each}
   </div>
@@ -286,8 +328,7 @@
   .status.online {
     color: var(--success, #3fb950);
   }
-  .status.offline,
-  .status.loading {
+  .status.offline {
     color: var(--text-muted);
   }
   .desc {
@@ -328,6 +369,41 @@
     display: flex;
     gap: 0.35rem;
     flex-shrink: 0;
+  }
+  .chooser {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--border);
+  }
+  .chooser-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    padding: 0.1rem 0.2rem;
+  }
+  .chooser-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .chooser-item:hover {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  .chooser-ver {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono, monospace);
   }
   .disclaimer {
     margin: 2rem 0 0;

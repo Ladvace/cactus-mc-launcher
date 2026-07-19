@@ -27,6 +27,8 @@ pub struct LaunchContext {
     pub min_mem: u32,
     pub max_mem: u32,
     pub extra_jvm: Vec<String>,
+    /// When set, auto-join this `host[:port]` on launch.
+    pub server: Option<String>,
 }
 
 /// Offline (cracked) player UUID, matching Java's `UUID.nameUUIDFromBytes`
@@ -95,7 +97,35 @@ pub fn build(detail: &VersionDetail, ctx: &LaunchContext) -> Vec<String> {
         }
     }
 
+    if let Some(server) = ctx.server.as_deref().filter(|s| !s.is_empty()) {
+        out.extend(quick_connect_args(&detail.id, server));
+    }
+
     out
+}
+
+/// Args to auto-join a server. 1.20+ uses `--quickPlayMultiplayer`; older
+/// versions use `--server`/`--port`. Unparseable ids (snapshots) assume modern.
+fn quick_connect_args(version_id: &str, server: &str) -> Vec<String> {
+    let modern = match (version_id.split('.').next(), version_id.split('.').nth(1)) {
+        (Some("1"), Some(minor)) => minor
+            .split(|c: char| !c.is_ascii_digit())
+            .next()
+            .and_then(|n| n.parse::<u32>().ok())
+            .map_or(true, |n| n >= 20),
+        _ => true,
+    };
+    if modern {
+        vec!["--quickPlayMultiplayer".into(), server.to_string()]
+    } else {
+        let (host, port) = server.rsplit_once(':').unwrap_or((server, "25565"));
+        vec![
+            "--server".into(),
+            host.to_string(),
+            "--port".into(),
+            port.to_string(),
+        ]
+    }
 }
 
 /// Collect the applicable entries from a modern argument list, substituting
@@ -177,6 +207,31 @@ fn substitutions(detail: &VersionDetail, ctx: &LaunchContext) -> HashMap<String,
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn quick_connect_uses_the_right_flag_per_version() {
+        assert_eq!(
+            quick_connect_args("1.20.1", "mc.hypixel.net"),
+            vec!["--quickPlayMultiplayer", "mc.hypixel.net"]
+        );
+        assert_eq!(
+            quick_connect_args("1.21", "host:1234"),
+            vec!["--quickPlayMultiplayer", "host:1234"]
+        );
+        assert_eq!(
+            quick_connect_args("1.19.4", "play.example.net"),
+            vec!["--server", "play.example.net", "--port", "25565"]
+        );
+        assert_eq!(
+            quick_connect_args("1.8.9", "host:30000"),
+            vec!["--server", "host", "--port", "30000"]
+        );
+        // Snapshots / unparseable ids assume the modern flag.
+        assert_eq!(
+            quick_connect_args("24w14a", "mc.example.net"),
+            vec!["--quickPlayMultiplayer", "mc.example.net"]
+        );
+    }
 
     #[test]
     fn offline_uuid_is_stable_and_v3() {
