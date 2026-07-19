@@ -9,6 +9,8 @@
     "opener:default",
     "opener:allow-reveal-item-in-dir",
     "dialog:allow-open",
+    "updater:default",
+    "process:allow-restart",
     {
       "identifier": "opener:allow-open-url",
       "allow": [{ "url": "https://*" }]

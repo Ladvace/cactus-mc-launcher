@@ -9,6 +9,7 @@
   import GroupPicker from "$lib/components/GroupPicker.svelte";
   import DecorLayer from "$lib/components/DecorLayer.svelte";
   import Toaster from "$lib/components/Toaster.svelte";
+  import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
   import Onboarding from "$lib/components/Onboarding.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
@@ -93,6 +94,7 @@
 <StickerPicker />
 <GroupPicker />
 <Toaster />
+<UpdatePrompt />
 
 {#if !onboarded && settingsStore.loaded}
   <Onboarding onDone={() => (onboarded = true)} />
