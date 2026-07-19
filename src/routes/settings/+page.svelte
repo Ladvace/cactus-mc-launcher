@@ -379,7 +379,11 @@
         <small>Show the latest Minecraft news on the Home screen.</small>
       </div>
       <label class="switch">
-        <input type="checkbox" bind:checked={draft.showNews} />
+        <input
+          type="checkbox"
+          bind:checked={draft.showNews}
+          onchange={() => settingsStore.save({ ...settingsStore.settings, showNews: draft.showNews })}
+        />
         <span class="track"><span class="thumb"></span></span>
       </label>
     </div>

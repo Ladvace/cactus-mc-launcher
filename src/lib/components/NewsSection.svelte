@@ -201,7 +201,7 @@
   }
 
   .strip {
-    --news-h: 288px;
+    --news-h: 259px;
     display: grid;
     grid-template-columns: 1.5fr 1fr;
     gap: 12px;
