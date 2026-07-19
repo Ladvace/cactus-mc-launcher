@@ -1,12 +1,5 @@
-//! Adaptive "Tune-up" — inspect the host machine and an instance's loader +
-//! Minecraft version, then recommend a performance mod set, heap size, and JVM
-//! flags tailored to the detected hardware.
-//!
-//! Unlike a fixed "FPS boost" bundle, the recommendation *adapts*: the heap
-//! scales to the machine's RAM (with OS headroom), Aikar's G1GC flags kick in
-//! only for larger heaps, and every mod is surfaced with a plain-language reason
-//! so the user can see (and toggle) exactly what will be applied. It also works
-//! on any existing instance rather than forcing a separate client.
+//! Adaptive "Tune-up" — recommend a performance mod set, heap size, and JVM
+//! flags tailored to the host hardware and an instance's loader + MC version.
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
