@@ -4,24 +4,33 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [1.3.0] — Unreleased
+## [1.3.0] — 2026-07-19
 
 ### Added
-- **News on Home** — a "Latest news" strip on the Home screen pulling the
+- **News on Home** — a "Latest news" section on the Home screen pulling the
   official Minecraft news feed (images + read-more links), cached for ~30 min.
-  Built on a source-agnostic model so more feeds can be added later.
-- **Achievements & stats dashboard** — a Steam-style page that aggregates your
-  advancements and lifetime stats across *every* instance and world, not per-save
-  like vanilla. Shows overall completion, per-category progress, locked/hidden
-  advancements, launcher-exclusive "Cactus Challenges" (e.g. Pacifist, Marathoner),
-  lifetime totals, top mined blocks / mobs, and a per-instance breakdown. Reads
-  only local vanilla files — no mods required.
-- **Command palette** — press `⌘K` / `Ctrl+K` to fuzzy-search your instances,
-  jump between pages, and run actions (create instance, accounts, check for updates).
-- **CurseForge modpack install** — install CurseForge modpacks (not just Modrinth),
-  with mods resolved through the backend proxy and configs applied.
+  Browse it as an endless carousel (lead + two-up, or one story per page) and
+  hide it any time (inline or in Settings). Built on a source-agnostic model so
+  more feeds can be added later.
+- **Achievements & stats dashboard** — a Steam-style page (opened from the
+  accounts modal) that aggregates your advancements and lifetime stats across
+  *every* instance and world, not per-save like vanilla. Shows overall
+  completion, per-category progress, locked/hidden advancements,
+  launcher-exclusive "Cactus Challenges" (e.g. Pacifist, Marathoner), lifetime
+  totals, top mined blocks / mobs, and a per-instance breakdown. Reads only
+  local vanilla files — no mods required.
+- **Command palette** — press `⌘K` / `Ctrl+K` (or the Home search bar) to
+  fuzzy-search your instances, jump between pages, and run actions (create
+  instance, accounts, check for updates).
+- **What's new** — an in-app changelog modal (Settings → About, or the command
+  palette) so you can see what changed without leaving the launcher.
+- **CurseForge modpack install** — install CurseForge modpacks (not just
+  Modrinth), with mods resolved through the backend proxy and configs applied.
 - **Server list sync** — add a server from the Servers page straight into an
   instance's in-game multiplayer list (`servers.dat`).
+
+### Changed
+- Custom pixel-styled checkboxes across the app, matching the theme.
 
 ## [1.2.0] — 2026-07-19
 
@@ -71,7 +80,7 @@ Early builds establishing the foundation:
 - Adaptive **Tune-up** (hardware-aware performance recommendations), themes,
   a customizable dock, and click sounds.
 
-[1.3.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.2.0...HEAD
+[1.3.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.0.0
