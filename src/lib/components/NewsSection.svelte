@@ -164,6 +164,7 @@
 <style>
   .news {
     margin-top: 34px;
+    margin-bottom: 30px;
   }
   .news-head {
     display: flex;
