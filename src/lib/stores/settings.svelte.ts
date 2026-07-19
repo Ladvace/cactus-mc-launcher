@@ -21,6 +21,7 @@ const DEFAULTS: Settings = {
   instancesDir: "",
   ngrokAuthtoken: "",
   showNews: true,
+  newsSingle: false,
 };
 
 /// Reactive settings store, persisted through the Rust backend.

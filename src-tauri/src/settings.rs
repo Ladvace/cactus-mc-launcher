@@ -68,6 +68,9 @@ pub struct Settings {
     /// Show the "Latest news" section on the Home screen.
     #[serde(default = "default_true")]
     pub show_news: bool,
+    /// News layout: `true` = one story per page, `false` = a lead + two-up.
+    #[serde(default)]
+    pub news_single: bool,
 }
 
 fn default_true() -> bool {
@@ -96,6 +99,7 @@ impl Default for Settings {
             instances_dir: String::new(),
             ngrok_authtoken: String::new(),
             show_news: true,
+            news_single: false,
         }
     }
 }

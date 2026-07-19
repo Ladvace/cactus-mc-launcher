@@ -388,6 +388,23 @@
       </label>
     </div>
 
+    {#if draft.showNews}
+      <div class="setting">
+        <div class="label">
+          <span>One story per page</span>
+          <small>Show a single large story per page instead of a lead plus two.</small>
+        </div>
+        <label class="switch">
+          <input
+            type="checkbox"
+            bind:checked={draft.newsSingle}
+            onchange={() => settingsStore.save({ ...settingsStore.settings, newsSingle: draft.newsSingle })}
+          />
+          <span class="track"><span class="thumb"></span></span>
+        </label>
+      </div>
+    {/if}
+
     <div class="setting">
       <div class="label">
         <span>Giphy API key (stickers)</span>

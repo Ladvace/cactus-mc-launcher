@@ -211,6 +211,8 @@ export interface Settings {
   ngrokAuthtoken: string;
   /** Show the "Latest news" section on the Home screen. */
   showNews: boolean;
+  /** News layout: true = one story per page, false = a lead + two-up column. */
+  newsSingle: boolean;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";

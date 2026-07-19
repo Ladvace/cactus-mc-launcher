@@ -7,22 +7,28 @@
   import Icon from "./Icon.svelte";
   import type { NewsItem } from "$lib/types";
 
-  const PER_PAGE = 3; // 1 lead card + 2 stacked mini cards
-
   let items = $state<NewsItem[]>([]);
   let loading = $state(true);
   let failed = $state(false);
   let page = $state(0);
 
-  // Split into pages of three; each page renders a lead + a two-up column.
+  // Layout: single = one story per page; otherwise a lead + a two-up column (3).
+  const single = $derived(settingsStore.settings.newsSingle);
+  const perPage = $derived(single ? 1 : 3);
+
   const pages = $derived.by(() => {
     const out: NewsItem[][] = [];
-    for (let i = 0; i < items.length; i += PER_PAGE) out.push(items.slice(i, i + PER_PAGE));
+    for (let i = 0; i < items.length; i += perPage) out.push(items.slice(i, i + perPage));
     return out;
   });
   const current = $derived(pages[page] ?? []);
   const featured = $derived(current[0] ?? null);
   const minis = $derived(current.slice(1));
+
+  // Keep the page index valid when the layout (and thus page count) changes.
+  $effect(() => {
+    if (page > pages.length - 1) page = Math.max(0, pages.length - 1);
+  });
 
   async function load(force = false) {
     loading = true;
@@ -43,8 +49,15 @@
     settingsStore.save({ ...settingsStore.settings, showNews: false });
   }
 
+  function toggleLayout() {
+    settingsStore.save({ ...settingsStore.settings, newsSingle: !single });
+  }
+
   function go(delta: number) {
-    page = Math.min(Math.max(page + delta, 0), pages.length - 1);
+    const n = pages.length;
+    if (n === 0) return;
+    // Wrap around for an endless carousel.
+    page = (page + delta + n) % n;
   }
 
   function open(item: NewsItem) {
@@ -65,18 +78,20 @@
       <h2>Latest news</h2>
       <div class="head-actions">
         {#if pages.length > 1}
-          <button class="nav" title="Previous" onclick={() => go(-1)} disabled={page === 0}>
+          <button class="nav" title="Previous" onclick={() => go(-1)}>
             <Icon name="chevron-left" size={14} />
           </button>
-          <button
-            class="nav"
-            title="Next"
-            onclick={() => go(1)}
-            disabled={page >= pages.length - 1}
-          >
+          <button class="nav" title="Next" onclick={() => go(1)}>
             <Icon name="chevron-right" size={14} />
           </button>
         {/if}
+        <button
+          class="nav"
+          title={single ? "Layout: one per page" : "Layout: lead + two-up"}
+          onclick={toggleLayout}
+        >
+          <Icon name={single ? "grid" : "expand"} size={14} />
+        </button>
         <button class="nav" title="Refresh news" onclick={() => load(true)} disabled={loading}>
           <Icon name="refresh" size={13} />
         </button>
@@ -100,7 +115,7 @@
       </div>
     {:else if featured}
       {#key page}
-        <div class="strip" in:fade={{ duration: 140 }}>
+        <div class="strip" class:single in:fade={{ duration: 140 }}>
           <!-- Lead story -->
           <button
             class="feature"
@@ -120,7 +135,8 @@
             </div>
           </button>
 
-          <!-- Two-up column -->
+          <!-- Two-up column (hidden in single-story layout) -->
+          {#if !single}
           <div class="col">
             {#each minis as item (item.id)}
               <button class="mini" class:link={!!item.link} onclick={() => open(item)}>
@@ -140,6 +156,7 @@
               </button>
             {/each}
           </div>
+          {/if}
         </div>
       {/key}
 
@@ -206,6 +223,9 @@
     display: grid;
     grid-template-columns: 1.5fr 1fr;
     gap: 12px;
+  }
+  .strip.single {
+    grid-template-columns: 1fr;
   }
   @media (max-width: 760px) {
     .strip {
