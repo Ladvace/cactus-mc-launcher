@@ -67,7 +67,7 @@ Cactus is built on **Tauri**: the UI runs in the operating system's built-in Web
 
 Grab the latest build from the [**website**](https://cactus.gianmarcocavallo.com) or the
 [**releases page**](https://github.com/Ladvace/cactus-mc-launcher/releases) —
-macOS, Windows, and Linux.
+macOS, Windows, and Linux. See the [**changelog**](CHANGELOG.md) for what's new.
 
 ## Building from source
 
