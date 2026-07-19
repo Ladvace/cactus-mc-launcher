@@ -19,14 +19,16 @@ Built with **Tauri v2** · **SvelteKit** · **Svelte 5 (runes)** · **Rust**
 
 ## Screenshots
 
-> Generated with `bun run shot <name>` — see [`docs/screenshots/`](docs/screenshots/).
-
 |  |  |
 | --- | --- |
-| ![Home — instances](docs/screenshots/home.png) | ![Instance detail](docs/screenshots/instance.png) |
-| **Home** — drag-to-group instances, custom covers | **Instance** — content, worlds, servers, tune-up |
-| ![Browse mods](docs/screenshots/browse.png) | ![Adaptive tune-up](docs/screenshots/tuneup.png) |
-| **Browse** — Modrinth & CurseForge | **Tune-up** — hardware-aware performance |
+| ![Home](docs/screenshots/home.png) | ![Themes](docs/screenshots/themes.png) |
+| **Home** — instances you arrange into folders, with custom icons & covers | **Themes** — backgrounds, gradients and cactus decor |
+| ![Servers](docs/screenshots/servers.png) | ![Dedicated server](docs/screenshots/run-a-server.png) |
+| **Servers** — a quick-connect list with live status | **Run a server** — console, worlds, sharing |
+| ![Community](docs/screenshots/community.png) | ![Accounts](docs/screenshots/accounts.png) |
+| **Community** — share & import setups, play together | **Accounts** — Microsoft sign-in, skins & capes |
+| ![Groups](docs/screenshots/groups.png) | ![Settings](docs/screenshots/settings.png) |
+| **Groups** — organize instances into folders | **Settings** — theming, dock, Java & more |
 
 ## Why Cactus
 
