@@ -10,7 +10,13 @@
   let failed = $state(false);
 
   const featured = $derived(items[0] ?? null);
-  const rest = $derived(items.slice(1, 6));
+  // Remaining stories grouped into columns of two (stacked) for the scroller.
+  const columns = $derived.by(() => {
+    const rest = items.slice(1);
+    const cols: NewsItem[][] = [];
+    for (let i = 0; i < rest.length; i += 2) cols.push(rest.slice(i, i + 2));
+    return cols;
+  });
 
   async function load(force = false) {
     loading = true;
@@ -47,27 +53,27 @@
       </button>
     </div>
 
-    {#if loading && items.length === 0}
-      <div class="layout">
+    <div class="strip">
+      {#if loading && items.length === 0}
         <div class="feature skeleton"><div class="sk-img"></div></div>
-        <div class="list">
-          {#each Array(4) as _, i (i)}
-            <div class="row skeleton">
-              <div class="sk-thumb"></div>
-              <div class="sk-lines"><span class="sk-line"></span><span class="sk-line short"></span></div>
-            </div>
-          {/each}
-        </div>
-      </div>
-    {:else if featured}
-      <div class="layout">
+        {#each Array(2) as _, c (c)}
+          <div class="col">
+            {#each Array(2) as _, i (i)}
+              <div class="mini skeleton">
+                <div class="sk-thumb"></div>
+                <div class="sk-lines"><span class="sk-line"></span><span class="sk-line short"></span></div>
+              </div>
+            {/each}
+          </div>
+        {/each}
+      {:else if featured}
         <!-- Lead story -->
         <button
           class="feature"
           class:link={!!featured.link}
+          class:noimg={!featured.image}
           onclick={() => open(featured)}
           style={featured.image ? `background-image:url('${featured.image}')` : ""}
-          class:noimg={!featured.image}
         >
           <div class="feature-scrim">
             {#if featured.category}<span class="cat">{featured.category}</span>{/if}
@@ -80,26 +86,30 @@
           </div>
         </button>
 
-        <!-- Headline list -->
-        <div class="list">
-          {#each rest as item (item.id)}
-            <button class="row" class:link={!!item.link} onclick={() => open(item)}>
-              {#if item.image}
-                <div class="thumb" style="background-image:url('{item.image}')"></div>
-              {:else}
-                <div class="thumb placeholder"><Icon name="globe" size={16} /></div>
-              {/if}
-              <div class="row-body">
-                <span class="row-title">{item.title}</span>
-                <span class="row-meta">
-                  {#if item.category}<span class="row-cat">{item.category}</span> · {/if}{fmtDate(item.date)}
-                </span>
-              </div>
-            </button>
-          {/each}
-        </div>
-      </div>
-    {/if}
+        <!-- Two-up columns, scrolling horizontally -->
+        {#each columns as col, c (c)}
+          <div class="col">
+            {#each col as item (item.id)}
+              <button class="mini" class:link={!!item.link} onclick={() => open(item)}>
+                {#if item.image}
+                  <div class="mini-thumb" style="background-image:url('{item.image}')"></div>
+                {:else}
+                  <div class="mini-thumb placeholder"><Icon name="globe" size={18} /></div>
+                {/if}
+                <div class="mini-body">
+                  {#if item.category}<span class="mini-cat">{item.category}</span>{/if}
+                  <span class="mini-title">{item.title}</span>
+                  <span class="mini-meta">
+                    {fmtDate(item.date)}
+                    {#if item.link}<span class="more">Read →</span>{/if}
+                  </span>
+                </div>
+              </button>
+            {/each}
+          </div>
+        {/each}
+      {/if}
+    </div>
   </section>
 {/if}
 
@@ -136,22 +146,22 @@
     cursor: default;
   }
 
-  .layout {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr;
-    gap: 14px;
-    align-items: stretch;
-  }
-  @media (max-width: 760px) {
-    .layout {
-      grid-template-columns: 1fr;
-    }
+  /* Horizontal scroller: lead card, then columns of two. */
+  .strip {
+    --news-h: 288px;
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    scroll-snap-type: x proximity;
   }
 
   /* Lead story — large image with a gradient scrim + overlaid text. */
   .feature {
+    flex: 0 0 clamp(300px, 42%, 440px);
+    height: var(--news-h);
+    scroll-snap-align: start;
     position: relative;
-    min-height: 260px;
     padding: 0;
     text-align: left;
     border: 2px solid var(--border);
@@ -180,14 +190,7 @@
     display: flex;
     flex-direction: column;
     gap: 7px;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.88) 12%, rgba(0, 0, 0, 0.55) 55%, transparent);
-  }
-  .cat {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--accent);
-    font-weight: 600;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 12%, rgba(0, 0, 0, 0.55) 55%, transparent);
   }
   .feature-title {
     font-size: 19px;
@@ -213,90 +216,99 @@
     color: rgba(255, 255, 255, 0.65);
     margin-top: 2px;
   }
-  .feature-meta .more {
-    color: var(--accent);
-    margin-left: auto;
-  }
 
-  /* Headline list */
-  .list {
+  /* A column of two stacked mini cards. */
+  .col {
+    flex: 0 0 clamp(260px, 32%, 330px);
+    height: var(--news-h);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
   }
-  .row {
+  .mini {
+    flex: 1;
+    min-height: 0;
+    scroll-snap-align: start;
     display: flex;
     gap: 10px;
-    align-items: center;
     padding: 8px;
     text-align: left;
     background: var(--bg-card);
     border: 2px solid var(--border);
     color: var(--text);
+    overflow: hidden;
     box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.03), inset -2px -2px 0 rgba(0, 0, 0, 0.22);
     transition: border-color 0.12s, transform 0.12s;
-    flex: 1;
-    min-height: 0;
   }
-  .row.link {
+  .mini.link {
     cursor: pointer;
   }
-  .row.link:hover {
+  .mini.link:hover {
     border-color: var(--accent);
-    transform: translateX(2px);
+    transform: translateY(-2px);
   }
-  .thumb {
+  .mini-thumb {
     flex-shrink: 0;
-    width: 62px;
-    height: 46px;
+    width: 96px;
     background-size: cover;
     background-position: center;
     background-color: var(--bg-app);
     border: 1px solid var(--border);
   }
-  .thumb.placeholder {
+  .mini-thumb.placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
   }
-  .row-body {
+  .mini-body {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
+    padding: 2px 2px 2px 0;
   }
-  .row-title {
+  .cat,
+  .mini-cat {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .mini-title {
     font-size: 12.5px;
     font-weight: 600;
     line-height: 1.3;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .row-meta {
+  .mini-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 10.5px;
     color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    margin-top: auto;
   }
-  .row-cat {
+  .more {
     color: var(--accent);
+    margin-left: auto;
   }
 
   /* Skeletons */
   .skeleton {
     pointer-events: none;
   }
+  .feature.skeleton {
+    background: none;
+  }
   .sk-img {
     width: 100%;
     height: 100%;
-  }
-  .feature.skeleton {
-    background: none;
   }
   .sk-img,
   .sk-thumb {
@@ -306,14 +318,14 @@
   }
   .sk-thumb {
     flex-shrink: 0;
-    width: 62px;
-    height: 46px;
+    width: 96px;
   }
   .sk-lines {
     display: flex;
     flex-direction: column;
     gap: 6px;
     flex: 1;
+    padding: 4px 0;
   }
   .sk-line {
     height: 10px;
