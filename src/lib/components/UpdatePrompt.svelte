@@ -1,87 +1,38 @@
 <script lang="ts">
-  import { browser } from "$app/environment";
-  import { check, type Update } from "@tauri-apps/plugin-updater";
-  import { relaunch } from "@tauri-apps/plugin-process";
-  import { toast } from "$lib/stores/toast.svelte";
+  import { onMount } from "svelte";
+  import { updater } from "$lib/stores/updater.svelte";
   import Icon from "./Icon.svelte";
 
-  type Phase = "idle" | "available" | "downloading" | "installing";
-
-  let phase = $state<Phase>("idle");
-  let update = $state<Update | null>(null);
-  let downloaded = $state(0);
-  let total = $state(0);
-
-  const pct = $derived(total > 0 ? Math.round((downloaded / total) * 100) : null);
-
-  // Only meaningful inside the Tauri shell (skipped in the browser / SSR / tests).
-  const inTauri = browser && "__TAURI_INTERNALS__" in window;
-
-  $effect(() => {
-    if (!inTauri) return;
-    let cancelled = false;
-    check()
-      .then((found) => {
-        if (cancelled || !found) return;
-        update = found;
-        phase = "available";
-      })
-      // Silent on failure — a missing endpoint / offline shouldn't nag the user.
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  });
-
-  async function install() {
-    if (!update) return;
-    try {
-      phase = "downloading";
-      downloaded = 0;
-      total = 0;
-      await update.downloadAndInstall((event) => {
-        if (event.event === "Started") {
-          total = event.data.contentLength ?? 0;
-        } else if (event.event === "Progress") {
-          downloaded += event.data.chunkLength;
-        } else if (event.event === "Finished") {
-          phase = "installing";
-        }
-      });
-      await relaunch();
-    } catch (err) {
-      toast.error(`Update failed: ${String(err)}`);
-      phase = "available";
-    }
-  }
+  // Silent check once on launch (a missing endpoint / offline just no-ops).
+  onMount(() => updater.check(false));
 </script>
 
-{#if phase !== "idle" && update}
+{#if updater.phase !== "idle" && updater.update}
   <div class="update" role="status">
-    {#if phase === "available"}
+    {#if updater.phase === "available"}
       <div class="row">
         <Icon name="download" size={16} />
         <div class="text">
           <strong>Update available</strong>
-          <span class="ver">v{update.version}</span>
+          <span class="ver">v{updater.update.version}</span>
         </div>
       </div>
       <div class="actions">
-        <button class="btn ghost sm" onclick={() => (phase = "idle")}>Later</button>
-        <button class="btn primary sm" onclick={install}>Install &amp; restart</button>
+        <button class="btn ghost sm" onclick={() => updater.dismiss()}>Later</button>
+        <button class="btn primary sm" onclick={() => updater.install()}>Install &amp; restart</button>
       </div>
     {:else}
       <div class="row">
         <span class="spinner" aria-hidden="true"></span>
         <div class="text">
-          <strong>{phase === "installing" ? "Installing…" : "Downloading update…"}</strong>
-          {#if phase === "downloading" && pct !== null}
-            <span class="ver">{pct}%</span>
+          <strong>{updater.phase === "installing" ? "Installing…" : "Downloading update…"}</strong>
+          {#if updater.phase === "downloading" && updater.pct !== null}
+            <span class="ver">{updater.pct}%</span>
           {/if}
         </div>
       </div>
-      {#if phase === "downloading"}
-        <div class="bar"><div class="fill" style="width:{pct ?? 0}%"></div></div>
+      {#if updater.phase === "downloading"}
+        <div class="bar"><div class="fill" style="width:{updater.pct ?? 0}%"></div></div>
       {/if}
     {/if}
   </div>
