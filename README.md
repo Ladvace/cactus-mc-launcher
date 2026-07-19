@@ -10,6 +10,7 @@ Arrange your instances, install mods, run servers, and play together — spiky b
 [![CI](https://github.com/Ladvace/cactus-mc-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/Ladvace/cactus-mc-launcher/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 ![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%20v2-24C8DB)
+[![Discord](https://img.shields.io/badge/Discord-join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/bfdUaMf7Mg)
 
 Built with **Tauri v2** · **SvelteKit** · **Svelte 5 (runes)** · **Rust**
 
@@ -125,6 +126,10 @@ Three layers, all wired into CI:
 - **Unit** — Vitest (frontend) + `cargo test` (Rust).
 - **E2E** — Playwright against a mocked Tauri IPC.
 - **Storybook** — component explorer.
+
+## Community
+
+Questions, ideas, or want to help test? **[Join the Discord](https://discord.gg/bfdUaMf7Mg).**
 
 ## Contributing
 
