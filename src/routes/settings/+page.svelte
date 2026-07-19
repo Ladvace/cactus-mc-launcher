@@ -1127,7 +1127,7 @@
     flex-shrink: 0;
   }
   .danger-row {
-    border-top: 1px solid rgba(255, 91, 91, 0.2);
+    border-top: 1px solid var(--border-subtle);
     margin-top: 6px;
     padding-top: 16px;
   }

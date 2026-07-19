@@ -245,12 +245,12 @@ pub fn compute(app: &AppHandle) -> Result<AchievementsPayload> {
             let location = format!("{} · {}", instance.name, world_name);
             let mut world_had_data = false;
 
-            if let Some(file) = find_player_file(&world_dir.join("advancements"), &uuids) {
+            if let Some(file) = locate_player_file(&world_dir, "advancements", &uuids) {
                 if merge_advancements(&file, &location, &mut agg) {
                     world_had_data = true;
                 }
             }
-            if let Some(file) = find_player_file(&world_dir.join("stats"), &uuids) {
+            if let Some(file) = locate_player_file(&world_dir, "stats", &uuids) {
                 if let Some(delta) = merge_stats(&file, &mut agg) {
                     per_instance.play_time_ticks += delta.play_time;
                     per_instance.blocks_mined += delta.mined;
@@ -342,6 +342,19 @@ fn player_identity(app: &AppHandle) -> (String, HashSet<String>) {
 
 fn normalize_uuid(uuid: &str) -> String {
     uuid.replace('-', "").to_lowercase()
+}
+
+/// Locates a world's `advancements`/`stats` player file, tolerating both the
+/// vanilla layout (`<world>/<sub>/<uuid>.json`) and the layout some worlds use
+/// where player data is nested under a `players/` folder
+/// (`<world>/players/<sub>/<uuid>.json`).
+fn locate_player_file(
+    world_dir: &Path,
+    sub: &str,
+    uuids: &HashSet<String>,
+) -> Option<std::path::PathBuf> {
+    find_player_file(&world_dir.join(sub), uuids)
+        .or_else(|| find_player_file(&world_dir.join("players").join(sub), uuids))
 }
 
 /// Finds `<dir>/<uuid>.json` whose stem matches one of the player's UUIDs.
@@ -736,6 +749,39 @@ mod tests {
             .insert("minecraft:zombie".into(), 1);
         let earned: Vec<_> = build_custom(&agg).into_iter().filter(|c| c.earned).collect();
         assert!(!earned.iter().any(|c| c.id == "pacifist"));
+    }
+
+    #[test]
+    fn locates_files_in_both_layouts() {
+        use std::fs;
+        let uuid = "04a84533-680d-4739-b4f1-1c33393c5074";
+        let mut uuids = HashSet::new();
+        uuids.insert(normalize_uuid(uuid));
+
+        let base = std::env::temp_dir().join(format!("cactus-adv-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+
+        // Vanilla layout: <world>/stats/<uuid>.json
+        let vanilla = base.join("vanilla");
+        fs::create_dir_all(vanilla.join("stats")).unwrap();
+        fs::write(vanilla.join("stats").join(format!("{uuid}.json")), "{}").unwrap();
+        assert!(locate_player_file(&vanilla, "stats", &uuids).is_some());
+
+        // Nested layout: <world>/players/advancements/<uuid>.json
+        let nested = base.join("nested");
+        fs::create_dir_all(nested.join("players").join("advancements")).unwrap();
+        fs::write(
+            nested.join("players").join("advancements").join(format!("{uuid}.json")),
+            "{}",
+        )
+        .unwrap();
+        assert!(locate_player_file(&nested, "advancements", &uuids).is_some());
+        // A non-matching uuid isn't picked up.
+        let mut other = HashSet::new();
+        other.insert(normalize_uuid("ffffffff-0000-0000-0000-000000000000"));
+        assert!(locate_player_file(&nested, "advancements", &other).is_none());
+
+        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
