@@ -65,6 +65,13 @@ pub struct Settings {
     /// token overrides this. Empty = not configured.
     #[serde(default)]
     pub ngrok_authtoken: String,
+    /// Show the "Latest news" section on the Home screen.
+    #[serde(default = "default_true")]
+    pub show_news: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for Settings {
@@ -88,6 +95,7 @@ impl Default for Settings {
             dock_magnify: true,
             instances_dir: String::new(),
             ngrok_authtoken: String::new(),
+            show_news: true,
         }
     }
 }

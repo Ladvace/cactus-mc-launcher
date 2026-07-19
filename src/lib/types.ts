@@ -209,6 +209,8 @@ export interface Settings {
   instancesDir: string;
   /** Global ngrok authtoken for sharing servers; a per-instance token wins. */
   ngrokAuthtoken: string;
+  /** Show the "Latest news" section on the Home screen. */
+  showNews: boolean;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";

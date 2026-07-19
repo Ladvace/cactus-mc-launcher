@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { api } from "$lib/api";
+  import { settingsStore } from "$lib/stores/settings.svelte";
   import Icon from "./Icon.svelte";
   import type { NewsItem } from "$lib/types";
 
@@ -38,6 +39,10 @@
 
   onMount(() => load());
 
+  function hide() {
+    settingsStore.save({ ...settingsStore.settings, showNews: false });
+  }
+
   function go(delta: number) {
     page = Math.min(Math.max(page + delta, 0), pages.length - 1);
   }
@@ -53,8 +58,8 @@
   }
 </script>
 
-<!-- News is non-essential: if it fails to load, quietly show nothing. -->
-{#if !failed && (loading || items.length > 0)}
+<!-- News is non-essential: hidden by setting, or if it fails to load. -->
+{#if settingsStore.settings.showNews && !failed && (loading || items.length > 0)}
   <section class="news">
     <div class="news-head">
       <h2>Latest news</h2>
@@ -74,6 +79,9 @@
         {/if}
         <button class="nav" title="Refresh news" onclick={() => load(true)} disabled={loading}>
           <Icon name="refresh" size={13} />
+        </button>
+        <button class="nav" title="Hide news (re-enable in Settings)" onclick={hide}>
+          <Icon name="close" size={14} />
         </button>
       </div>
     </div>

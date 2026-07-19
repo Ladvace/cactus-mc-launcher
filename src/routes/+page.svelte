@@ -162,6 +162,8 @@
     </div>
   </header>
 
+  <NewsSection />
+
   {#if instancesStore.instances.length > 0}
     <div class="toolbar">
       <div class="search">
@@ -225,8 +227,6 @@
   {:else}
     <HomeGrid {entries} {arranging} onOpenFolder={(name) => (openFolder = name)} />
   {/if}
-
-  <NewsSection />
 </div>
 
 <FolderOverlay name={openFolder} onClose={() => (openFolder = null)} />

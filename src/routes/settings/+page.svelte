@@ -375,6 +375,17 @@
 
     <div class="setting">
       <div class="label">
+        <span>News on Home</span>
+        <small>Show the latest Minecraft news on the Home screen.</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" bind:checked={draft.showNews} />
+        <span class="track"><span class="thumb"></span></span>
+      </label>
+    </div>
+
+    <div class="setting">
+      <div class="label">
         <span>Giphy API key (stickers)</span>
         <small>
           Animated stickers are off by default. Paste a free key from

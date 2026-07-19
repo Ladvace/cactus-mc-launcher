@@ -20,6 +20,7 @@ const DEFAULTS: Settings = {
   dockMagnify: true,
   instancesDir: "",
   ngrokAuthtoken: "",
+  showNews: true,
 };
 
 /// Reactive settings store, persisted through the Rust backend.
