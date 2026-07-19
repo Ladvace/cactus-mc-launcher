@@ -7,6 +7,16 @@ use tauri::AppHandle;
 use crate::error::Result;
 use crate::paths;
 
+/// Default parallel downloads — a good balance for most connections.
+fn default_concurrency() -> u32 {
+    16
+}
+
+/// Clamp a user-set download concurrency into a safe range.
+pub fn clamp_concurrency(n: u32) -> usize {
+    n.clamp(1, 64) as usize
+}
+
 /// Global launcher settings, persisted to `settings.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -23,6 +33,10 @@ pub struct Settings {
     pub java_paths: HashMap<u32, String>,
     pub max_memory_mb: u32,
     pub min_memory_mb: u32,
+    /// How many files to download at once across the launcher (launch pipeline,
+    /// content, modpacks). Higher can be faster on quick connections.
+    #[serde(default = "default_concurrency")]
+    pub max_concurrent_downloads: u32,
     /// Extra JVM arguments appended at launch.
     pub jvm_args: String,
     pub game_width: u32,
@@ -61,6 +75,7 @@ impl Default for Settings {
             java_paths: HashMap::new(),
             max_memory_mb: 4096,
             min_memory_mb: 1024,
+            max_concurrent_downloads: default_concurrency(),
             jvm_args: String::new(),
             game_width: 854,
             game_height: 480,

@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use super::download::{download_all, DownloadTask};
 use crate::error::{AppError, Result};
 use crate::instance::Instance;
 use crate::minecraft::version::JavaVersion;
 use crate::paths;
-use crate::settings::Settings;
+use crate::settings::{clamp_concurrency, Settings, SettingsStore};
 
 const JAVA_RUNTIME_MANIFEST: &str =
     "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
@@ -295,7 +295,8 @@ where
         }
     }
 
-    download_runtime(client, &manifest_url, &install_dir, on_progress).await?;
+    let concurrency = clamp_concurrency(app.state::<SettingsStore>().get().max_concurrent_downloads);
+    download_runtime(client, &manifest_url, &install_dir, concurrency, on_progress).await?;
 
     locate_java(&install_dir).ok_or_else(|| {
         AppError::Other(format!(
@@ -337,7 +338,8 @@ where
         }
 
         let label_for_cb = label.clone();
-        download_runtime(client, &entry.manifest.url, &install_dir, |cur, total| {
+        let concurrency = clamp_concurrency(app.state::<SettingsStore>().get().max_concurrent_downloads);
+        download_runtime(client, &entry.manifest.url, &install_dir, concurrency, |cur, total| {
             on_progress(&label_for_cb, cur, total);
         })
         .await?;
@@ -351,6 +353,7 @@ async fn download_runtime<F>(
     client: &reqwest::Client,
     manifest_url: &str,
     install_dir: &Path,
+    concurrency: usize,
     on_progress: F,
 ) -> Result<()>
 where
@@ -393,7 +396,7 @@ where
         }
     }
 
-    download_all(client, tasks, 8, on_progress).await?;
+    download_all(client, tasks, concurrency, on_progress).await?;
 
     for (link, target) in links {
         if link.exists() {

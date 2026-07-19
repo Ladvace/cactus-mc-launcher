@@ -9,6 +9,7 @@
   import ProgressBar from "$lib/components/ProgressBar.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import { ui } from "$lib/stores/ui.svelte";
+  import { updater } from "$lib/stores/updater.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
@@ -653,6 +654,20 @@
         bind:value={draft.jvmArgs}
       />
     </div>
+    <div class="setting">
+      <div class="label">
+        <span>Concurrent downloads</span>
+        <small>{draft.maxConcurrentDownloads} at a time · 8–16 suits most connections (higher for fast, stable links)</small>
+      </div>
+      <input
+        type="range"
+        min="1"
+        max="64"
+        step="1"
+        bind:value={draft.maxConcurrentDownloads}
+        class="range"
+      />
+    </div>
   </section>
 
   <section class="card-block">
@@ -787,6 +802,15 @@
   <section class="card-block">
     <h3>About</h3>
     <p class="about-app">Cactus Launcher — spiky but not spooky.</p>
+    <div class="setting">
+      <div class="label">
+        <span>Updates</span>
+        <small>You're on{appVersion ? ` v${appVersion}` : " the current version"}.</small>
+      </div>
+      <button class="btn ghost sm" onclick={() => updater.check(true)} disabled={updater.checking}>
+        <Icon name="refresh" size={14} /> {updater.checking ? "Checking…" : "Check for updates"}
+      </button>
+    </div>
     <div class="about-links">
       {#if LINKS.github}
         <button class="btn ghost sm" onclick={() => openUrl(LINKS.github)}>

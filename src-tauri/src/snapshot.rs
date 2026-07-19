@@ -550,7 +550,10 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     emit(app, "installing", 0, total);
     let client = crate::modrinth::client()?;
     let app_cb = app.clone();
-    content::cache::install_all(&client, app, tasks, 12, move |cur, total| {
+    let concurrency = crate::settings::clamp_concurrency(
+        app.state::<crate::settings::SettingsStore>().get().max_concurrent_downloads,
+    );
+    content::cache::install_all(&client, app, tasks, concurrency, move |cur, total| {
         emit(&app_cb, "installing", cur, total);
     })
     .await?;

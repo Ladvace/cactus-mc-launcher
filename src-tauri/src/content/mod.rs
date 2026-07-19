@@ -401,7 +401,10 @@ pub async fn install_modpack(
     {
         let app_cb = app.clone();
         let id = instance.id.clone();
-        cache::install_all(&client, app, tasks, 12, move |cur, total| {
+        let concurrency = crate::settings::clamp_concurrency(
+            app.state::<crate::settings::SettingsStore>().get().max_concurrent_downloads,
+        );
+        cache::install_all(&client, app, tasks, concurrency, move |cur, total| {
             emit_progress(&app_cb, Some(&id), cur, total, "Downloading mods…");
         })
         .await?;

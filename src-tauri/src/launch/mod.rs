@@ -175,6 +175,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     emit_status(app, id, "preparing", Some("Resolving version…".into()));
 
     let client = crate::http::client()?;
+    let dl_concurrency = crate::settings::clamp_concurrency(settings.max_concurrent_downloads);
 
     let manifest = minecraft::fetch_versions().await?;
     let entry = manifest
@@ -264,7 +265,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     {
         let app = app.clone();
         let id = id.clone();
-        download::download_all(&client, file_tasks, 12, move |cur, total| {
+        download::download_all(&client, file_tasks, dl_concurrency, move |cur, total| {
             emit_progress(&app, &id, "libraries", cur, total);
         })
         .await?;
@@ -274,7 +275,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     {
         let app = app.clone();
         let id = id.clone();
-        download::download_all(&client, assets.downloads.clone(), 16, move |cur, total| {
+        download::download_all(&client, assets.downloads.clone(), dl_concurrency, move |cur, total| {
             emit_progress(&app, &id, "assets", cur, total);
         })
         .await?;

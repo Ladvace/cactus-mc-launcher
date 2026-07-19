@@ -194,6 +194,7 @@ export interface Settings {
   javaPaths: Record<string, string>;
   maxMemoryMb: number;
   minMemoryMb: number;
+  maxConcurrentDownloads: number;
   jvmArgs: string;
   gameWidth: number;
   gameHeight: number;
