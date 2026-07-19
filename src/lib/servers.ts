@@ -1,18 +1,10 @@
-// Curated quick-connect list of well-known public Minecraft: Java servers.
-//
-// Only public connection addresses + plain-text names are shipped here (no
-// logos, no "partner"/"featured" claims, no endorsement implied) — see the
-// disclaimer on the Servers page. Names are trademarks of their respective
-// owners and are used nominatively to identify each server. Edit freely.
+// Default quick-connect servers. Public addresses + plain names only. Edit freely.
 
 export interface FeaturedServer {
   name: string;
   address: string;
-  /** One-line, factual description of what the server offers. */
   description: string;
-  /** Short gameplay tags. */
   tags: string[];
-  /** Optional site for players who want the official source. */
   website?: string;
 }
 

@@ -1,8 +1,7 @@
 import { readJson, writeJson } from "$lib/storage";
 import { FEATURED_SERVERS, type FeaturedServer } from "$lib/servers";
 
-// The user's Servers page list. Seeded once from the curated defaults, then
-// fully user-owned: they can remove any (including defaults) and add their own.
+// The user's Servers list, seeded once from the defaults then fully user-owned.
 const KEY = "cactus:servers";
 
 function load(): FeaturedServer[] {
@@ -21,13 +20,12 @@ class ServersStore {
     writeJson(KEY, this.servers);
   }
 
-  /** True if an entry with this address already exists (case-insensitive). */
   has(address: string): boolean {
     const addr = normalizeAddress(address);
     return this.servers.some((s) => normalizeAddress(s.address) === addr);
   }
 
-  /** Add a custom server. Returns false if the address is blank or a duplicate. */
+  /** Returns false if the address is blank or a duplicate. */
   add(server: FeaturedServer): boolean {
     const address = server.address.trim();
     if (!address || this.has(address)) return false;
@@ -45,7 +43,6 @@ class ServersStore {
     this.persist();
   }
 
-  /** Restore the curated default list. */
   reset() {
     this.servers = [...FEATURED_SERVERS];
     this.persist();
