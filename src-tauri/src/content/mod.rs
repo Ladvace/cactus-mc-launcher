@@ -232,6 +232,29 @@ struct MrEnv {
     client: Option<String>,
 }
 
+/// The content type for a pack file, from its top-level directory. `None` for
+/// files that aren't tracked content (configs, etc.).
+fn content_type_for(path: &str) -> Option<&'static str> {
+    match path.trim_start_matches("./").split('/').next()? {
+        "mods" => Some("mod"),
+        "resourcepacks" => Some("resourcepack"),
+        "shaderpacks" => Some("shader"),
+        "datapacks" => Some("datapack"),
+        _ => None,
+    }
+}
+
+/// Parse `(project_id, version_id)` from a Modrinth CDN URL
+/// (`https://cdn.modrinth.com/data/<project>/versions/<version>/<file>`).
+fn parse_modrinth_ids(url: &str) -> Option<(String, String)> {
+    let mut parts = url.split("/data/").nth(1)?.split('/');
+    let project = parts.next()?.to_string();
+    if parts.next()? != "versions" {
+        return None;
+    }
+    Some((project, parts.next()?.to_string()))
+}
+
 /// Reject archive paths that try to escape the target directory.
 fn safe_rel(path: &str) -> Option<PathBuf> {
     if path.is_empty() || path.starts_with('/') || path.contains("..") {
@@ -388,6 +411,45 @@ pub async fn install_modpack(
     emit_progress(app, Some(&instance.id), 0, 0, "Applying overrides…");
     apply_overrides(&mrpack, &game_dir)?;
 
+    // Record the pack's mods/packs so the instance's Content tab lists them
+    // (and they can be toggled, updated, or removed like any other content).
+    let mut content = read_content(app, &instance.id)?;
+    for file in &index.files {
+        let client_ok = file
+            .env
+            .as_ref()
+            .and_then(|env| env.client.as_deref())
+            .map(|client_env| client_env != "unsupported")
+            .unwrap_or(true);
+        let Some(project_type) = content_type_for(&file.path) else { continue };
+        let Some(rel) = safe_rel(&file.path) else { continue };
+        if !client_ok {
+            continue;
+        }
+        let file_name = rel.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if file_name.is_empty() {
+            continue;
+        }
+        let ids = file.downloads.first().and_then(|url| parse_modrinth_ids(url));
+        let (project_id, version_id) = match ids {
+            Some((project, version)) => (Some(project), version),
+            // No Modrinth ids (external download) — key on the hash/name instead.
+            None => (None, file.hashes.sha1.clone().unwrap_or_else(|| file_name.clone())),
+        };
+        let title = file_name.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(&file_name);
+        content.items.push(ContentItem {
+            project_id,
+            version_id,
+            project_type: project_type.to_string(),
+            title: title.to_string(),
+            file_name,
+            icon_url: None,
+            enabled: true,
+            source: "modrinth".into(),
+        });
+    }
+    write_content(app, &instance.id, &content)?;
+
     let _ = std::fs::remove_file(&mrpack);
     emit_progress(app, Some(&instance.id), 1, 1, "Done");
     Ok(instance)
@@ -452,5 +514,22 @@ mod tests {
         assert_eq!(subdir("datapack"), "datapacks");
         assert_eq!(subdir("mod"), "mods");
         assert_eq!(subdir("anything-else"), "mods");
+    }
+
+    #[test]
+    fn content_type_from_pack_path() {
+        assert_eq!(content_type_for("mods/sodium.jar"), Some("mod"));
+        assert_eq!(content_type_for("resourcepacks/x.zip"), Some("resourcepack"));
+        assert_eq!(content_type_for("shaderpacks/x.zip"), Some("shader"));
+        assert_eq!(content_type_for("config/foo.toml"), None);
+    }
+
+    #[test]
+    fn parses_modrinth_cdn_ids() {
+        assert_eq!(
+            parse_modrinth_ids("https://cdn.modrinth.com/data/AABBCCDD/versions/11223344/sodium.jar"),
+            Some(("AABBCCDD".into(), "11223344".into()))
+        );
+        assert_eq!(parse_modrinth_ids("https://example.com/some/other.jar"), None);
     }
 }
