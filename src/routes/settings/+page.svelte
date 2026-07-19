@@ -822,6 +822,11 @@
           <Icon name="users" size={14} /> Discord
         </button>
       {/if}
+      {#if LINKS.changelog}
+        <button class="btn ghost sm" onclick={() => openUrl(LINKS.changelog)}>
+          <Icon name="clock" size={14} /> Changelog
+        </button>
+      {/if}
     </div>
     <p class="about-credit">
       Created by
