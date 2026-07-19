@@ -421,6 +421,17 @@ export interface SelectedMod {
   title: string;
 }
 
+export interface NewsItem {
+  id: string;
+  title: string;
+  summary: string;
+  category: string;
+  date: string;
+  image: string | null;
+  link: string | null;
+  source: string;
+}
+
 // --- Achievements & lifetime stats ---
 
 export interface AchievementsPayload {

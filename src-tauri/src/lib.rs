@@ -9,6 +9,7 @@ mod launch;
 mod loader;
 mod minecraft;
 mod modrinth;
+mod news;
 mod paths;
 mod board_auth;
 mod settings;
@@ -78,6 +79,7 @@ pub fn run() {
             commands::get_local_ip,
             commands::add_server_to_instance,
             commands::get_achievements,
+            commands::get_news,
             commands::read_ops,
             commands::read_whitelist,
             commands::add_op,

@@ -365,6 +365,12 @@ pub fn list_worlds(app: AppHandle, id: String) -> Result<Vec<crate::worlds::Worl
     crate::worlds::list(&app, &id)
 }
 
+/// Latest news for the Home screen (cached ~30 min; `force` refetches).
+#[tauri::command]
+pub async fn get_news(force: bool) -> Result<Vec<crate::news::NewsItem>> {
+    crate::news::get(force).await
+}
+
 /// Aggregated cross-instance advancements + lifetime stats for the player.
 /// Runs off the main thread — the scan reads and parses every save's JSON.
 #[tauri::command]

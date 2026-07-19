@@ -8,6 +8,7 @@
   import FolderOverlay from "$lib/components/FolderOverlay.svelte";
   import GroupContextMenu from "$lib/components/GroupContextMenu.svelte";
   import InstanceCardSkeleton from "$lib/components/InstanceCardSkeleton.svelte";
+  import NewsSection from "$lib/components/NewsSection.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import ContextMenu, { type MenuItem } from "$lib/components/ContextMenu.svelte";
   import Modal from "$lib/components/Modal.svelte";
@@ -224,6 +225,8 @@
   {:else}
     <HomeGrid {entries} {arranging} onOpenFolder={(name) => (openFolder = name)} />
   {/if}
+
+  <NewsSection />
 </div>
 
 <FolderOverlay name={openFolder} onClose={() => (openFolder = null)} />

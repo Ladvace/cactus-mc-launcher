@@ -22,6 +22,7 @@ import type {
   TuneupPlan,
   TuneupSelection,
   AchievementsPayload,
+  NewsItem,
   UpdateInstance,
   VersionList,
   WorldInfo,
@@ -68,6 +69,8 @@ export const api = {
     invoke<void>("add_server_to_instance", { instanceId, name, address }),
 
   getAchievements: () => invoke<AchievementsPayload>("get_achievements"),
+
+  getNews: (force = false) => invoke<NewsItem[]>("get_news", { force }),
 
   stopInstance: (id: string) => invoke<void>("stop_instance", { id }),
 
