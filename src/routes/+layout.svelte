@@ -18,6 +18,7 @@
   import { launchStore } from "$lib/stores/launch.svelte";
   import { installStore } from "$lib/stores/install.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
+  import { initBoardApi } from "$lib/boardApi";
   import { ui } from "$lib/stores/ui.svelte";
   import { backgroundCss } from "$lib/background";
   import { readJson } from "$lib/storage";
@@ -26,12 +27,10 @@
 
   let { children }: { children: Snippet } = $props();
 
-  // First-run onboarding, shown once (persisted in localStorage).
   let onboarded = $state(readJson<boolean>("cactus:onboarded", false));
 
   const bg = $derived(backgroundCss(settingsStore.settings.background ?? ""));
 
-  // Reserve room for the dock on whichever edge it sits.
   const dockPos = $derived(settingsStore.settings.dockPosition ?? "bottom");
   const dockPad = $derived(
     ({ bottom: "padding-bottom", top: "padding-top", left: "padding-left", right: "padding-right" } as const)[
@@ -39,21 +38,17 @@
     ] ?? "padding-bottom"
   );
 
-  // Brief branded splash on launch, then it fades and unmounts.
   let splash = $state(true);
 
-  // Load core data and subscribe to events once on startup.
   $effect(() => {
     instancesStore.ensureLoaded();
     settingsStore.ensureLoaded();
     launchStore.init();
     installStore.init();
     accountsStore.init();
+    initBoardApi();
   });
 
-  // Suppress the OS/browser right-click menu everywhere (it looks out of place
-  // in a native app) — except in text fields, where paste is useful. Our own
-  // context menus call preventDefault + open regardless.
   function onContextMenu(event: MouseEvent) {
     const target = event.target as HTMLElement | null;
     const tag = target?.tagName;
@@ -61,7 +56,6 @@
     event.preventDefault();
   }
 
-  // Command palette: ⌘K (macOS) / Ctrl+K (Windows/Linux).
   function onGlobalKeydown(event: KeyboardEvent) {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
@@ -69,8 +63,7 @@
     }
   }
 
-  // Subtle click sound on any button (capture phase so it fires even when a
-  // handler stops propagation). Gated by the uiSounds setting.
+  // Capture phase so it fires even when a handler stops propagation.
   function onGlobalClick(event: MouseEvent) {
     if (!settingsStore.settings.uiSounds) return;
     const target = event.target as HTMLElement | null;
@@ -166,7 +159,6 @@
     width: 100vw;
     overflow: hidden;
   }
-  /* Fixed layer behind everything; carries the (customizable) app background. */
   .bg-layer {
     position: fixed;
     inset: 0;
@@ -185,6 +177,5 @@
        non-scrolling views doesn't nudge the layout sideways. */
     scrollbar-gutter: stable;
     background: transparent;
-    /* Room for the floating dock is added inline on whichever edge it sits. */
   }
 </style>

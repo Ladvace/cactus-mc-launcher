@@ -44,8 +44,6 @@
     );
   }
 
-  // Filtered view split into ungrouped instances + one section per folder,
-  // mirroring how instances are grouped on Home.
   const view = $derived.by(() => {
     const term = query.trim().toLowerCase();
     const ungrouped: Instance[] = [];
@@ -141,7 +139,6 @@
     position: relative;
     width: 100%;
   }
-  /* Match the recessed .select look. */
   .trigger {
     width: 100%;
     display: flex;

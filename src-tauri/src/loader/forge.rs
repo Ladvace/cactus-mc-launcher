@@ -12,7 +12,6 @@ use crate::paths;
 const FORGE_MAVEN: &str = "https://maven.minecraftforge.net";
 const NEOFORGE_MAVEN: &str = "https://maven.neoforged.net/releases";
 
-/// The maven-metadata URL listing every build of the loader.
 fn metadata_url(loader: ModLoader) -> &'static str {
     match loader {
         ModLoader::Forge => {
@@ -22,8 +21,6 @@ fn metadata_url(loader: ModLoader) -> &'static str {
     }
 }
 
-/// Extract every `<version>…</version>` value from a maven-metadata document
-/// (avoids pulling in a full XML parser).
 fn parse_metadata_versions(xml: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut rest = xml;
@@ -98,7 +95,6 @@ async fn resolve_version(loader: ModLoader, mc: &str, requested: Option<&str>) -
         })
 }
 
-/// URL of the `-installer.jar` for a build.
 fn installer_url(loader: ModLoader, mc: &str, ver: &str) -> String {
     match loader {
         ModLoader::Forge => format!(
@@ -108,7 +104,6 @@ fn installer_url(loader: ModLoader, mc: &str, ver: &str) -> String {
     }
 }
 
-/// The profile subset we merge into the vanilla version detail.
 #[derive(Debug, Deserialize)]
 struct ForgeProfile {
     #[serde(rename = "mainClass")]
@@ -119,8 +114,6 @@ struct ForgeProfile {
     arguments: Option<Arguments>,
 }
 
-/// Ensure the loader is installed (running the official installer once) and
-/// merge its profile into `detail`. Returns the resolved loader version.
 pub async fn apply(
     detail: &mut VersionDetail,
     app: &AppHandle,
@@ -165,7 +158,6 @@ pub async fn install_server(
 ) -> Result<Vec<String>> {
     let ver = resolve_version(loader, mc, requested).await?;
 
-    // If a previous run already installed the server, reuse it.
     if let Ok(args) = server_launch_args(loader, mc, &ver, run_dir) {
         return Ok(args);
     }
@@ -217,8 +209,6 @@ pub async fn install_server(
     server_launch_args(loader, mc, &ver, run_dir)
 }
 
-/// Work out how to launch the installed server, based on what the installer
-/// produced under `run_dir`.
 fn server_launch_args(loader: ModLoader, mc: &str, ver: &str, run_dir: &Path) -> Result<Vec<String>> {
     let argfile = if cfg!(windows) { "win_args.txt" } else { "unix_args.txt" };
     let rel_dir = match loader {
@@ -238,7 +228,6 @@ fn server_launch_args(loader: ModLoader, mc: &str, ver: &str, run_dir: &Path) ->
     ))
 }
 
-/// Find a legacy runnable forge jar in `dir` (excluding the installer).
 fn find_forge_jar(dir: &Path) -> Option<String> {
     let entries = std::fs::read_dir(dir).ok()?;
     for entry in entries.flatten() {
@@ -272,7 +261,6 @@ async fn ensure_installed(
     let id = profile_id(loader, mc, ver);
     let cache = paths::version_dir(app, &id)?.join(format!("{id}.json"));
 
-    // Reuse a previous install.
     if cache.exists() {
         if let Ok(text) = std::fs::read_to_string(&cache) {
             if let Ok(profile) = serde_json::from_str::<ForgeProfile>(&text) {
@@ -302,7 +290,6 @@ async fn ensure_installed(
         std::fs::write(&profiles_file, "{\"profiles\":{}}")?;
     }
 
-    // Run the official installer headlessly (it performs the processor steps).
     let output = tokio::process::Command::new(java)
         .arg("-jar")
         .arg(&installer)
@@ -330,10 +317,8 @@ async fn ensure_installed(
 
     let (found_id, text) = find_version_json(&root, &id, ver)?;
 
-    // Make the installed libraries available to our shared library tree.
     copy_dir(&root.join("libraries"), &paths::libraries_dir(app)?)?;
 
-    // Cache under the id we look up by.
     std::fs::write(&cache, &text)?;
     let _ = found_id;
     let _ = std::fs::remove_file(&installer);
@@ -342,17 +327,14 @@ async fn ensure_installed(
         .map_err(|error| AppError::Other(format!("could not parse {loader:?} profile: {error}")))
 }
 
-/// Find the version JSON the installer produced under `root/versions`.
 fn find_version_json(root: &Path, expected_id: &str, ver: &str) -> Result<(String, String)> {
     let versions = root.join("versions");
 
-    // Preferred: the exact folder we expect.
     let direct = versions.join(expected_id).join(format!("{expected_id}.json"));
     if direct.exists() {
         return Ok((expected_id.to_string(), std::fs::read_to_string(direct)?));
     }
 
-    // Fallback: any version folder whose name contains the loader version.
     if let Ok(entries) = std::fs::read_dir(&versions) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
@@ -370,7 +352,6 @@ fn find_version_json(root: &Path, expected_id: &str, ver: &str) -> Result<(Strin
     ))
 }
 
-/// Recursively copy files from `src` into `dst`, skipping ones that already exist.
 fn copy_dir(src: &Path, dst: &Path) -> Result<()> {
     if !src.exists() {
         return Ok(());

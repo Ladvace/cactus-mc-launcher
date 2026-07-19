@@ -52,7 +52,6 @@ impl LaunchState {
     pub fn finish_start(&self, id: &str) {
         self.starting.lock().unwrap().remove(id);
     }
-    /// Signal the monitor task to kill the process.
     pub fn kill(&self, id: &str) {
         if let Some(tx) = self.running.lock().unwrap().remove(id) {
             let _ = tx.send(());
@@ -60,16 +59,11 @@ impl LaunchState {
     }
 }
 
-/// A message to a running server's control task.
 pub enum ServerMsg {
-    /// Write a console command line to the server's stdin.
     Line(String),
-    /// Ask the server to shut down gracefully (`stop`), then exit.
     Stop,
 }
 
-/// Tracks running dedicated servers so console commands can be sent and the
-/// process stopped. Separate from `LaunchState` because servers have stdin.
 #[derive(Default)]
 pub struct ServerState {
     running: Mutex<HashMap<String, mpsc::UnboundedSender<ServerMsg>>>,
@@ -85,13 +79,11 @@ impl ServerState {
     pub fn is_running(&self, id: &str) -> bool {
         self.running.lock().unwrap().contains_key(id)
     }
-    /// Send a console command line to the server. No-op if not running.
     pub fn send(&self, id: &str, line: String) {
         if let Some(tx) = self.running.lock().unwrap().get(id) {
             let _ = tx.send(ServerMsg::Line(line));
         }
     }
-    /// Ask the server to stop gracefully. Returns true if it was a live server.
     pub fn stop(&self, id: &str) -> bool {
         if let Some(tx) = self.running.lock().unwrap().get(id) {
             let _ = tx.send(ServerMsg::Stop);
@@ -101,8 +93,6 @@ impl ServerState {
         }
     }
 }
-
-// --- Frontend events ---------------------------------------------------------
 
 pub const EVENT_STATUS: &str = "launch-status";
 pub const EVENT_PROGRESS: &str = "launch-progress";
@@ -156,10 +146,6 @@ fn emit_progress(app: &AppHandle, id: &str, stage: &str, current: usize, total: 
     );
 }
 
-// --- Orchestration -----------------------------------------------------------
-
-/// Prepare (download everything required) and launch an instance. Returns once
-/// the process has spawned; a background task streams logs and handles exit.
 pub async fn launch(app: AppHandle, instance: Instance, settings: Settings) -> Result<()> {
     let id = instance.id.clone();
     let result = prepare_and_spawn(&app, &instance, &settings).await;
@@ -212,7 +198,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         .await?
     };
 
-    // --- Apply the mod loader profile on top of vanilla ---
     use crate::instance::ModLoader;
     match instance.loader {
         ModLoader::Vanilla => {}
@@ -253,7 +238,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     let libs = libraries::resolve(app, &detail.libraries)?;
     let assets = assets::resolve(app, &client, &detail.asset_index, &game_dir).await?;
 
-    // --- Download game files (client jar + libraries) ---
     emit_status(app, id, "downloading", Some("Downloading game files…".into()));
     let mut file_tasks = libs.downloads.clone();
     file_tasks.push(download::DownloadTask {
@@ -286,7 +270,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         libraries::extract_natives(jar, &natives_dir, exclude)?;
     }
 
-    // --- Resolve the account (Microsoft if active, else offline) ---
     let (player_name, uuid, access_token) =
         match crate::auth::active_valid_account(app, &client).await? {
             Some(acc) => (acc.username, acc.uuid, acc.mc_access_token),
@@ -304,7 +287,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     let mut classpath = libs.classpath.clone();
     classpath.push(version_jar);
 
-    // Per-instance overrides fall back to the global settings.
     let jvm_args_src = instance
         .jvm_args
         .as_deref()

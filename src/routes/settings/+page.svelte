@@ -37,7 +37,6 @@
     { value: "right", label: "Right" },
   ];
 
-  // Local editable copy; committed on "Save".
   let draft = $state<Settings>({ ...settingsStore.settings });
   let saved = $state(false);
   let saving = $state(false);
@@ -84,7 +83,6 @@
     }
   }
 
-  // --- App data folder ---
   let dataDir = $state("");
   $effect(() => {
     api.getDataDir().then((dir) => (dataDir = dir)).catch(() => {});
@@ -155,7 +153,6 @@
   const activePattern = $derived(
     kind === "pattern" ? parsePattern(draft.background).name : ""
   );
-  // Chosen base/tint colours for pattern & image backgrounds (default when unset).
   const patternColor = $derived(
     kind === "pattern" ? (parsePattern(draft.background).color ?? DEFAULT_COLOR) : DEFAULT_COLOR
   );
@@ -171,7 +168,6 @@
   function setColor(value: string) {
     draft.background = `color:${value}`;
   }
-  // Set the pattern, keeping any chosen base colour.
   function setPattern(name: string) {
     const { color } = parsePattern(draft.background);
     draft.background = color ? `pattern:${name}|${color}` : `pattern:${name}`;
@@ -211,15 +207,11 @@
     draft.gameHeight = 480;
   }
 
-  // Managed Java already covers these majors; these let you point a version at
-  // your own JDK instead (matches what each Minecraft version requires).
   const JAVA_MAJORS = [8, 17, 21];
-  // Installed managed Java paths (shown when a major is auto-managed).
   let managedPaths = $state<Record<string, string>>({});
   $effect(() => {
     api.resolvedJavaPaths().then((paths) => (managedPaths = paths)).catch(() => {});
   });
-  // Which majors the user has switched to a custom path.
   let javaEditing = $state<Record<string, boolean>>({});
 
   function javaManaged(major: number): boolean {
@@ -238,7 +230,7 @@
     if (auto) {
       setJavaPath(major, ""); // back to managed
     } else if (!draft.javaPaths[key]) {
-      setJavaPath(major, managedPaths[key] ?? ""); // prefill with the managed path
+      setJavaPath(major, managedPaths[key] ?? "");
     }
   }
 
@@ -966,7 +958,6 @@
     max-width: 420px;
     line-height: 1.4;
   }
-  /* Toggle switch */
   .switch {
     flex-shrink: 0;
     cursor: pointer;
@@ -1034,7 +1025,6 @@
   .stat.save .n {
     color: var(--accent);
   }
-  /* Background picker */
   .bg-preview {
     width: 108px;
     height: 60px;
@@ -1199,7 +1189,6 @@
     font-size: 12px;
     color: var(--text-muted);
   }
-  /* Segmented control (dock position). */
   .seg {
     display: flex;
     flex-shrink: 0;
@@ -1212,7 +1201,6 @@
     color: var(--text-secondary);
     font-size: 12.5px;
     font-weight: 600;
-    /* Overlap the neighbour's border so the seam is a single line, not double. */
     margin-left: -2px;
   }
   .seg-btn:first-child {
@@ -1225,7 +1213,6 @@
     color: var(--accent);
     background: var(--accent-soft);
     border-color: var(--accent);
-    /* Raise the active button so its full accent border sits above neighbours. */
     z-index: 1;
   }
   .save-bar {
@@ -1302,7 +1289,6 @@
     width: 90px;
   }
 
-  /* Managed Java status */
   .java-status {
     padding: 0 0 14px;
     max-width: 100%;

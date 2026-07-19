@@ -5,7 +5,6 @@ import { toast } from "$lib/stores/toast.svelte";
 
 type Phase = "idle" | "available" | "downloading" | "installing";
 
-// Only meaningful inside the Tauri shell (skipped in browser/SSR/tests).
 const inTauri = browser && "__TAURI_INTERNALS__" in window;
 
 class Updater {
@@ -19,7 +18,6 @@ class Updater {
     return this.total > 0 ? Math.round((this.downloaded / this.total) * 100) : null;
   }
 
-  /** Check for an update. `manual` surfaces a result toast (up-to-date / error). */
   async check(manual = false) {
     if (!inTauri || this.checking || this.phase === "downloading" || this.phase === "installing") {
       return;

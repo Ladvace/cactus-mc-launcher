@@ -2,7 +2,6 @@
 
 export type ModLoader = "vanilla" | "fabric" | "quilt" | "forge" | "neoforge";
 
-/// A normal game client or a dedicated server.
 export type InstanceKind = "client" | "server";
 
 export const MOD_LOADERS: { value: ModLoader; label: string }[] = [
@@ -209,7 +208,6 @@ export interface Settings {
   instancesDir: string;
   /** Global ngrok authtoken for sharing servers; a per-instance token wins. */
   ngrokAuthtoken: string;
-  /** Show the "Latest news" section on the Home screen. */
   showNews: boolean;
   /** News layout: true = one story per page, false = a lead + two-up column. */
   newsSingle: boolean;
@@ -217,7 +215,7 @@ export interface Settings {
 
 export type DockPosition = "bottom" | "top" | "left" | "right";
 
-// --- Launch events (mirror the Rust payloads in src-tauri/src/launch) ---
+// Mirror the Rust payloads in src-tauri/src/launch.
 
 export type LaunchState =
   | "preparing"
@@ -245,8 +243,6 @@ export interface LaunchLogEvent {
   line: string;
 }
 
-// --- Accounts / Microsoft auth ---
-
 export interface AccountInfo {
   id: string;
   username: string;
@@ -266,8 +262,6 @@ export interface DeviceCodeEvent {
   message: string;
   expiresIn: number;
 }
-
-// --- Content sources ---
 
 export type Source = "modrinth" | "curseforge";
 
@@ -376,7 +370,6 @@ export interface ServerStatus {
   favicon?: string | null;
 }
 
-/** One point in a server's player-count history (from the boards backend). */
 export interface ServerSample {
   sampledAt: string;
   online: number;
@@ -390,8 +383,6 @@ export const SUPPORTED_LOADERS: ModLoader[] = [
   "forge",
   "neoforge",
 ];
-
-// --- Adaptive tune-up -------------------------------------------------------
 
 export interface HostSpecs {
   totalRamMb: number;
@@ -435,8 +426,6 @@ export interface NewsItem {
   link: string | null;
   source: string;
 }
-
-// --- Achievements & lifetime stats ---
 
 export interface AchievementsPayload {
   player: { name: string; worldsScanned: number; instancesScanned: number };

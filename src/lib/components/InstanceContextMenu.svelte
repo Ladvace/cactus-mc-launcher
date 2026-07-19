@@ -21,7 +21,7 @@
   let pendingId = $state<string | null>(null);
   let sharing = $state(false);
   let sharedCode = $state<string | null>(null);
-  // Cache per-instance shareability (opt-out CurseForge mods block code sharing).
+  // Opt-out CurseForge mods block code sharing.
   let shareChecks = $state<Record<string, { ok: boolean; optOut: string[] }>>({});
 
   $effect(() => {
@@ -208,7 +208,6 @@
       try {
         await revealItemInDir(result.path);
       } catch {
-        /* reveal is best-effort */
       }
     } catch (error) {
       toast.error(String(error));

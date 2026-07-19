@@ -1,7 +1,6 @@
 import { api } from "$lib/api";
 import type { CreateInstance, Instance, UpdateInstance } from "$lib/types";
 
-/// Reactive store (Svelte 5 runes) holding all instances in memory.
 class InstancesStore {
   instances = $state<Instance[]>([]);
   loading = $state(false);
@@ -21,7 +20,6 @@ class InstancesStore {
     }
   }
 
-  /** Load once; subsequent calls are no-ops unless forced via refresh(). */
   async ensureLoaded() {
     if (!this.loaded && !this.loading) await this.refresh();
   }
@@ -47,13 +45,11 @@ class InstancesStore {
     await this.refresh();
   }
 
-  /** Set a custom icon (data URI). */
   async setIcon(id: string, dataUri: string): Promise<void> {
     await this.update(id, { icon: dataUri });
   }
 
-  /** Clear the custom icon, falling back to the generated default.
-      (The backend treats an empty string as "reset".) */
+  /** The backend treats an empty string as "reset" (falls back to the default). */
   async resetIcon(id: string): Promise<void> {
     await this.update(id, { icon: "" });
   }

@@ -18,14 +18,11 @@
   let error = $state<string | null>(null);
   let mode = $state<"performance" | "visuals">("performance");
 
-  // Which mods are ticked (by versionId), and whether to apply memory / flags.
   let picked = $state<Record<string, boolean>>({});
   let applyMemory = $state(true);
   let applyFlags = $state(true);
-  // User-adjustable max heap (MB); seeded from the recommendation.
   let maxMem = $state(4096);
 
-  // (Re)load the recommendation whenever the modal opens or the mode changes.
   $effect(() => {
     if (!open) return;
     const currentMode = mode;
@@ -52,7 +49,6 @@
     };
   });
 
-  // Keep a sane min-heap relative to the chosen max.
   const minMem = $derived(Math.min(maxMem, Math.max(1024, Math.floor(maxMem / 2 / 512) * 512)));
 
   const chosenCount = $derived(

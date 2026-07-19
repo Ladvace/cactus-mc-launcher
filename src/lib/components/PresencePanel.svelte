@@ -13,7 +13,6 @@
   const online = boardApi.configured();
   const account = $derived(accountsStore.active);
 
-  // Sign in with the active Minecraft account (no separate login).
   $effect(() => {
     const activeAccount = account;
     if (!online || !activeAccount) return;
@@ -35,25 +34,21 @@
     untrack(() => presence.open());
     return () => untrack(() => presence.close());
   });
-  // Re-poll as soon as a session token arrives (depends on the token only).
   $effect(() => {
     if (boardAuth.token) untrack(() => void presence.poll());
   });
 
-  // Local editable copies of the broadcast fields (committed on change).
   let status = $state(presence.status);
   let address = $state(presence.serverAddress);
   let mcVersion = $state(presence.mcVersion);
   let loader = $state(presence.loader);
 
-  // Filters for the online list ("" = Any).
   let filterVersion = $state("");
   let filterLoader = $state("");
 
   const myUuid = $derived(boardAuth.session?.uuid ?? "");
   const me = $derived(presence.players.find((player) => player.uuid === myUuid) ?? null);
 
-  // Versions actually present online, for the version filter dropdown.
   const versionsOnline = $derived(
     [...new Set(presence.players.map((player) => player.mcVersion).filter(Boolean))].sort() as string[]
   );

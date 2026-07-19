@@ -188,7 +188,6 @@ mod tests {
         for value in [0i32, 1, 127, 128, 255, 25565, 2_097_151] {
             let mut buf = Vec::new();
             write_varint(&mut buf, value);
-            // decode
             let mut result = 0i32;
             for (shift, byte) in buf.iter().enumerate() {
                 result |= ((byte & 0x7F) as i32) << (shift * 7);

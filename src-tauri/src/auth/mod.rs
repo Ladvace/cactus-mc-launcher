@@ -11,7 +11,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::error::{AppError, Result};
 use crate::paths;
 
-// ===========================================================================
 // Azure application client ID.
 //
 // Provided at build time via the `AZURE_CLIENT_ID` environment variable or a
@@ -20,7 +19,6 @@ use crate::paths;
 // registrations), enable "Allow public client flows", and put the Application
 // (client) ID in `.env`. Until then, Microsoft login is disabled and offline
 // mode still works.
-// ===========================================================================
 const AZURE_CLIENT_ID: &str = match option_env!("AZURE_CLIENT_ID") {
     Some(id) => id,
     None => "",
@@ -37,12 +35,9 @@ fn ensure_client_id() -> Result<&'static str> {
     Ok(AZURE_CLIENT_ID)
 }
 
-/// Whether Microsoft login is available (client ID configured).
 pub fn is_configured() -> bool {
     !AZURE_CLIENT_ID.is_empty()
 }
-
-// --- Persisted account model ------------------------------------------------
 
 /// A signed-in Microsoft/Minecraft account, including refresh material.
 /// Never sent to the frontend as-is (see `AccountInfo`).
@@ -59,7 +54,6 @@ pub struct Account {
     pub expires_at: i64,
 }
 
-/// Public account view (no secrets).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountInfo {
@@ -96,7 +90,6 @@ struct AccountData {
     active_id: Option<String>,
 }
 
-/// Thread-safe account store persisted to `accounts.json`.
 #[derive(Default)]
 pub struct AccountStore {
     inner: Mutex<AccountData>,
@@ -130,14 +123,12 @@ impl AccountStore {
         }
     }
 
-    /// The active Microsoft account, or `None` for offline mode.
     pub fn active_account(&self) -> Option<Account> {
         let data = self.inner.lock().unwrap();
         let id = data.active_id.as_ref()?;
         data.accounts.iter().find(|account| &account.id == id).cloned()
     }
 
-    /// Insert or replace an account by id.
     pub fn upsert(&self, app: &AppHandle, account: Account) -> Result<()> {
         let mut data = self.inner.lock().unwrap();
         if let Some(existing) = data.accounts.iter_mut().find(|entry| entry.id == account.id) {
@@ -150,7 +141,6 @@ impl AccountStore {
 
     pub fn set_active(&self, app: &AppHandle, id: Option<String>) -> Result<()> {
         let mut data = self.inner.lock().unwrap();
-        // Ignore ids that don't exist (except None = offline).
         if let Some(id) = &id {
             if !data.accounts.iter().any(|account| &account.id == id) {
                 return Err(AppError::Other("account not found".into()));
@@ -170,8 +160,6 @@ impl AccountStore {
     }
 }
 
-// --- Login orchestration ----------------------------------------------------
-
 fn http_client() -> Result<reqwest::Client> {
     crate::http::client()
 }
@@ -185,9 +173,6 @@ struct DeviceCodeEvent {
     expires_in: u64,
 }
 
-/// Run the full device-code login: get a code, poll for the token, then walk
-/// the Xbox → XSTS → Minecraft chain. Emits `auth-device-code` so the UI can
-/// show the code, and `auth-login-done` on success.
 pub async fn login(app: &AppHandle) -> Result<AccountInfo> {
     let client_id = ensure_client_id()?;
     let http = http_client()?;
@@ -231,7 +216,6 @@ pub async fn login(app: &AppHandle) -> Result<AccountInfo> {
     Ok(to_info(&account))
 }
 
-/// Walk an MS token through Xbox/XSTS/Minecraft to a full `Account`.
 async fn full_chain(http: &reqwest::Client, ms_token: microsoft::MsToken) -> Result<Account> {
     let xbl = xbox::xbl_authenticate(http, &ms_token.access_token).await?;
     let xsts = xbox::xsts_authorize(http, &xbl.token).await?;
@@ -248,7 +232,6 @@ async fn full_chain(http: &reqwest::Client, ms_token: microsoft::MsToken) -> Res
     })
 }
 
-/// Refresh an account's Minecraft token using its stored MS refresh token.
 pub async fn refresh_account(
     app: &AppHandle,
     http: &reqwest::Client,
@@ -261,8 +244,6 @@ pub async fn refresh_account(
     Ok(refreshed)
 }
 
-/// The active account with a valid (refreshed if needed) token, or `None` for
-/// offline mode.
 pub async fn active_valid_account(
     app: &AppHandle,
     http: &reqwest::Client,

@@ -1,7 +1,6 @@
 import { readJson, writeJson } from "$lib/storage";
 import { FEATURED_SERVERS, type FeaturedServer } from "$lib/servers";
 
-// The user's Servers list, seeded once from the defaults then fully user-owned.
 const KEY = "cactus:servers";
 
 function load(): FeaturedServer[] {
@@ -25,7 +24,6 @@ class ServersStore {
     return this.servers.some((s) => normalizeAddress(s.address) === addr);
   }
 
-  /** Returns false if the address is blank or a duplicate. */
   add(server: FeaturedServer): boolean {
     const address = server.address.trim();
     if (!address || this.has(address)) return false;

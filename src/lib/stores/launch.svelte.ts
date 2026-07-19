@@ -23,12 +23,10 @@ function blank(): InstanceRuntime {
   return { state: "idle", message: null, stage: "", current: 0, total: 0, logs: [] };
 }
 
-/// Tracks live launch state per instance, driven by backend events.
 class LaunchStore {
   byId = $state<Record<string, InstanceRuntime>>({});
   #started = false;
 
-  /** Subscribe to backend launch events once. */
   async init() {
     if (this.#started) return;
     this.#started = true;
@@ -41,7 +39,6 @@ class LaunchStore {
         runtime.current = 0;
         runtime.total = 0;
         runtime.stage = "";
-        // Refresh playtime / last-played after a session ends.
         instancesStore.refresh();
       }
     });
@@ -71,7 +68,6 @@ class LaunchStore {
     return this.byId[id] ?? blank();
   }
 
-  /** Preparing / downloading / launching — busy but not yet playing. */
   isBusy(id: string): boolean {
     const state = this.byId[id]?.state;
     return state === "preparing" || state === "downloading" || state === "launching";

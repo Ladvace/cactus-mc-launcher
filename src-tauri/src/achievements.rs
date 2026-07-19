@@ -24,25 +24,15 @@ use crate::launch::args::offline_uuid;
 use crate::paths;
 use crate::settings::SettingsStore;
 
-/// Bundled advancement metadata (real titles + hidden flags), grouped by
-/// category. Lets us render locked/greyed tiles and a correct denominator
-/// without parsing game assets at runtime.
 static ADV_META_JSON: &str = include_str!("data/advancements.json");
-/// Stat-derived launcher-only achievements, defined purely as data (stat key +
-/// operator + threshold) so new ones ship without touching the engine.
 static CUSTOM_JSON: &str = include_str!("data/custom_achievements.json");
 
 const ORDER: [&str; 5] = ["story", "nether", "end", "adventure", "husbandry"];
-
-// ---------------------------------------------------------------------------
-// Output payload
-// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AchievementsPayload {
     pub player: PlayerInfo,
-    /// True once at least one advancement/stats file was found.
     pub has_data: bool,
     pub completion: Completion,
     pub categories: Vec<CategoryProgress>,
@@ -56,7 +46,6 @@ pub struct AchievementsPayload {
 #[serde(rename_all = "camelCase")]
 pub struct PlayerInfo {
     pub name: String,
-    /// How many distinct save folders contributed data.
     pub worlds_scanned: usize,
     pub instances_scanned: usize,
 }
@@ -136,10 +125,6 @@ pub struct InstanceBreakdown {
     pub deaths: i64,
 }
 
-// ---------------------------------------------------------------------------
-// Bundled metadata parsing
-// ---------------------------------------------------------------------------
-
 #[derive(serde::Deserialize)]
 struct AdvMeta {
     id: String,
@@ -164,11 +149,6 @@ struct Condition {
     value: i64,
 }
 
-// ---------------------------------------------------------------------------
-// Aggregation state
-// ---------------------------------------------------------------------------
-
-/// Best-known completion of one advancement across all worlds.
 struct AdvAgg {
     at: Option<DateTime<FixedOffset>>,
     location: String,
@@ -198,10 +178,6 @@ impl Aggregate {
             .unwrap_or(0)
     }
 }
-
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
 
 pub fn compute(app: &AppHandle) -> Result<AchievementsPayload> {
     let (player_name, uuids) = player_identity(app);
@@ -308,10 +284,6 @@ pub fn compute(app: &AppHandle) -> Result<AchievementsPayload> {
     })
 }
 
-// ---------------------------------------------------------------------------
-// Player identity
-// ---------------------------------------------------------------------------
-
 /// Returns the display name plus the set of UUIDs (dashless, lowercase) whose
 /// save files belong to this player: the active Microsoft account and the
 /// offline UUIDs derived from known usernames.
@@ -336,7 +308,6 @@ fn player_identity(app: &AppHandle) -> (String, HashSet<String>) {
         name = offline;
     }
 
-    // Also match offline saves made under any other stored account's name.
     for info in accounts.state().accounts {
         uuids.insert(normalize_uuid(&info.uuid));
         uuids.insert(normalize_uuid(&offline_uuid(&info.username)));
@@ -362,7 +333,6 @@ fn locate_player_file(
         .or_else(|| find_player_file(&world_dir.join("players").join(sub), uuids))
 }
 
-/// Finds `<dir>/<uuid>.json` whose stem matches one of the player's UUIDs.
 fn find_player_file(dir: &Path, uuids: &HashSet<String>) -> Option<std::path::PathBuf> {
     let entries = std::fs::read_dir(dir).ok()?;
     for entry in entries.flatten() {
@@ -379,13 +349,6 @@ fn find_player_file(dir: &Path, uuids: &HashSet<String>) -> Option<std::path::Pa
     None
 }
 
-// ---------------------------------------------------------------------------
-// Advancements
-// ---------------------------------------------------------------------------
-
-/// Reads one world's advancement file and merges completed advancements into
-/// the aggregate, keeping the earliest completion across duplicates. Returns
-/// whether the file was a readable advancements file.
 fn merge_advancements(file: &Path, location: &str, agg: &mut Aggregate) -> bool {
     let text = match std::fs::read_to_string(file) {
         Ok(text) => text,
@@ -463,9 +426,6 @@ fn category_of(id: &str) -> String {
     id.split('/').next().unwrap_or("other").to_string()
 }
 
-/// Joins bundled metadata with scanned completions into the full grid. Earned
-/// advancements missing from the bundle (e.g. from a newer game version) are
-/// still included with a name derived from their id, so nothing is lost.
 fn build_advancements(agg: &Aggregate) -> Vec<AdvancementView> {
     let meta: HashMap<String, Vec<AdvMeta>> =
         serde_json::from_str(ADV_META_JSON).unwrap_or_default();
@@ -490,7 +450,6 @@ fn build_advancements(agg: &Aggregate) -> Vec<AdvancementView> {
         }
     }
 
-    // Completed advancements we don't have metadata for.
     for (id, done) in &agg.done {
         if seen.contains(id) {
             continue;
@@ -541,10 +500,6 @@ fn build_categories(advancements: &[AdvancementView]) -> Vec<CategoryProgress> {
         .collect()
 }
 
-// ---------------------------------------------------------------------------
-// Stats
-// ---------------------------------------------------------------------------
-
 struct StatsDelta {
     play_time: i64,
     mined: i64,
@@ -552,8 +507,6 @@ struct StatsDelta {
     deaths: i64,
 }
 
-/// Merges one world's stats file into the aggregate, returning this world's
-/// contribution to the per-instance rollup. `None` if the file is unreadable.
 fn merge_stats(file: &Path, agg: &mut Aggregate) -> Option<StatsDelta> {
     let text = std::fs::read_to_string(file).ok()?;
     let root: Value = serde_json::from_str(&text).ok()?;
@@ -632,10 +585,6 @@ fn top_entries(agg: &Aggregate, category: &str, n: usize) -> Vec<StatEntry> {
     entries
 }
 
-// ---------------------------------------------------------------------------
-// Custom achievements (data-driven rule engine)
-// ---------------------------------------------------------------------------
-
 fn build_custom(agg: &Aggregate) -> Vec<CustomAchievement> {
     let rules: Vec<CustomRule> = serde_json::from_str(CUSTOM_JSON).unwrap_or_default();
 
@@ -682,8 +631,6 @@ fn eval_condition(agg: &Aggregate, cond: &Condition) -> bool {
     }
 }
 
-/// Progress toward a "reach a threshold" condition. Zero-target conditions
-/// (e.g. "never slept") don't have meaningful progress, so report 0.
 fn condition_progress(agg: &Aggregate, cond: &Condition) -> u32 {
     if !matches!(cond.op.as_str(), "gte" | "gt") || cond.value <= 0 {
         return 0;
@@ -698,10 +645,6 @@ fn pct(num: i64, den: i64) -> u32 {
     }
     ((num.max(0) as f64 / den as f64) * 100.0).round().min(100.0) as u32
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -743,11 +686,9 @@ mod tests {
             .entry("minecraft:custom".into())
             .or_default()
             .insert("minecraft:play_time".into(), 800_000);
-        // No kills yet -> pacifist earned.
         let earned: Vec<_> = build_custom(&agg).into_iter().filter(|c| c.earned).collect();
         assert!(earned.iter().any(|c| c.id == "pacifist"));
 
-        // One kill -> pacifist lost.
         agg.stats
             .entry("minecraft:killed".into())
             .or_default()
@@ -766,13 +707,11 @@ mod tests {
         let base = std::env::temp_dir().join(format!("cactus-adv-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
 
-        // Vanilla layout: <world>/stats/<uuid>.json
         let vanilla = base.join("vanilla");
         fs::create_dir_all(vanilla.join("stats")).unwrap();
         fs::write(vanilla.join("stats").join(format!("{uuid}.json")), "{}").unwrap();
         assert!(locate_player_file(&vanilla, "stats", &uuids).is_some());
 
-        // Nested layout: <world>/players/advancements/<uuid>.json
         let nested = base.join("nested");
         fs::create_dir_all(nested.join("players").join("advancements")).unwrap();
         fs::write(
@@ -781,7 +720,6 @@ mod tests {
         )
         .unwrap();
         assert!(locate_player_file(&nested, "advancements", &uuids).is_some());
-        // A non-matching uuid isn't picked up.
         let mut other = HashSet::new();
         other.insert(normalize_uuid("ffffffff-0000-0000-0000-000000000000"));
         assert!(locate_player_file(&nested, "advancements", &other).is_none());
@@ -798,7 +736,6 @@ mod tests {
             "story/mine_stone".into(),
             AdvAgg { at: late, location: "B".into() },
         );
-        // Simulate merge picking the earlier one.
         agg.done.entry("story/mine_stone".into()).and_modify(|e| {
             if earlier(early, e.at) {
                 e.at = early;

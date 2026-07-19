@@ -34,11 +34,10 @@
   let versionError = $state<string | null>(null);
   let creating = $state(false);
 
-  // Loader version state (Fabric/Quilt).
   let loaderVersions = $state<LoaderVersion[]>([]);
   let loaderVersionsLoading = $state(false);
   let loaderVersionError = $state<string | null>(null);
-  let selectedLoaderVersion = $state(""); // "" = latest stable
+  let selectedLoaderVersion = $state("");
 
   const supportedLoader = $derived(
     loader === "vanilla" || SUPPORTED_LOADERS.includes(loader)
@@ -47,14 +46,12 @@
     loader !== "vanilla" && SUPPORTED_LOADERS.includes(loader)
   );
 
-  // Fetch the version manifest the first time the modal opens.
   $effect(() => {
     if (open && versions.length === 0 && !versionsLoading) {
       loadVersions();
     }
   });
 
-  // Fetch loader builds whenever the loader or MC version changes.
   $effect(() => {
     const currentLoader = loader;
     const mcVersion = selectedVersion;
@@ -107,9 +104,7 @@
     name.trim().length > 0 &&
       selectedVersion.length > 0 &&
       supportedLoader &&
-      // a modded loader needs at least one compatible build
       (!needsLoaderVersion || (!loaderVersionsLoading && loaderVersions.length > 0)) &&
-      // dedicated servers require accepting the Minecraft EULA
       (kind === "client" || eulaAccepted) &&
       !creating
   );
@@ -370,7 +365,6 @@
   .name-row .input {
     flex: 1;
   }
-  /* Square dice button matched to the input height. */
   .dice {
     flex-shrink: 0;
     width: 42px;

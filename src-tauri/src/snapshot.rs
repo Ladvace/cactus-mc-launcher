@@ -28,7 +28,6 @@ use crate::sources::Source;
 
 const FORMAT_VERSION: u32 = 1;
 
-/// A single content reference inside a snapshot.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotContent {
@@ -48,7 +47,6 @@ fn default_true() -> bool {
     true
 }
 
-/// The `index.json` of a `.cactuspack`.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotIndex {
@@ -62,7 +60,6 @@ pub struct SnapshotIndex {
     pub note: Option<String>,
 }
 
-/// Result of importing a snapshot.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportResult {
@@ -120,9 +117,6 @@ fn emit(app: &AppHandle, phase: &str, current: usize, total: usize) {
     );
 }
 
-// --- Overrides (config files bundled into the pack) -------------------------
-
-/// Config files to include in a snapshot (small, non-copyrighted text/data).
 fn override_files(game_dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     for file_name in ["options.txt", "optionsshaders.txt", "servers.dat"] {
@@ -157,7 +151,6 @@ fn subdir_for(project_type: &str) -> &'static str {
     }
 }
 
-/// Result of exporting a snapshot.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportResult {
@@ -169,13 +162,9 @@ pub struct ExportResult {
 
 type Zip = zip::ZipWriter<std::fs::File>;
 
-// Keep shared packs small: configs are a convenience, not the point (the mods
-// are references). Skip any single override over 2 MB and stop once the bundled
-// configs pass ~12 MB total.
 const MAX_OVERRIDE_FILE: u64 = 2_000_000;
 const MAX_OVERRIDES_TOTAL: u64 = 12_000_000;
 
-/// Add an instance's config `overrides/` tree to an open zip (size-capped).
 fn add_overrides(
     zip: &mut Zip,
     opts: zip::write::SimpleFileOptions,
@@ -366,8 +355,6 @@ fn mrpack_loader_key(loader: ModLoader) -> Option<&'static str> {
     }
 }
 
-/// Export an instance and upload it to the hosted service as the caller's
-/// current snapshot. Returns the new snapshot id.
 #[allow(clippy::too_many_arguments)]
 pub async fn publish(
     app: &AppHandle,
@@ -426,10 +413,6 @@ pub async fn publish(
         .ok_or_else(|| AppError::Other("no snapshot id in response".into()))
 }
 
-// --- Import -----------------------------------------------------------------
-
-/// Import a snapshot (raw bytes of a `.cactuspack` or `.mrpack`) as a new
-/// instance. The format is detected from the archive contents.
 pub async fn import(app: &AppHandle, bytes: Vec<u8>) -> Result<ImportResult> {
     // Stash the upload so we can open it as a zip (and re-open for overrides).
     let tmp = paths::meta_dir(app)?.join("tmp");
@@ -452,7 +435,6 @@ pub async fn import(app: &AppHandle, bytes: Vec<u8>) -> Result<ImportResult> {
     result
 }
 
-/// Whether a zip contains an entry with the exact given name.
 fn has_entry(pack: &Path, name: &str) -> Result<bool> {
     let file = std::fs::File::open(pack)?;
     let zip =
@@ -524,7 +506,6 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     app.state::<InstanceStore>().save(app, &instance)?;
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
 
-    // Client-relevant files -> download tasks (deduped through the cache).
     let tasks: Vec<DownloadTask> = index
         .files
         .iter()
@@ -607,8 +588,6 @@ fn mr_loader_from_deps(
     (ModLoader::Vanilla, None)
 }
 
-// --- Modrinth .mrpack index (subset) ----------------------------------------
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MrIndex {
@@ -651,7 +630,6 @@ struct MrEnv {
     server: String,
 }
 
-/// Extract the `overrides/` tree of a pack into an instance's game dir.
 fn extract_overrides(pack: &Path, game_dir: &Path) -> Result<()> {
     let file = std::fs::File::open(pack)?;
     let mut zip =

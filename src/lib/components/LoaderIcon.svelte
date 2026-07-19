@@ -1,5 +1,4 @@
 <script lang="ts">
-  // Official mod-loader logos (from Modrinth's loader tag API; currentColor).
   import fabric from "$lib/loaders/fabric.svg?raw";
   import quilt from "$lib/loaders/quilt.svg?raw";
   import forge from "$lib/loaders/forge.svg?raw";

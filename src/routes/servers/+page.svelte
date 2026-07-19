@@ -17,7 +17,6 @@
   let newName = $state("");
   let newAddress = $state("");
 
-  // Floating "add to instance" menu, anchored to the clicked button.
   let addMenu = $state<{ x: number; y: number; server: FeaturedServer } | null>(null);
   const clientInstances = $derived(
     instancesStore.instances.filter((i) => i.kind === "client"),

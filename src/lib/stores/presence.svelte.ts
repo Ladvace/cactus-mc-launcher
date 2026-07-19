@@ -25,11 +25,8 @@ function load(): Persisted {
   return { ...base, ...readJson<Partial<Persisted>>(KEY, {}) };
 }
 
-/// Opt-in "who's online" presence. While the panel is open it polls the list
-/// every ~20s (and heartbeats the player's own presence when they've chosen to
-/// appear online). Leaving the panel drops the player from the list.
 class PresenceStore {
-  enabled = $state(false); // broadcast my presence to others
+  enabled = $state(false);
   status = $state("");
   serverAddress = $state("");
   mcVersion = $state("");
@@ -60,13 +57,11 @@ class PresenceStore {
     });
   }
 
-  /** Start polling; call when the panel mounts. */
   open() {
     void this.poll();
     this.timer ??= setInterval(() => void this.poll(), POLL_MS);
   }
 
-  /** Stop polling and drop out of the list; call when the panel unmounts. */
   close() {
     if (this.timer) {
       clearInterval(this.timer);
@@ -82,7 +77,6 @@ class PresenceStore {
     else await this.goOffline();
   }
 
-  /** Update the broadcast fields; re-heartbeats immediately when online. */
   saveFields(fields: {
     status: string;
     serverAddress: string;
@@ -114,7 +108,6 @@ class PresenceStore {
     await boardApi.clearPresence(token).catch(() => {});
   }
 
-  /** One cycle: heartbeat (if online) then refresh the list. Safe to call anytime. */
   async poll() {
     const token = boardAuth.token;
     if (!token || this.polling) return; // one cycle at a time — no stale overwrites

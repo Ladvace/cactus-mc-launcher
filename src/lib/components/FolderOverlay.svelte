@@ -9,12 +9,11 @@
   import { toast } from "$lib/stores/toast.svelte";
 
   interface Props {
-    name: string | null; // null = closed
+    name: string | null;
     onClose: () => void;
   }
   let { name, onClose }: Props = $props();
 
-  // Track the current group name locally so renames don't lose the view.
   let current = $state("");
   $effect(() => {
     if (name) current = name;
@@ -28,7 +27,6 @@
     editName = current;
   });
 
-  // Reassign every instance currently in this folder to `group` ("" ungroups).
   async function setMembersGroup(group: string) {
     const members = instancesStore.instances.filter((instance) => instance.group === current);
     for (const instance of members) await instancesStore.update(instance.id, { group });
@@ -42,7 +40,6 @@
     current = next;
   }
 
-  // --- Folder cover image ---
   let coverInput = $state<HTMLInputElement>();
   const cover = $derived(current ? groupCovers.get(current) : null);
 
@@ -73,7 +70,7 @@
   // Drag an instance out of the folder to ungroup it (pointer-based, so the
   // dragged tile stays fully opaque and the drop is reliable in the webview).
   let draggingId = $state<string | null>(null);
-  let overRemove = $state(false); // cursor is in "ungroup" territory
+  let overRemove = $state(false);
   let suppressClick = false;
 
   let press: {
@@ -143,7 +140,6 @@
       clone.style.left = `${event.clientX - press.offX}px`;
       clone.style.top = `${event.clientY - press.offY}px`;
     }
-    // Anywhere outside the folder's own grid counts as "drop to ungroup".
     overRemove = !insideGrid(event);
   }
 
@@ -277,7 +273,6 @@
   .cell {
     cursor: grab;
   }
-  /* A drop target that appears while dragging a card, to ungroup it. */
   .remove-zone {
     display: none;
     align-items: center;

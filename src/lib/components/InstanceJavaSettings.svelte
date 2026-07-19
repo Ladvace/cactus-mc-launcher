@@ -10,7 +10,6 @@
 
   const globals = $derived(settingsStore.settings);
 
-  // The Java this version actually uses, and where it comes from by default.
   const javaMajor = $derived(requiredJavaMajor(instance.mcVersion));
   const javaPlaceholder = $derived.by(() => {
     const perMajor = globals.javaPaths?.[String(javaMajor)]?.trim();
@@ -19,7 +18,6 @@
     return `Managed Java ${javaMajor}`;
   });
 
-  // Local string drafts (empty = "use global default").
   let maxMem = $state("");
   let minMem = $state("");
   let jvm = $state("");
@@ -28,7 +26,6 @@
   let height = $state("");
   let saving = $state(false);
 
-  // (Re)load the drafts when the instance changes.
   let lastId = "";
   $effect(() => {
     if (instance.id !== lastId) {

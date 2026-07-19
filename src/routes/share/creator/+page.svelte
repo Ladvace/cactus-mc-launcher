@@ -11,8 +11,6 @@
 
   const ready = boardApi.configured();
 
-  // The board session is tied to the active Minecraft account — acquire it
-  // automatically (no separate login) and re-acquire if the account changes.
   const account = $derived(accountsStore.active);
   $effect(() => {
     const activeAccount = account;
@@ -30,7 +28,6 @@
   let boards = $state<OwnedBoard[]>([]);
   let loadingBoards = $state(false);
 
-  // One board per account.
   const myBoard = $derived(boards[0] ?? null);
 
   function timeAgo(iso: string): string {
@@ -223,7 +220,7 @@
 
   {#if !ready}
     <div class="panel">
-      <p class="muted">The boards service isn't configured in this build (set <code>VITE_STREAMER_API_URL</code>).</p>
+      <p class="muted">The boards service isn't configured in this build.</p>
     </div>
   {:else if !account}
     <div class="panel">
@@ -429,11 +426,6 @@
     color: var(--text-muted);
     font-size: 13px;
     margin: 0 0 12px;
-  }
-  .muted code {
-    background: var(--bg-app);
-    padding: 1px 5px;
-    color: var(--accent);
   }
   .who {
     display: flex;

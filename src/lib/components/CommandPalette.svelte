@@ -61,13 +61,11 @@
       .map((r) => r.cmd);
   });
 
-  // Keep the selection in range whenever the result set changes.
   $effect(() => {
     results;
     selected = 0;
   });
 
-  // Focus the input when the palette opens.
   $effect(() => {
     if (open) {
       query = "";

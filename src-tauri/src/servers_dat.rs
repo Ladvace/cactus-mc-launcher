@@ -13,8 +13,6 @@ fn nbt_err(e: impl std::fmt::Display) -> AppError {
     AppError::Other(format!("servers.dat: {e}"))
 }
 
-/// Add a server entry (or update the name of an existing one with the same
-/// address). Creates `servers.dat` if it doesn't exist yet.
 pub fn add_server(path: &Path, name: &str, address: &str) -> Result<()> {
     let mut root: Value = if path.exists() {
         fastnbt::from_bytes(&std::fs::read(path)?).map_err(nbt_err)?
@@ -69,7 +67,6 @@ mod tests {
 
         add_server(&path, "Hypixel", "mc.hypixel.net").unwrap();
         add_server(&path, "Wynn", "play.wynncraft.com").unwrap();
-        // Same address again → updates the name, doesn't duplicate.
         add_server(&path, "Hypixel Network", "mc.hypixel.net").unwrap();
 
         let root: Value = fastnbt::from_bytes(&std::fs::read(&path).unwrap()).unwrap();

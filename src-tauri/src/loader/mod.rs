@@ -6,7 +6,6 @@ use crate::error::{AppError, Result};
 use crate::instance::ModLoader;
 use crate::minecraft::version::{Argument, Arguments, Library, VersionDetail};
 
-/// Meta API base for loaders that share Fabric's profile-JSON scheme.
 fn meta_base(loader: ModLoader) -> Option<&'static str> {
     match loader {
         ModLoader::Fabric => Some("https://meta.fabricmc.net/v2"),
@@ -15,7 +14,6 @@ fn meta_base(loader: ModLoader) -> Option<&'static str> {
     }
 }
 
-/// A selectable loader build for a given Minecraft version.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoaderVersion {
@@ -103,8 +101,6 @@ async fn fetch_profile(
     Ok(reqwest::get(url).await?.error_for_status()?.json().await?)
 }
 
-/// Pick the loader build to use: the requested one, else the newest stable, else
-/// the newest available.
 async fn resolve_version(
     loader: ModLoader,
     mc_version: &str,
@@ -128,8 +124,6 @@ async fn resolve_version(
         })
 }
 
-/// Resolve the loader build to use (requested, else newest stable, else newest).
-/// Public wrapper used by the server-install path.
 pub async fn resolve_loader_version(
     loader: ModLoader,
     mc_version: &str,
@@ -138,9 +132,6 @@ pub async fn resolve_loader_version(
     resolve_version(loader, mc_version, requested).await
 }
 
-/// Merge a loader profile into the vanilla version detail: swap the main class,
-/// prepend the loader libraries, and append its extra JVM/game arguments.
-/// Returns the resolved loader version that was applied.
 pub async fn apply_loader(
     detail: &mut VersionDetail,
     loader: ModLoader,

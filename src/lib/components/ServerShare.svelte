@@ -14,11 +14,10 @@
   const instance = $derived(instancesStore.get(id));
   const globalToken = $derived((settingsStore.settings.ngrokAuthtoken ?? "").trim());
   const instanceToken = $derived((instance?.ngrokAuthtoken ?? "").trim());
-  // A per-instance token wins over the global one from Settings.
   const effectiveToken = $derived(instanceToken || globalToken);
 
   let port = $state(DEFAULT_PORT);
-  let address = $state(""); // public host:port while sharing
+  let address = $state("");
   let busy = $state(false);
   let error = $state<string | null>(null);
   let editingToken = $state(false);
@@ -29,8 +28,6 @@
     if (id && id !== lastId) {
       lastId = id;
       loadPort();
-      // The tunnel is global (one at a time); restore its state so navigating
-      // away and back doesn't lose the running address / Stop button.
       api.tunnelStatus().then((running) => (address = running ?? "")).catch(() => {});
     }
   });

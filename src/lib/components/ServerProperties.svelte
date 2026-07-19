@@ -14,8 +14,6 @@
     hint?: string;
   }
 
-  // The curated set of common properties. Any other keys already in the file
-  // are preserved untouched on save.
   const FIELDS: Field[] = [
     { key: "motd", label: "MOTD (server list message)", type: "text", def: "A Minecraft Server" },
     { key: "max-players", label: "Max players", type: "number", def: "20" },
@@ -65,7 +63,6 @@
       rawLines = lines;
       const found: Record<string, string> = {};
       for (const line of lines) if (line.kind === "kv") found[line.key] = line.value;
-      // Seed the form from the file, falling back to sensible defaults.
       const next: Record<string, string> = {};
       for (const field of FIELDS) next[field.key] = found[field.key] ?? field.def;
       values = next;
@@ -77,7 +74,6 @@
     }
   }
 
-  // (Re)load whenever the instance changes.
   let lastId = "";
   $effect(() => {
     if (id && id !== lastId) {
@@ -97,7 +93,6 @@
         }
         return line.raw;
       });
-      // Append managed keys not already present (skip empty optional values).
       for (const field of FIELDS) {
         if (!seen.has(field.key) && (values[field.key] ?? "") !== "") {
           out.push(`${field.key}=${values[field.key]}`);
@@ -106,7 +101,6 @@
       let text = out.join("\n");
       if (!text.endsWith("\n")) text += "\n";
       await api.writeServerProperties(id, text);
-      // Reflect the saved state so re-saving is stable.
       rawLines = parse(text);
       toast.success("Server properties saved.");
     } catch (error) {

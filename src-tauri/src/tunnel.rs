@@ -39,8 +39,6 @@ impl TunnelState {
     }
 }
 
-/// Open a tunnel to the local server on `port` using the host's ngrok authtoken.
-/// Returns the public address (`host:port`) to share with friends.
 #[tauri::command]
 pub async fn tunnel_start(
     state: State<'_, TunnelState>,
@@ -92,7 +90,6 @@ pub fn tunnel_stop(state: State<'_, TunnelState>) {
     state.stop();
 }
 
-/// The public address of the running tunnel, if any (to restore the UI).
 #[tauri::command]
 pub fn tunnel_status(state: State<'_, TunnelState>) -> Option<String> {
     state.address()

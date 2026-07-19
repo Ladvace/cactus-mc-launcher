@@ -15,7 +15,6 @@
     try {
       await openUrl(url);
     } catch {
-      /* ignore */
     }
   }
 
@@ -27,7 +26,6 @@
   let { hit, open, onClose }: Props = $props();
 
   const isModpack = $derived(hit?.projectType === "modpack");
-  // CurseForge modpacks use a different (non-.mrpack) format we don't handle yet.
 
   let selectedInstanceId = $state("");
   let versions = $state<ModrinthVersion[]>([]);
@@ -89,14 +87,12 @@
     mpMessage = "";
   });
 
-  // Default the target instance (content installs only).
   $effect(() => {
     if (open && !isModpack && !selectedInstanceId && instances.length > 0) {
       selectedInstanceId = instances[0].id;
     }
   });
 
-  // Load versions: unfiltered for modpacks, instance-compatible for content.
   $effect(() => {
     const currentHit = hit;
     if (!open || !currentHit) return;

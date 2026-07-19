@@ -1,7 +1,5 @@
 import { readJson, writeJson } from "$lib/storage";
 
-// Per-instance tile layout (span + order), shared across every grid so grouped
-// grids don't clobber each other's entries. Persisted to localStorage.
 export interface Cell {
   w: number;
   h: number;
@@ -44,8 +42,6 @@ class InstanceLayout {
     this.save();
   }
 
-  /** Re-index the order of the given ids (a single grid's items), preserving
-      every other instance's entry. */
   reorder(ids: string[]) {
     const next = { ...this.cells };
     ids.forEach((id, index) => {

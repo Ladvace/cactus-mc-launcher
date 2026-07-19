@@ -1,7 +1,5 @@
 use serde::{Serialize, Serializer};
 
-/// Application-wide error type. Implements `Serialize` so it can be returned
-/// directly from Tauri commands and surfaced to the frontend as a string.
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("io error: {0}")]

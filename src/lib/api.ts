@@ -28,7 +28,6 @@ import type {
   WorldInfo,
 } from "./types";
 
-/// Thin typed wrapper around the Rust command layer.
 export const api = {
   listInstances: () => invoke<Instance[]>("list_instances"),
 
@@ -42,14 +41,12 @@ export const api = {
 
   deleteInstance: (id: string) => invoke<void>("delete_instance", { id }),
 
-  /** Create a dedicated-server instance from a client instance (copies mods/config). */
   createServerFrom: (id: string) =>
     invoke<Instance>("create_server_from", { id }),
 
-  /** The instance's game folder path (for revealing it in the file manager). */
   instanceFolder: (id: string) => invoke<string>("instance_folder", { id }),
 
-  /** Move an instance's game data to `path` (null = back to the default). */
+  /** null = back to the default. */
   setInstanceGameDir: (id: string, path: string | null) =>
     invoke<Instance>("set_instance_game_dir", { id, path }),
 
@@ -117,7 +114,6 @@ export const api = {
 
   removeAccount: (id: string) => invoke<void>("remove_account", { id }),
 
-  // Content (source-agnostic; defaults to Modrinth)
   listSources: () => invoke<{ id: string; enabled: boolean }[]>("list_sources"),
 
   searchContent: (source: Source, params: SearchParams) =>
@@ -161,14 +157,11 @@ export const api = {
       iconUrl: iconUrl ?? null,
     }),
 
-  // Adaptive tune-up
   tuneupRecommend: (instanceId: string, mode: "performance" | "visuals" = "performance") =>
     invoke<TuneupPlan>("tuneup_recommend", { instanceId, mode }),
 
   tuneupApply: (instanceId: string, selection: TuneupSelection) =>
     invoke<number>("tuneup_apply", { instanceId, selection }),
-
-  // Stickers (Giphy)
 
   searchStickers: (query: string, offset = 0) =>
     invoke<Sticker[]>("search_stickers", { query, offset }),
@@ -180,19 +173,15 @@ export const api = {
   /** Installed managed Java paths keyed by major version (8/17/21). */
   resolvedJavaPaths: () => invoke<Record<string, string>>("resolved_java_paths"),
 
-  /** Empty the shared content cache; returns the (now empty) stats. */
   clearContentCache: () => invoke<CacheStats>("clear_content_cache"),
 
-  /** Factory reset: delete all instances, downloads, and settings. */
   resetAppData: () => invoke<void>("reset_app_data"),
 
-  /** The current app data directory. */
   getDataDir: () => invoke<string>("get_data_dir"),
 
-  /** Move all app data to `path` (null = back to the default location). */
+  /** null = back to the default location. */
   setDataDir: (path: string | null) => invoke<void>("set_data_dir", { path }),
 
-  // Snapshots (share / export-import)
   exportSetup: (
     instanceId: string,
     format: "cactuspack" | "mrpack" = "cactuspack",
@@ -207,36 +196,29 @@ export const api = {
   importSetup: (bytes: number[]) =>
     invoke<ImportResult>("import_setup", { bytes }),
 
-  /** Whether an instance is shareable (all CurseForge items re-downloadable). */
   instanceShareCheck: (instanceId: string) =>
     invoke<{ ok: boolean; optOut: string[] }>("instance_share_check", {
       instanceId,
     }),
 
-  /** Change the active account's Minecraft skin (PNG bytes + classic/slim). */
   setSkin: (bytes: number[], variant: "classic" | "slim") =>
     invoke<void>("set_skin", { bytes, variant }),
 
-  /** Capes owned by the active account. */
   getCapes: () =>
     invoke<{ id: string; alias: string; url: string; active: boolean }[]>(
       "get_capes"
     ),
 
-  /** Set the active cape (id) or hide it (null). */
+  /** null hides the cape. */
   setCape: (capeId: string | null) => invoke<void>("set_cape", { capeId }),
 
-  /** Live Server List Ping for `host[:port]` (default port 25565). */
   pingServer: (address: string) =>
     invoke<ServerStatus>("ping_server", { address }),
 
-  /** Open an ngrok tunnel to the local server; returns the public host:port. */
   tunnelStart: (authtoken: string, port = 25565) =>
     invoke<string>("tunnel_start", { authtoken, port }),
 
-  /** Stop the running ngrok tunnel. */
   tunnelStop: () => invoke<void>("tunnel_stop"),
 
-  /** The public address of the running tunnel, if any (to restore the UI). */
   tunnelStatus: () => invoke<string | null>("tunnel_status"),
 };

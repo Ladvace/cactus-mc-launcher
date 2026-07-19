@@ -14,10 +14,6 @@ use crate::modrinth::{SearchParams, SearchResults, Version as ModrinthVersion};
 use crate::settings::{Settings, SettingsStore};
 use crate::sources::{self, Source, SourceInfo};
 
-// ---------------------------------------------------------------------------
-// Instances
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub fn list_instances(store: State<'_, InstanceStore>) -> Vec<Instance> {
     store.list()
@@ -119,8 +115,6 @@ pub fn delete_instance(
     store.delete(&app, &id)
 }
 
-/// Create a dedicated-server instance from a client instance: same Minecraft
-/// version and loader, with its mods and configs copied over.
 #[tauri::command]
 pub fn create_server_from(
     app: AppHandle,
@@ -160,7 +154,6 @@ pub fn create_server_from(
     Ok(store.get(&server.id).unwrap_or(server))
 }
 
-/// The instance's game directory, for revealing it in the file manager.
 #[tauri::command]
 pub fn instance_folder(app: AppHandle, id: String) -> Result<String> {
     let dir = crate::paths::instance_game_dir(&app, &id)?;
@@ -168,8 +161,6 @@ pub fn instance_folder(app: AppHandle, id: String) -> Result<String> {
     Ok(dir.to_string_lossy().into_owned())
 }
 
-/// Move an instance's game data to `path` (or back to the default when null),
-/// remembering the location. Refuses while the instance is running.
 #[tauri::command]
 pub fn set_instance_game_dir(
     app: AppHandle,
@@ -201,8 +192,6 @@ pub fn set_instance_game_dir(
     Ok(instance)
 }
 
-/// Move a directory tree, falling back to copy+remove across volumes / into an
-/// existing target.
 fn move_tree(old: &std::path::Path, target: &std::path::Path) -> Result<()> {
     if !old.exists() {
         std::fs::create_dir_all(target)?;
@@ -234,10 +223,6 @@ fn copy_tree(from: &std::path::Path, to: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// Settings
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub fn get_settings(store: State<'_, SettingsStore>) -> Settings {
     store.get()
@@ -252,16 +237,11 @@ pub fn save_settings(
     store.save(&app, settings)
 }
 
-// ---------------------------------------------------------------------------
-// Minecraft metadata
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub async fn get_minecraft_versions() -> Result<VersionList> {
     minecraft::fetch_versions().await
 }
 
-/// List available loader builds for a Minecraft version (Fabric/Quilt).
 #[tauri::command]
 pub async fn get_loader_versions(
     loader: ModLoader,
@@ -269,10 +249,6 @@ pub async fn get_loader_versions(
 ) -> Result<Vec<LoaderVersion>> {
     loader::list_versions(loader, &mc_version).await
 }
-
-// ---------------------------------------------------------------------------
-// Launching
-// ---------------------------------------------------------------------------
 
 #[tauri::command]
 pub async fn launch_instance(
@@ -310,14 +286,12 @@ pub fn stop_instance(
     servers: State<'_, ServerState>,
     id: String,
 ) -> Result<()> {
-    // Servers stop gracefully (issue `stop`); clients are killed.
     if !servers.stop(&id) {
         launch.kill(&id);
     }
     Ok(())
 }
 
-/// Send a line to a running server's console (stdin). No-op if not running.
 #[tauri::command]
 pub fn send_server_command(
     servers: State<'_, ServerState>,
@@ -337,18 +311,12 @@ pub fn is_instance_running(
     launch.is_running(&id) || servers.is_running(&id)
 }
 
-// ---------------------------------------------------------------------------
-// Server configuration (server.properties)
-// ---------------------------------------------------------------------------
-
-/// Read a server's `server.properties` (empty string if it doesn't exist yet).
 #[tauri::command]
 pub fn read_server_properties(app: AppHandle, id: String) -> Result<String> {
     let file = crate::paths::instance_game_dir(&app, &id)?.join("server.properties");
     Ok(std::fs::read_to_string(file).unwrap_or_default())
 }
 
-/// Overwrite a server's `server.properties`.
 #[tauri::command]
 pub fn write_server_properties(app: AppHandle, id: String, content: String) -> Result<()> {
     let file = crate::paths::instance_game_dir(&app, &id)?.join("server.properties");
@@ -356,23 +324,21 @@ pub fn write_server_properties(app: AppHandle, id: String, content: String) -> R
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// Worlds
-// ---------------------------------------------------------------------------
-
 #[tauri::command]
 pub fn list_worlds(app: AppHandle, id: String) -> Result<Vec<crate::worlds::WorldInfo>> {
     crate::worlds::list(&app, &id)
 }
 
-/// Latest news for the Home screen (cached ~30 min; `force` refetches).
+#[tauri::command]
+pub fn backend_base() -> String {
+    crate::http::backend_base().unwrap_or_default()
+}
+
 #[tauri::command]
 pub async fn get_news(force: bool) -> Result<Vec<crate::news::NewsItem>> {
     crate::news::get(force).await
 }
 
-/// Aggregated cross-instance advancements + lifetime stats for the player.
-/// Runs off the main thread — the scan reads and parses every save's JSON.
 #[tauri::command]
 pub async fn get_achievements(
     app: AppHandle,
@@ -382,7 +348,6 @@ pub async fn get_achievements(
         .map_err(|err| AppError::Other(format!("achievements scan failed: {err}")))?
 }
 
-/// Zip a world into the instance's `backups/` folder; returns the zip path.
 #[tauri::command]
 pub fn backup_world(app: AppHandle, id: String, folder: String) -> Result<String> {
     crate::worlds::backup(&app, &id, &folder)
@@ -402,10 +367,6 @@ pub fn get_local_ip() -> Option<String> {
     sock.connect("8.8.8.8:80").ok()?;
     sock.local_addr().ok().map(|addr| addr.ip().to_string())
 }
-
-// ---------------------------------------------------------------------------
-// Server players (ops / whitelist)
-// ---------------------------------------------------------------------------
 
 #[tauri::command]
 pub fn read_ops(app: AppHandle, id: String) -> Result<Vec<crate::players::OpEntry>> {
@@ -437,10 +398,6 @@ pub fn remove_whitelist(app: AppHandle, id: String, name: String) -> Result<()> 
     crate::players::remove_whitelist(&app, &id, &name)
 }
 
-// ---------------------------------------------------------------------------
-// Java setup
-// ---------------------------------------------------------------------------
-
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct JavaSetupEvent {
@@ -449,8 +406,6 @@ struct JavaSetupEvent {
     total: usize,
 }
 
-/// Pre-install the common managed Java runtimes (8, 17, 21). Streams progress
-/// via the `java-setup` event and returns the labels of installed runtimes.
 #[tauri::command]
 pub async fn setup_java(app: AppHandle) -> Result<Vec<String>> {
     let client = crate::http::client()?;
@@ -471,8 +426,6 @@ pub async fn setup_java(app: AppHandle) -> Result<Vec<String>> {
     Ok(installed)
 }
 
-/// The installed managed Java path for each common major (8/17/21), for showing
-/// and autofilling the Settings inputs. Missing = not downloaded yet.
 #[tauri::command]
 pub fn resolved_java_paths(app: AppHandle) -> std::collections::HashMap<u32, String> {
     let mut out = std::collections::HashMap::new();
@@ -483,10 +436,6 @@ pub fn resolved_java_paths(app: AppHandle) -> std::collections::HashMap<u32, Str
     }
     out
 }
-
-// ---------------------------------------------------------------------------
-// Accounts / Microsoft auth
-// ---------------------------------------------------------------------------
 
 #[tauri::command]
 pub async fn login_microsoft(app: AppHandle) -> Result<AccountInfo> {
@@ -515,10 +464,6 @@ pub fn remove_account(
 ) -> Result<()> {
     store.remove(&app, &id)
 }
-
-// ---------------------------------------------------------------------------
-// Modrinth content
-// ---------------------------------------------------------------------------
 
 #[tauri::command]
 pub fn list_sources() -> Vec<SourceInfo> {
@@ -573,8 +518,6 @@ pub fn remove_content(app: AppHandle, instance_id: String, version_id: String) -
     content::remove(&app, &instance_id, &version_id)
 }
 
-/// Install a Modrinth modpack version as a new instance (streams progress via
-/// the `modpack-progress` event).
 #[tauri::command]
 pub async fn install_modpack(
     app: AppHandle,
@@ -588,7 +531,6 @@ pub async fn install_modpack(
     }
 }
 
-/// Search animated stickers (trending when the query is empty).
 #[tauri::command]
 pub async fn search_stickers(
     settings: State<'_, SettingsStore>,
@@ -599,14 +541,11 @@ pub async fn search_stickers(
     crate::stickers::search(&key, &query, offset).await
 }
 
-/// Download an image URL and return it as a data URI (used to store a chosen
-/// sticker as an offline instance icon).
 #[tauri::command]
 pub async fn download_image(url: String) -> Result<String> {
     crate::stickers::download_data_uri(&url).await
 }
 
-/// Stats about the shared, deduplicated content cache (files, size, disk saved).
 #[tauri::command]
 pub fn content_cache_stats(app: AppHandle) -> Result<content::CacheStats> {
     content::cache::stats(&app)
@@ -647,14 +586,11 @@ pub fn reset_app_data(
     Ok(())
 }
 
-/// The current app data directory (where instances, downloads, and settings live).
 #[tauri::command]
 pub fn get_data_dir(app: AppHandle) -> Result<String> {
     Ok(crate::paths::data_dir(&app)?.to_string_lossy().into_owned())
 }
 
-/// Move all app data to `path` (or back to the default when null) and remember
-/// the location. The frontend should reload afterwards.
 #[tauri::command]
 pub fn set_data_dir(
     app: AppHandle,
@@ -694,13 +630,11 @@ pub fn set_data_dir(
     };
     crate::paths::set_data_location(&app, &location)?;
 
-    // Reload in-memory state from the new location.
     settings.load(&app)?;
     instances.load(&app)?;
     Ok(())
 }
 
-/// Move a single file or directory, falling back to copy+remove across volumes.
 fn move_entry(src: &std::path::Path, dest: &std::path::Path) -> Result<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
@@ -719,11 +653,6 @@ fn move_entry(src: &std::path::Path, dest: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// Snapshots (share / export-import)
-// ---------------------------------------------------------------------------
-
-/// Export an instance's full setup to a `.cactuspack` or `.mrpack` file.
 #[tauri::command]
 pub async fn export_setup(
     app: AppHandle,
@@ -734,7 +663,6 @@ pub async fn export_setup(
     crate::snapshot::export(&app, &instance_id, &format, note).await
 }
 
-/// Import a snapshot (raw `.cactuspack` bytes) as a new instance.
 #[tauri::command]
 pub async fn import_setup(
     app: AppHandle,
@@ -743,12 +671,6 @@ pub async fn import_setup(
     crate::snapshot::import(&app, bytes).await
 }
 
-// ---------------------------------------------------------------------------
-// Streamer service (sign-in + publish)
-// ---------------------------------------------------------------------------
-
-/// Sign in to the boards service using the player's Minecraft account
-/// (Mojang hasJoined handshake). Returns a backend session token.
 #[tauri::command]
 pub async fn board_login(
     app: AppHandle,
@@ -757,8 +679,6 @@ pub async fn board_login(
     crate::board_auth::login(&app, &api_base).await
 }
 
-/// Export an instance and publish it — to a board you own (when `board_handle`
-/// is set) or as a standalone shareable snapshot. Returns the snapshot id.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn publish_setup(
@@ -818,10 +738,6 @@ pub async fn instance_share_check(app: AppHandle, instance_id: String) -> Result
     })
 }
 
-// ---------------------------------------------------------------------------
-// Character skin
-// ---------------------------------------------------------------------------
-
 /// Change the active Microsoft account's Minecraft skin. `variant` is
 /// "classic" or "slim". `bytes` is a 64×64 (or 64×32) PNG skin.
 #[tauri::command]
@@ -860,7 +776,6 @@ pub async fn set_skin(
     Ok(())
 }
 
-/// A cape the account owns.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Cape {
@@ -870,7 +785,6 @@ pub struct Cape {
     active: bool,
 }
 
-/// List the capes on the active Microsoft account.
 #[tauri::command]
 pub async fn get_capes(store: State<'_, AccountStore>) -> Result<Vec<Cape>> {
     let account = store
@@ -908,7 +822,6 @@ pub async fn get_capes(store: State<'_, AccountStore>) -> Result<Vec<Cape>> {
     Ok(out)
 }
 
-/// Set the active cape (`Some(id)`) or hide it (`None`).
 #[tauri::command]
 pub async fn set_cape(store: State<'_, AccountStore>, cape_id: Option<String>) -> Result<()> {
     let account = store
@@ -935,10 +848,6 @@ pub async fn set_cape(store: State<'_, AccountStore>, cape_id: Option<String>) -
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// Adaptive tune-up (hardware-aware performance recommendation)
-// ---------------------------------------------------------------------------
-
 /// Inspect the machine + instance and return a tailored performance plan.
 /// `mode` is "performance" (default) or "visuals" (adds shader support).
 #[tauri::command]
@@ -950,8 +859,6 @@ pub async fn tuneup_recommend(
     crate::tuneup::recommend(&app, &instance_id, mode.as_deref().unwrap_or("performance")).await
 }
 
-/// Apply a tune-up selection: install chosen mods and optionally set heap/flags.
-/// Returns the number of mods installed.
 #[tauri::command]
 pub async fn tuneup_apply(
     app: AppHandle,
@@ -961,11 +868,6 @@ pub async fn tuneup_apply(
     crate::tuneup::apply(&app, &instance_id, selection).await
 }
 
-// ---------------------------------------------------------------------------
-// Server list sync (write a server into an instance's servers.dat)
-// ---------------------------------------------------------------------------
-
-/// Add a server to an instance's in-game multiplayer list (servers.dat).
 #[tauri::command]
 pub fn add_server_to_instance(
     app: AppHandle,

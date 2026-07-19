@@ -8,7 +8,6 @@ function load(): BoardSession | null {
   return readJson<BoardSession | null>(KEY, null);
 }
 
-/// Boards-service session, authenticated with the player's Minecraft account.
 class BoardAuth {
   session = $state<BoardSession | null>(load());
   loggingIn = $state(false);

@@ -13,16 +13,12 @@ use crate::error::{AppError, Result};
 use crate::launch::download::DownloadTask;
 use crate::paths;
 
-/// Path of the cached blob for a given SHA-1 (sharded by the first two chars).
 pub fn blob_path(app: &AppHandle, sha1: &str) -> Result<PathBuf> {
     let sha1_lower = sha1.to_lowercase();
     let shard = if sha1_lower.len() >= 2 { &sha1_lower[..2] } else { "00" };
     Ok(paths::content_cache_dir(app)?.join(shard).join(&sha1_lower))
 }
 
-/// Ensure the file is in the cache and return its blob path. Skips the download
-/// entirely when the expected hash is already cached; otherwise downloads,
-/// verifies (or computes) the hash, and stores it.
 pub async fn fetch(
     client: &reqwest::Client,
     app: &AppHandle,
@@ -69,7 +65,6 @@ pub async fn fetch(
     Ok(blob)
 }
 
-/// Hard-link a cached blob to `dest` (falling back to a copy across filesystems).
 pub fn link_into(blob: &Path, dest: &Path) -> Result<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
@@ -87,7 +82,6 @@ pub fn link_into(blob: &Path, dest: &Path) -> Result<()> {
     }
 }
 
-/// Fetch (deduplicated) then link a single file into place.
 pub async fn install_one(
     client: &reqwest::Client,
     app: &AppHandle,
@@ -99,8 +93,6 @@ pub async fn install_one(
     link_into(&blob, dest)
 }
 
-/// Concurrently install many files through the cache, reporting progress. Mirrors
-/// `download::download_all` but every file is deduplicated and hard-linked.
 pub async fn install_all<F>(
     client: &reqwest::Client,
     app: &AppHandle,
@@ -133,7 +125,6 @@ where
     Ok(())
 }
 
-/// Stats about the shared cache and how much duplication it saves.
 #[derive(Debug, Default, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CacheStats {
@@ -147,7 +138,6 @@ pub struct CacheStats {
     pub saved_bytes: u64,
 }
 
-/// Walk the cache and every instance's game folder to report dedup savings.
 pub fn stats(app: &AppHandle) -> Result<CacheStats> {
     use std::collections::HashMap;
 

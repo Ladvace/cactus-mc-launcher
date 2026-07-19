@@ -1,8 +1,5 @@
 import { readJson, writeJson } from "$lib/storage";
 
-// Per-group (folder) cover images, keyed by group name. Groups are implicit
-// (just a label on instances), so their cover art lives here in localStorage.
-
 const KEY = "cactus:groupCovers";
 
 function load(): Record<string, string> {
@@ -32,7 +29,6 @@ class GroupCovers {
     this.persist();
   }
 
-  /** Keep the cover when a folder is renamed. */
   rename(from: string, to: string) {
     const uri = this.covers[from];
     if (!uri || from === to) return;

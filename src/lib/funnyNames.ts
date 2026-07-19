@@ -1,5 +1,3 @@
-// Silly Minecraft-flavoured instance names. Pure client-side fun.
-
 const ADJECTIVES = [
   "Chunky", "Sneaky", "Blocky", "Explosive", "Mossy", "Enchanted", "Cursed",
   "Glowing", "Frosty", "Pixelated", "Legendary", "Grumpy", "Turbo", "Soggy",
@@ -14,7 +12,6 @@ const NOUNS = [
   "Turtle", "Panda", "Fox", "Dolphin", "Shulker", "Ravager",
 ];
 
-// Occasional full-phrase gems for extra flavour.
 const SPECIALS = [
   "Diamonds Are Forever", "Creeper Aw Man", "One More Night Mining",
   "Just One More Diamond", "The Nether Regrets", "Dirt Hut Deluxe",
@@ -27,7 +24,6 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/** A random funny instance name — mostly adjective+noun, sometimes a full gag. */
 export function randomInstanceName(): string {
   if (Math.random() < 0.18) return pick(SPECIALS);
   return `${pick(ADJECTIVES)} ${pick(NOUNS)}`;

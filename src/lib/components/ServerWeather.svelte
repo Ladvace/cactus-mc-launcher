@@ -11,7 +11,6 @@
   let failed = $state(false);
   let history = $state<ServerSample[]>([]);
 
-  // Peak of the 24h window — the "how busy does it usually get" reference.
   const peak = $derived(
     history.reduce((most, sample) => Math.max(most, sample.online ?? 0), 0)
   );
@@ -39,8 +38,7 @@
     }
   }
 
-  // Re-ping and reload history whenever the address changes (read it
-  // synchronously so the effect tracks it).
+  // Read address synchronously so the effect tracks it as a dependency.
   $effect(() => {
     void address;
     refresh();

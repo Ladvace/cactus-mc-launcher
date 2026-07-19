@@ -6,7 +6,6 @@ function load(): string[] {
   return readJson<string[]>(KEY, []);
 }
 
-/// Handles of boards the user follows — these become tabs in the Community view.
 class FollowedBoards {
   handles = $state<string[]>(load());
 

@@ -3,7 +3,6 @@ pub mod store;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// Supported mod loaders. `Vanilla` means no loader.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum ModLoader {
@@ -15,7 +14,6 @@ pub enum ModLoader {
     NeoForge,
 }
 
-/// Whether an instance is a normal game client or a dedicated server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum InstanceKind {
@@ -24,10 +22,6 @@ pub enum InstanceKind {
     Server,
 }
 
-/// A single game installation the user can configure and launch.
-///
-/// Persisted as `instance.json` inside the instance's own folder. Game files
-/// (mods, saves, config, the versioned client) live alongside it later.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Instance {
@@ -41,15 +35,11 @@ pub struct Instance {
     pub icon: Option<String>,
     pub mc_version: String,
     pub loader: ModLoader,
-    /// Loader version (e.g. a Fabric loader build). `None` for vanilla or "latest".
     pub loader_version: Option<String>,
-    /// Optional grouping label shown in the library (e.g. "Modpacks").
     pub group: Option<String>,
     pub created: DateTime<Utc>,
     pub last_played: Option<DateTime<Utc>>,
     pub total_playtime_seconds: u64,
-    /// When true, the icon is shown full-bleed (cover) behind the tile instead
-    /// of as a small centered thumbnail.
     #[serde(default)]
     pub cover_image: bool,
     /// Max heap (MB) for a dedicated server. `None` falls back to the global
@@ -57,18 +47,14 @@ pub struct Instance {
     #[serde(default)]
     pub server_memory_mb: Option<u32>,
 
-    // --- Per-instance overrides (each `None` = use the global setting) ---
     #[serde(default)]
     pub max_memory_mb: Option<u32>,
     #[serde(default)]
     pub min_memory_mb: Option<u32>,
-    /// Extra JVM args for this instance (replaces the global ones when set).
     #[serde(default)]
     pub jvm_args: Option<String>,
-    /// Explicit Java executable path for this instance.
     #[serde(default)]
     pub java_path: Option<String>,
-    /// Game window size (client only).
     #[serde(default)]
     pub game_width: Option<u32>,
     #[serde(default)]
@@ -78,7 +64,6 @@ pub struct Instance {
     /// instance's data to another drive/folder without moving its record.
     #[serde(default)]
     pub game_dir: Option<String>,
-    /// ngrok authtoken for sharing this server, overriding the global one.
     #[serde(default)]
     pub ngrok_authtoken: Option<String>,
 }
@@ -118,7 +103,6 @@ impl Instance {
     }
 }
 
-/// Payload sent from the frontend to create a new instance.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateInstance {
@@ -134,7 +118,6 @@ pub struct CreateInstance {
     pub icon: Option<String>,
 }
 
-/// Patch payload for editing an existing instance. Only `Some` fields are applied.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInstance {
@@ -170,7 +153,6 @@ mod tests {
 
     #[test]
     fn old_instance_json_deserializes_with_field_defaults() {
-        // A pre-server/pre-overrides instance.json (missing the newer fields).
         let json = r#"{
             "id":"abc","name":"Old","icon":null,"mcVersion":"1.20.1",
             "loader":"fabric","loaderVersion":null,"group":null,

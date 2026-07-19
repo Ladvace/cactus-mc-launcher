@@ -22,20 +22,14 @@
   const pos = $derived(settingsStore.settings.dockPosition ?? "bottom");
   const horizontal = $derived(pos === "top" || pos === "bottom");
   const magnify = $derived(settingsStore.settings.dockMagnify ?? true);
-  // A themed sprite perched on the dock's corner, from the active decor theme.
   const peek = $derived(
     DECOR_THEMES.find((decorTheme) => decorTheme.id === (settingsStore.settings.decorTheme ?? ""))?.peek
   );
 
   const path = $derived($page.url.pathname);
 
-  // Track viewport height so a vertical (left/right) dock fits the space
-  // instead of running off the top/bottom.
   let winH = $state(browser ? window.innerHeight : 900);
 
-  // How many instance tiles to pin. Top/bottom keep the flat cap of 7; left/
-  // right compute how many fit in the height, reserving one slot for the
-  // overflow tile when it's needed so the bar never overflows the screen.
   const cap = $derived.by(() => {
     if (horizontal) return 7;
     const chrome = 52; // dock padding + border + a little breathing room
@@ -49,8 +43,6 @@
   const overflow = $derived(Math.max(0, instancesStore.instances.length - cap));
   const overflowList = $derived(instancesStore.instances.slice(cap));
 
-  // Popover listing the instances that don't fit on the dock. Its position is
-  // computed to open away from the docked edge, so an inline style string.
   let overflowMenu = $state<string | null>(null);
   $effect(() => {
     if (overflow === 0) overflowMenu = null;
@@ -84,9 +76,6 @@
     | { kind: "settings"; href: string; label: string }
     | { kind: "account"; label: string };
 
-  // A persistent modpack-download indicator, shown on every page while an
-  // install runs — except when the installing instance is already a pinned tile
-  // (its own tile shows the progress), which would be redundant.
   const dlId = $derived(installStore.primaryInstanceId());
   const showDownloads = $derived(
     installStore.anyActive() && !(dlId && pinned.some((instance) => instance.id === dlId))
@@ -126,15 +115,13 @@
     { kind: "account", label: accountsStore.activeName },
   ]);
 
-  // --- macOS-style magnification ---
   const ITEM = 48;
   const SEP = 6;
   const GAP = 8;
   const PAD = 14; // dock border (2) + padding-left (12)
-  const MAX = 1.28; // subtle magnification
+  const MAX = 1.28;
   const RANGE = 100;
 
-  // Resting center X of each item, relative to the dock's content start.
   const centers = $derived.by(() => {
     let cx = 0;
     const positions: number[] = [];
@@ -149,8 +136,6 @@
   let dockEl = $state<HTMLElement>();
   let dockStart = 0; // captured on enter (resting frame) to avoid feedback drift
   let scales = $state<number[]>([]);
-  // Throttle to one update per animation frame — mousemove can fire far more
-  // often than the display refreshes, which otherwise thrashes layout.
   let mouseX = 0;
   let mouseY = 0;
   let inside = false;
@@ -367,7 +352,6 @@
   [data-pos="top"] .dock {
     align-items: flex-start;
   }
-  /* Vertical docks: stack items in a column. */
   [data-pos="left"] .dock,
   [data-pos="right"] .dock {
     flex-direction: column;
@@ -385,7 +369,6 @@
     margin: 4px 2px;
     background: var(--border);
   }
-  /* Themed sprite that perches on / peeks over the dock's outer corner. */
   .dock-peek {
     position: absolute;
     width: 40px;
@@ -429,8 +412,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* transform grows the icon away from the docked edge without resizing the
-       bar; the margin reserves flow-axis space so neighbours never overlap. */
     transform: scale(var(--s));
     transform-origin: bottom center;
     margin: 0 calc((var(--s) - 1) * 24px);
@@ -459,7 +440,6 @@
     color: var(--accent);
     border-color: var(--border);
   }
-  /* A running instance gets a green border + a glowing corner dot. */
   .dock-item.running {
     border-color: #57c84a;
   }
@@ -486,8 +466,6 @@
       opacity: 0.35;
     }
   }
-  /* A fixed inner area so every item — line icon, instance icon, avatar —
-     occupies the same centered footprint and lines up across the row. */
   .glyph {
     width: 44px;
     height: 44px;
@@ -495,8 +473,6 @@
     align-items: center;
     justify-content: center;
   }
-  /* The dock tile already provides the frame; drop the icon's own border so
-     instance/account tiles don't read as a box inside a box. */
   .glyph :global(.icon-img),
   .glyph :global(.icon-fallback) {
     border: none;
@@ -507,7 +483,6 @@
     object-fit: cover;
     image-rendering: pixelated;
   }
-  /* Marks a dedicated-server tile, mirroring the "SERVER" badge on Home. */
   .kind-badge {
     position: absolute;
     top: 2px;
@@ -583,7 +558,6 @@
     gap: 1px;
     background: rgba(10, 9, 8, 0.78);
   }
-  /* Standalone dock download indicator (pre-creation / non-pinned installs). */
   .dl-glyph {
     display: flex;
     flex-direction: column;
@@ -637,7 +611,6 @@
     position: absolute;
     bottom: calc(100% + 9px);
     left: 50%;
-    /* counter-scale so the label stays a normal size while the item magnifies */
     transform: translateX(-50%) scale(calc(1 / var(--s)));
     transform-origin: bottom center;
     padding: 3px 8px;
@@ -651,7 +624,6 @@
     pointer-events: none;
     transition: opacity 0.1s;
   }
-  /* Tooltips point away from the docked edge. */
   [data-pos="top"] .tip {
     bottom: auto;
     top: calc(100% + 9px);

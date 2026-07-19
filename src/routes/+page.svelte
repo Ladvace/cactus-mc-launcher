@@ -23,7 +23,6 @@
   let arranging = $state(false);
   let openFolder = $state<string | null>(null);
 
-  // Build grid entries: ungrouped instances as tiles, each group as a folder.
   const entries = $derived.by<Entry[]>(() => {
     const map = new Map<string, Instance[]>();
     const list: Entry[] = [];
@@ -72,8 +71,6 @@
       : []),
   ]);
 
-  // Launch a random playable (non-server) instance, preferring ones not already
-  // running, and open its page so the launch progress is visible.
   function playRandom() {
     const clients = instancesStore.instances.filter((instance) => instance.kind !== "server");
     if (clients.length === 0) return;
@@ -127,8 +124,6 @@
     }
   }
 
-  // Arranging reorders the whole collection, so it only makes sense on the
-  // full, unfiltered list.
   const filtersActive = $derived(query.trim() !== "" || loaderFilter !== "all");
   $effect(() => {
     if (filtersActive && arranging) arranging = false;
@@ -276,7 +271,6 @@
 
 <style>
   .page {
-    /* Fill the viewport so right-clicking the empty area still opens the menu. */
     min-height: 100%;
   }
   .hero-actions {
@@ -285,7 +279,6 @@
     gap: 10px;
     flex-shrink: 0;
   }
-  /* A search-bar-styled trigger that advertises the ⌘K/Ctrl+K palette. */
   .cmdk {
     display: inline-flex;
     align-items: center;

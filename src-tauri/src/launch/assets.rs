@@ -28,7 +28,6 @@ struct AssetIndex {
     map_to_resources: bool,
 }
 
-/// What the resolved assets need at launch time.
 pub struct ResolvedAssets {
     pub downloads: Vec<DownloadTask>,
     /// The `--assetsDir` to pass. For legacy/virtual layouts this points at the
@@ -38,7 +37,6 @@ pub struct ResolvedAssets {
     copies: Vec<(PathBuf, PathBuf)>,
 }
 
-/// Fetch and parse the asset index, producing download tasks for every object.
 pub async fn resolve(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -50,7 +48,6 @@ pub async fn resolve(
     let indexes_dir = assets_root.join("indexes");
     std::fs::create_dir_all(&indexes_dir)?;
 
-    // Cache the index file itself.
     let index_path = indexes_dir.join(format!("{}.json", index_ref.id));
     let index_task = DownloadTask {
         url: index_ref.url.clone(),
@@ -105,7 +102,6 @@ pub async fn resolve(
 }
 
 impl ResolvedAssets {
-    /// Copy objects into their virtual/legacy locations (no-op for modern versions).
     pub fn materialize_virtual(&self) -> Result<()> {
         for (src, dst) in &self.copies {
             if let Some(parent) = dst.parent() {

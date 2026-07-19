@@ -34,8 +34,6 @@
   const iconFor = (width: number, height: number) =>
     Math.min(width, height) >= 2 ? 120 : Math.max(width, height) >= 2 ? 84 : 60;
 
-  // Preview icon size for a folder tile of `w`×`h` cells. The 2×2 preview grid
-  // grows with the tile so the contained instances scale up when it's resized.
   const CELL = 168;
   function folderIcon(width: number, height: number): number {
     const availW = width * CELL + (width - 1) * GAP - 28; // folder + preview padding/border
@@ -49,25 +47,23 @@
     [...entries].sort((first, second) => cellOf(first.id).order - cellOf(second.id).order)
   );
 
-  // --- Pointer-based drag: reorder (arrange mode) or group (normal mode) ---
   let draggingId = $state<string | null>(null);
   let dragKind = $state<"instance" | "folder" | null>(null);
-  let dropTarget = $state<string | null>(null); // groupable tile under the cursor
+  let dropTarget = $state<string | null>(null);
 
-  // Non-reactive pointer session bookkeeping.
   let press: {
     id: string;
     kind: "instance" | "folder";
     el: HTMLElement;
     startX: number;
     startY: number;
-    offX: number; // cursor offset inside the tile
+    offX: number;
     offY: number;
   } | null = null;
   let started = false;
   let clone: HTMLElement | null = null;
   let suppressClick = false;
-  let lastOver: string | null = null; // last tile hovered (arrange reorder guard)
+  let lastOver: string | null = null;
 
   function onTilePointerDown(event: PointerEvent, entry: Entry) {
     if (event.button !== 0 || resizing) return;
@@ -169,8 +165,6 @@
     return name;
   }
 
-  // Fly the clone into the target tile, then remove it — the "join" animation.
-  // targetId set => glide + shrink into the group; null => snap back to source.
   function flyCloneInto(targetId: string | null) {
     const cloneEl = clone;
     clone = null;
@@ -185,7 +179,6 @@
       const dx = dest.left + dest.width / 2 - (cloneRect.left + cloneRect.width / 2);
       const dy = dest.top + dest.height / 2 - (cloneRect.top + cloneRect.height / 2);
       const scale = joining ? 0.32 : 1;
-      // Glide over ~0.44s; hold opacity a beat so the shrink reads before it fades.
       cloneEl.style.transition =
         "transform 0.44s cubic-bezier(0.32, 0.72, 0.3, 1), opacity 0.34s ease 0.16s";
       cloneEl.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
@@ -209,7 +202,6 @@
 
   function endDrag() {
     if (clone) {
-      // Cancelled without grouping — snap back to where it came from.
       flyCloneInto(null);
     }
     if (started) suppressClick = true;
@@ -220,7 +212,6 @@
     dropTarget = null;
   }
 
-  // --- Global pointer handlers (shared with resize below) ---
   function onPointerMove(event: PointerEvent) {
     if (resizing) return onResizeMove(event);
     if (!press) return;
@@ -241,8 +232,6 @@
       return;
     }
 
-    // Normal mode: highlight a groupable tile under the cursor. Grouping only
-    // happens when the button is released over it (see onPointerUp).
     if (dragKind !== "instance") return;
     dropTarget = overId && overId !== draggingId ? overId : null;
   }
@@ -251,7 +240,7 @@
     if (resizing) return onResizeUp();
     if (!press) return;
     if (started && !arranging && dragKind === "instance" && dropTarget) {
-      commitGroup(dropTarget); // drop-to-group without waiting for the dwell
+      commitGroup(dropTarget);
       return;
     }
     endDrag();
@@ -267,7 +256,6 @@
     }
   }
 
-  // --- Resize by dragging an edge/corner (arrange mode) ---
   type Axis = "e" | "s" | "se";
   let resizing = $state<{
     id: string;
@@ -396,7 +384,6 @@
     pointer-events: none;
     border-style: dashed;
   }
-  /* Source tile becomes a faint "hole" — the opaque clone is what you drag. */
   .tile.dragging {
     opacity: 0.28;
     animation: none;
@@ -422,14 +409,12 @@
     }
   }
 
-  /* Floating drag clone (appended to <body>). */
   :global(.drag-clone) {
     cursor: grabbing;
     box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5);
     will-change: transform, left, top;
   }
 
-  /* Folder tile */
   .folder {
     position: relative;
     height: 100%;
@@ -447,7 +432,6 @@
     border-color: var(--accent);
     transform: translateY(-2px);
   }
-  /* Cover mode: a full-bleed image behind the folder name. */
   .folder.has-cover {
     padding: 0;
     overflow: hidden;

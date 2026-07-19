@@ -44,7 +44,6 @@
 
   onDestroy(() => viewer?.dispose());
 
-  // React to skin/model changes (reload with the chosen arm model).
   $effect(() => {
     void skin;
     void model;

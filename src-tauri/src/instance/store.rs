@@ -15,7 +15,6 @@ pub struct InstanceStore {
 }
 
 impl InstanceStore {
-    /// Scan the instances directory and populate the cache. Called once at startup.
     pub fn load(&self, app: &AppHandle) -> Result<()> {
         let dir = paths::instances_dir(app)?;
         let mut map = HashMap::new();
@@ -41,7 +40,6 @@ impl InstanceStore {
         Ok(())
     }
 
-    /// All instances, sorted most-recently-played first, then by name.
     pub fn list(&self) -> Vec<Instance> {
         let mut list: Vec<Instance> = self.cache.lock().unwrap().values().cloned().collect();
         list.sort_by(|a, b| {
@@ -56,8 +54,7 @@ impl InstanceStore {
         self.cache.lock().unwrap().get(id).cloned()
     }
 
-    /// Persist an instance (create or overwrite) and update the cache. On the
-    /// first save of a new instance, pin its game directory from the global
+    /// On the first save of a new instance, pin its game directory from the global
     /// instances-folder setting so a later change never moves existing data.
     pub fn save(&self, app: &AppHandle, instance: &Instance) -> Result<()> {
         let mut instance = instance.clone();
@@ -77,8 +74,6 @@ impl InstanceStore {
         Ok(())
     }
 
-    /// Remove an instance: its record folder and, if it lives elsewhere, its
-    /// custom game directory.
     pub fn delete(&self, app: &AppHandle, id: &str) -> Result<()> {
         let removed = self.cache.lock().unwrap().remove(id);
         let Some(instance) = removed else {

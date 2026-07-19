@@ -8,8 +8,6 @@ pub fn client() -> Result<reqwest::Client> {
     crate::http::client()
 }
 
-// --- Search ----------------------------------------------------------------
-
 #[derive(Debug, Serialize, Deserialize)]
 // Modrinth returns snake_case; the frontend expects camelCase.
 #[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
@@ -51,7 +49,6 @@ pub struct SearchResults {
     pub limit: u64,
 }
 
-/// Parameters for a content search.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchParams {
@@ -72,7 +69,6 @@ pub struct SearchParams {
     pub limit: u64,
 }
 
-/// Search Modrinth projects, translating the params into labrinth facets.
 pub async fn search(params: SearchParams) -> Result<SearchResults> {
     let mut facets: Vec<Vec<String>> = vec![vec![format!("project_type:{}", params.project_type)]];
     if let Some(version) = params.game_version.as_deref().filter(|value| !value.is_empty()) {
@@ -108,8 +104,6 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
 
     Ok(resp.error_for_status()?.json().await?)
 }
-
-// --- Versions --------------------------------------------------------------
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct VersionHashes {
@@ -153,7 +147,6 @@ pub struct Version {
     pub downloads: u64,
 }
 
-/// List a project's versions, optionally filtered by loader and game version.
 pub async fn get_versions(
     project_id: &str,
     loader: Option<&str>,
@@ -169,7 +162,6 @@ pub async fn get_versions(
     Ok(req.send().await?.error_for_status()?.json().await?)
 }
 
-/// Fetch a single version by id.
 pub async fn get_version(version_id: &str) -> Result<Version> {
     Ok(client()?
         .get(format!("{API_BASE}/version/{version_id}"))
@@ -181,7 +173,6 @@ pub async fn get_version(version_id: &str) -> Result<Version> {
 }
 
 impl Version {
-    /// The primary downloadable file (or the first, as a fallback).
     pub fn primary_file(&self) -> Option<&VersionFile> {
         self.files
             .iter()

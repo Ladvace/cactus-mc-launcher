@@ -1,8 +1,3 @@
-// Client for the hosted Boards service (server/). Disabled until a base URL is
-// configured via VITE_STREAMER_API_URL, so online features stay inert until the
-// backend is deployed. Auth is the player's Minecraft account (via a Rust
-// command that does the Mojang hasJoined handshake) — no Supabase/OAuth.
-
 import { invoke } from "@tauri-apps/api/core";
 import { api } from "$lib/api";
 import type {
@@ -16,8 +11,16 @@ import type {
   SnapshotManifest,
 } from "$lib/types";
 
-const env = (import.meta as any).env ?? {};
-const BASE = (env.VITE_STREAMER_API_URL ?? "").replace(/\/$/, "");
+let BASE = "";
+let ready: Promise<void> | null = null;
+
+export function initBoardApi(): Promise<void> {
+  return (ready ??= invoke<string>("backend_base")
+    .then((base) => {
+      BASE = (base ?? "").replace(/\/$/, "");
+    })
+    .catch(() => {}));
+}
 
 export function boardsConfigured(): boolean {
   return BASE.length > 0;
@@ -55,11 +58,9 @@ async function authed<T>(
 export const boardApi = {
   configured: boardsConfigured,
 
-  /** Sign in with the active Minecraft account; returns a session token. */
   login: () =>
     invoke<BoardSession>("board_login", { apiBase: BASE }),
 
-  // --- Discovery / viewing (public) ---
   search: (query: string) =>
     get<{ results: BoardCard[] }>(
       `/v1/boards?q=${encodeURIComponent(query)}`
@@ -76,7 +77,6 @@ export const boardApi = {
       `/v1/codes/${encodeURIComponent(code.trim().toLowerCase())}`
     ),
 
-  /** Download a hosted snapshot and import it, reusing the Rust importer. */
   async importSnapshot(id: string): Promise<ImportResult> {
     const res = await fetch(`${BASE}/v1/snapshots/${id}/blob`);
     if (!res.ok) throw new Error(`couldn't download snapshot (${res.status})`);
@@ -84,7 +84,6 @@ export const boardApi = {
     return api.importSetup(bytes);
   },
 
-  // --- Creator (authed) ---
   myBoards: (token: string) =>
     authed<{ boards: OwnedBoard[] }>(`/v1/boards/me`, token).then((data) => data.boards),
 
@@ -140,7 +139,6 @@ export const boardApi = {
       body: JSON.stringify({ targetHandle, reason }),
     }),
 
-  // --- Presence (opt-in "who's online") ---
   listPresence: (token: string) =>
     authed<{ players: PresencePlayer[] }>(`/v1/presence`, token).then((data) => data.players),
   setPresence: (
@@ -150,7 +148,6 @@ export const boardApi = {
   clearPresence: (token: string) =>
     authed<void>(`/v1/presence`, token, { method: "DELETE" }),
 
-  /** Export an instance and publish it (to a board, or standalone). Returns id. */
   publish: (
     instanceId: string,
     format: "cactuspack" | "mrpack",
@@ -167,7 +164,6 @@ export const boardApi = {
       changelog: opts.changelog?.trim() || null,
     }),
 
-  /** Player-count history for a server board's address (default last 24h). */
   serverHistory: (address: string, hours = 24) =>
     get<{ samples: ServerSample[] }>(
       `/v1/servers/history?address=${encodeURIComponent(address)}&hours=${hours}`

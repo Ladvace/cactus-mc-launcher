@@ -52,15 +52,12 @@
     SOURCES.find((option) => option.value === source)?.label ?? "the content source"
   );
 
-  // Debounce the search text.
   $effect(() => {
     const currentQuery = query;
     const timer = setTimeout(() => (debounced = currentQuery), 350);
     return () => clearTimeout(timer);
   });
 
-  // Which sources are available (CurseForge only when the backend proxy is
-  // configured in this build; the API key lives on the backend, not here).
   $effect(() => {
     api
       .listSources()
@@ -72,7 +69,6 @@
       .catch(() => {});
   });
 
-  // Load release versions once for the game-version filter.
   $effect(() => {
     if (gameVersions.length === 0) {
       api
@@ -86,7 +82,6 @@
     }
   });
 
-  // Re-search when any facet changes.
   $effect(() => {
     // Track dependencies:
     void [source, activeType, debounced, gameVersion, loader, sort];

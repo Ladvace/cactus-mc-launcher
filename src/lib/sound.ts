@@ -1,7 +1,3 @@
-// Tiny self-contained UI sound generator (Web Audio — no audio assets to ship).
-// A short, soft click for button presses. Gated by the `uiSounds` setting via
-// the global listener that calls these.
-
 let ctx: AudioContext | null = null;
 
 function audio(): AudioContext | null {
@@ -14,7 +10,6 @@ function audio(): AudioContext | null {
   }
 }
 
-/** A soft, quick click — a triangle blip with a fast decay. */
 export function playClick(volume = 0.12) {
   const ac = audio();
   if (!ac) return;

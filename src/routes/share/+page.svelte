@@ -14,7 +14,6 @@
 
   const online = boardApi.configured();
 
-  // If already signed in, learn whether the user has a board (to flip the button).
   let hasBoard = $state(false);
   $effect(() => {
     const token = boardAuth.token;
@@ -26,8 +25,6 @@
   });
 
   let active = $state<"discover" | string>("discover");
-  // Board-handle tabs = followed boards, plus the current one if it's an
-  // ad-hoc board being viewed. "discover"/"play" are built-in, not handles.
   const BUILTIN = ["discover", "play"];
   const tabs = $derived(
     !BUILTIN.includes(active) && !followedBoards.handles.includes(active)
@@ -246,7 +243,6 @@
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
-  /* Play together stands out: pushed to the far right, filled accent chip. */
   .tab.play {
     margin-left: auto;
     display: inline-flex;

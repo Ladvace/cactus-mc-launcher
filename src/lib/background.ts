@@ -10,7 +10,6 @@ export const PATTERNS = ["dots", "grid", "diagonal", "checker"] as const;
 
 export const DEFAULT_COLOR = "#17161a";
 
-/** Split `pattern:<name>[|#color]` into its parts. */
 export function parsePattern(bg: string): { name: string; color: string | null } {
   const rest = bg.slice("pattern:".length);
   const separatorIndex = rest.indexOf("|");
@@ -93,7 +92,6 @@ function patternCss(name: string, color: string | null): string {
   }
 }
 
-/** CSS `background` shorthand value for a stored background string. */
 export function backgroundCss(bg: string): string {
   if (!bg || bg === "default") return "var(--bg-app)";
   if (bg.startsWith("color:")) return bg.slice(6) || "var(--bg-app)";
@@ -103,22 +101,18 @@ export function backgroundCss(bg: string): string {
   }
   if (bg.startsWith("image:")) {
     const { uri, color } = parseImage(bg);
-    // Scrim over the image so foreground text stays readable.
     const scrim = hexToRgba(color ?? DEFAULT_COLOR, 0.55);
     return `linear-gradient(${scrim}, ${scrim}), url("${uri}") center / cover no-repeat`;
   }
   if (bg.startsWith("tile:")) {
     const { uri, color } = parseTile(bg);
     const base = color || "var(--bg-app)";
-    // A decor sprite repeated as sparse wallpaper over a base colour.
     return `url("${uri}") 0 0 / 140px repeat, ${base}`;
   }
   if (bg.startsWith("texture:")) {
     const { uri, color, opacity } = parseTexture(bg);
-    // A full texture tiled as wallpaper. A colour overlay fills whatever the
-    // texture's opacity leaves, so it reads as a subtle surface rather than a
-    // busy image. Tiled at the image's intrinsic size (no fractional scaling)
-    // so the repeats meet without a subpixel seam.
+    // Tiled at the image's intrinsic size (no fractional scaling) so the repeats
+    // meet without a subpixel seam.
     const overlayAlpha = Math.max(0, Math.min(1, 1 - opacity));
     const scrim = hexToRgba(color ?? DEFAULT_COLOR, overlayAlpha);
     return `linear-gradient(${scrim}, ${scrim}), url("${uri}") repeat`;

@@ -12,7 +12,6 @@
         if (copied === id) copied = null;
       }, 1500);
     } catch {
-      /* clipboard unavailable */
     }
   }
 </script>
@@ -46,7 +45,7 @@
   .toaster {
     position: fixed;
     right: 18px;
-    bottom: 100px; /* clear the dock */
+    bottom: 100px;
     z-index: 400;
     display: flex;
     flex-direction: column-reverse;
@@ -97,7 +96,6 @@
     color: var(--text);
     line-height: 1.4;
     word-break: break-word;
-    /* keep long errors from taking the whole screen; still fully copiable */
     max-height: 8em;
     overflow-y: auto;
     user-select: text;

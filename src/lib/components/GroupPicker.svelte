@@ -6,7 +6,6 @@
 
   const inst = $derived(ui.groupFor);
 
-  // Existing group names across all instances.
   const groups = $derived(
     [
       ...new Set(

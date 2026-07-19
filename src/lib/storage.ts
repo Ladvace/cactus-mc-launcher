@@ -1,8 +1,5 @@
-// Shared localStorage helpers used by the runes stores. Every access is guarded
-// by `browser` so SSR/prerender (where localStorage is absent) is a no-op.
 import { browser } from "$app/environment";
 
-/** Parse a JSON value from localStorage, falling back on missing/corrupt data. */
 export function readJson<T>(key: string, fallback: T): T {
   if (!browser) return fallback;
   try {

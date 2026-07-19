@@ -2,7 +2,6 @@
   import { defineMeta } from "@storybook/addon-svelte-csf";
   import InstanceIcon from "./InstanceIcon.svelte";
 
-  // InstanceIcon reads name (initials fallback), loader (tint), and icon.
   const base = { icon: null, mcVersion: "1.20.1", loaderVersion: null };
 
   const { Story } = defineMeta({

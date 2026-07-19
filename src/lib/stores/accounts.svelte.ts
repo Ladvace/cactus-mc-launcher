@@ -7,14 +7,12 @@ export interface DeviceCodeState extends DeviceCodeEvent {
   status: "waiting" | "authorizing";
 }
 
-/// Reactive account state: Microsoft accounts + which one (or offline) is active.
 class AccountsStore {
   accounts = $state<AccountInfo[]>([]);
   activeId = $state<string | null>(null);
   microsoftConfigured = $state(false);
   loaded = $state(false);
 
-  /** Set during an in-progress Microsoft login (the code to show the user). */
   deviceCode = $state<DeviceCodeState | null>(null);
   loginError = $state<string | null>(null);
   loggingIn = $state(false);
@@ -43,12 +41,10 @@ class AccountsStore {
     this.loaded = true;
   }
 
-  /** The active account, or null when offline mode is selected. */
   get active(): AccountInfo | null {
     return this.accounts.find((account) => account.id === this.activeId) ?? null;
   }
 
-  /** Display name of whatever is active (offline username if none). */
   get activeName(): string {
     return this.active?.username ?? settingsStore.settings.offlineUsername ?? "Player";
   }

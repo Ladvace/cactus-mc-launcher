@@ -1,10 +1,3 @@
-//! News feed aggregation for the Home screen.
-//!
-//! Currently surfaces the official Minecraft news feed (the same one the
-//! vanilla launcher uses). The `NewsItem` shape and `source` tag are
-//! deliberately source-agnostic so more feeds (patch notes, launcher updates,
-//! gaming news) can be folded in later without changing the frontend contract.
-
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -17,7 +10,6 @@ const MOJANG_HOST: &str = "https://launchercontent.mojang.com";
 const MAX_ITEMS: usize = 20;
 const CACHE_TTL_SECS: i64 = 1800; // 30 minutes
 
-/// A single, source-agnostic news entry sent to the frontend.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NewsItem {
@@ -31,8 +23,6 @@ pub struct NewsItem {
     /// Which feed this came from ("minecraft"), for badges/filtering later.
     pub source: String,
 }
-
-// --- Simple in-memory cache so revisiting Home doesn't re-hit the network ---
 
 struct Cache {
     fetched_at: i64,
@@ -60,8 +50,6 @@ fn store(items: &[NewsItem]) {
     }
 }
 
-/// Returns the latest news, served from cache when fresh. `force` bypasses the
-/// cache (e.g. an explicit refresh).
 pub async fn get(force: bool) -> Result<Vec<NewsItem>> {
     if !force {
         if let Some(items) = cached() {
@@ -72,8 +60,6 @@ pub async fn get(force: bool) -> Result<Vec<NewsItem>> {
     store(&items);
     Ok(items)
 }
-
-// --- Minecraft (Mojang launcher content) ---
 
 #[derive(Deserialize)]
 struct MojangNews {

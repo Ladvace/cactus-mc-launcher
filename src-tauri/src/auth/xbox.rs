@@ -8,7 +8,6 @@ const XSTS_URL: &str = "https://xsts.auth.xboxlive.com/xsts/authorize";
 const MC_LOGIN_URL: &str = "https://api.minecraftservices.com/authentication/login_with_xbox";
 const MC_PROFILE_URL: &str = "https://api.minecraftservices.com/minecraft/profile";
 
-/// An Xbox token plus the user hash needed to build the Minecraft identity token.
 pub struct XboxAuth {
     pub token: String,
     pub user_hash: String,
@@ -52,7 +51,6 @@ fn extract(resp: XboxResponse) -> Result<XboxAuth> {
     })
 }
 
-/// Authenticate a Microsoft access token with Xbox Live.
 pub async fn xbl_authenticate(client: &reqwest::Client, ms_access_token: &str) -> Result<XboxAuth> {
     let body = json!({
         "Properties": {
@@ -76,7 +74,6 @@ pub async fn xbl_authenticate(client: &reqwest::Client, ms_access_token: &str) -
     extract(resp.json().await?)
 }
 
-/// Authorize the Xbox token for Minecraft services (XSTS).
 pub async fn xsts_authorize(client: &reqwest::Client, xbl_token: &str) -> Result<XboxAuth> {
     let body = json!({
         "Properties": {
@@ -90,7 +87,6 @@ pub async fn xsts_authorize(client: &reqwest::Client, xbl_token: &str) -> Result
     let resp = client.post(XSTS_URL).json(&body).send().await?;
     let status = resp.status();
     if !status.is_success() {
-        // Map the well-known XSTS error codes to friendly messages.
         if let Ok(error) = resp.json::<XstsError>().await {
             let message = match error.xerr {
                 Some(2148916233) => {
@@ -125,7 +121,6 @@ pub struct McAuth {
     pub expires_in: i64,
 }
 
-/// Log in to Minecraft services with the XSTS token + user hash.
 pub async fn minecraft_login(
     client: &reqwest::Client,
     user_hash: &str,
@@ -167,14 +162,12 @@ pub async fn minecraft_login(
     })
 }
 
-/// A Minecraft account profile.
 #[derive(Debug, Clone, Deserialize)]
 pub struct McProfile {
     pub id: String,
     pub name: String,
 }
 
-/// Fetch the Minecraft profile (fails if the account does not own the game).
 pub async fn minecraft_profile(client: &reqwest::Client, mc_access_token: &str) -> Result<McProfile> {
     let resp = client
         .get(MC_PROFILE_URL)

@@ -12,7 +12,6 @@ use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
 use crate::paths;
 
-/// Collapse the (very long) classpath argument for readable launch logging.
 fn concise_args(args: &[String]) -> String {
     let sep = if cfg!(windows) { ';' } else { ':' };
     let mut out = Vec::new();
@@ -31,7 +30,6 @@ fn concise_args(args: &[String]) -> String {
     out.join(" ")
 }
 
-/// Human-readable exit description, including the signal name on Unix.
 fn describe_exit(status: &std::process::ExitStatus) -> String {
     if let Some(code) = status.code() {
         return format!("Exited with code {code}");
@@ -99,8 +97,6 @@ fn record_playtime(app: &AppHandle, instance_id: &str, started: Instant) {
     }
 }
 
-/// Spawn the game process and monitor it in a background task: stream stdout/
-/// stderr as log events, honor a kill signal, and update playtime on exit.
 pub fn spawn_and_monitor(
     app: AppHandle,
     java: PathBuf,
@@ -140,7 +136,6 @@ pub fn spawn_and_monitor(
 
     emit_status(&app, &instance_id, "running", None);
 
-    // Stream stdout.
     if let Some(stdout) = child.stdout.take() {
         let app = app.clone();
         let id = instance_id.clone();
@@ -152,9 +147,6 @@ pub fn spawn_and_monitor(
         });
     }
 
-    // (stderr goes to launch-stderr.log — see Stdio::from above.)
-
-    // Register a kill channel so `stop_instance` can terminate the game.
     let (kill_tx, kill_rx) = oneshot::channel::<()>();
     app.state::<LaunchState>().register(instance_id.clone(), kill_tx);
 
@@ -174,7 +166,6 @@ pub fn spawn_and_monitor(
 
         eprintln!("[launch] instance {instance_id} {exit_message}");
 
-        // Surface captured stderr (incl. native crashes) in the in-app Logs tab.
         if let Ok(stderr_text) = std::fs::read_to_string(&stderr_path) {
             let lines: Vec<&str> = stderr_text
                 .lines()
@@ -198,9 +189,6 @@ pub fn spawn_and_monitor(
     Ok(())
 }
 
-/// Spawn a dedicated server and monitor it. Unlike the game client, the server
-/// keeps stdin open so console commands can be piped in, and "stop" is issued
-/// gracefully before falling back to a hard kill.
 pub fn spawn_server(
     app: AppHandle,
     java: PathBuf,
@@ -229,7 +217,6 @@ pub fn spawn_server(
 
     emit_status(&app, &instance_id, "running", None);
 
-    // Stream stdout and stderr both into the console log.
     for pipe in [child.stdout.take().map(Pipe::Out), child.stderr.take().map(Pipe::Err)]
         .into_iter()
         .flatten()

@@ -216,7 +216,6 @@
       var(--bg-app);
     overflow: hidden;
   }
-  /* Soft moving glow behind the card. */
   .glow {
     position: absolute;
     width: 640px;
@@ -282,7 +281,6 @@
     filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.4));
     -webkit-user-drag: none;
   }
-  /* Painted illustration (not pixel art) — no pixelation, a touch larger. */
   .illustration {
     width: 230px;
     max-width: 66%;

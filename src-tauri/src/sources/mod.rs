@@ -1,9 +1,7 @@
 //! Content-source abstraction. Browse/install go through here so additional
-//! providers (e.g. CurseForge) can be added without touching the callers.
-//!
-//! The Modrinth types (`SearchResults`, `Version`, …) are the *normalized*
-//! shape every provider maps into. Modrinth is the reference implementation;
-//! a future CurseForge provider maps its API responses into these same types.
+//! providers can be added without touching the callers. The Modrinth types
+//! (`SearchResults`, `Version`, …) are the normalized shape every provider
+//! maps into.
 
 pub mod curseforge;
 
@@ -12,7 +10,6 @@ use serde::Deserialize;
 use crate::error::Result;
 use crate::modrinth::{self, SearchParams, SearchResults, Version};
 
-/// A content provider.
 #[derive(Debug, Clone, Copy, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Source {
@@ -21,7 +18,6 @@ pub enum Source {
     CurseForge,
 }
 
-/// Which sources are available (CurseForge only if its API key is set).
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SourceInfo {
@@ -39,7 +35,6 @@ pub fn available() -> Vec<SourceInfo> {
     ]
 }
 
-/// Search a provider for content.
 pub async fn search(source: Source, params: SearchParams) -> Result<SearchResults> {
     match source {
         Source::Modrinth => modrinth::search(params).await,
@@ -47,7 +42,6 @@ pub async fn search(source: Source, params: SearchParams) -> Result<SearchResult
     }
 }
 
-/// List versions of a project, filtered by loader/game version.
 pub async fn get_versions(
     source: Source,
     project_id: &str,
@@ -60,7 +54,6 @@ pub async fn get_versions(
     }
 }
 
-/// Fetch a single version by id.
 pub async fn get_version(source: Source, version_id: &str) -> Result<Version> {
     match source {
         Source::Modrinth => modrinth::get_version(version_id).await,

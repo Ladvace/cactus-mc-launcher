@@ -6,7 +6,6 @@ use tauri::AppHandle;
 use crate::error::Result;
 use crate::paths;
 
-/// A downloadable artifact with integrity metadata.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Artifact {
     #[serde(default)]
@@ -113,7 +112,6 @@ fn default_java_major() -> u32 {
     8
 }
 
-/// A single argument entry: either a plain string or a value gated by rules.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum Argument {
@@ -158,8 +156,6 @@ pub struct VersionDetail {
     pub minecraft_arguments: Option<String>,
 }
 
-/// Fetch the per-version JSON, caching it under `meta/versions/<id>/<id>.json`.
-/// `url` comes from the version manifest entry.
 pub async fn fetch_detail(app: &AppHandle, id: &str, url: &str) -> Result<VersionDetail> {
     let cache = paths::version_dir(app, id)?.join(format!("{id}.json"));
     if cache.exists() {
@@ -192,6 +188,6 @@ mod tests {
         let json = r#"{"client":{"sha1":"a","url":"c"}}"#;
         let d: Downloads = serde_json::from_str(json).unwrap();
         assert!(d.server.is_none());
-        assert_eq!(d.client.size, 0); // size defaults
+        assert_eq!(d.client.size, 0);
     }
 }

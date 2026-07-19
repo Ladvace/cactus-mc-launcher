@@ -6,8 +6,6 @@ export interface Toast {
   message: string;
 }
 
-/// Global, app-wide toast notifications. Errors linger longer and are copiable
-/// (see Toaster.svelte).
 class ToastStore {
   toasts = $state<Toast[]>([]);
   private nextId = 1;
@@ -25,7 +23,6 @@ class ToastStore {
   info(message: string) {
     return this.push("info", message, 4500);
   }
-  /** Errors stay ~12s (and can be dismissed) so they can be read + copied. */
   error(message: string) {
     return this.push("error", message, 12000);
   }

@@ -12,13 +12,12 @@
   const picker = $derived(ui.stickerPicker);
   const open = $derived(!!picker);
 
-  // Stickers are enabled only once the user provides a Giphy API key.
   const enabled = $derived(settingsStore.settings.giphyApiKey.trim().length > 0);
 
   let tab = $state<"stickers" | "emoji" | "decor">("decor");
   let keyDraft = $state("");
   let savingKey = $state(false);
-  let editingKey = $state(false); // re-entering a key even though one is set
+  let editingKey = $state(false);
   let query = $state("");
   let debounced = $state("");
   let stickers = $state<Sticker[]>([]);
@@ -32,8 +31,6 @@
   const LIMIT = 30; // must match the backend page size
   const COLS = 3;
 
-  // Distribute stickers across fixed columns (round-robin) so the masonry
-  // scrolls vertically instead of overflowing into more columns sideways.
   const columns = $derived.by(() => {
     const cols: Sticker[][] = Array.from({ length: COLS }, () => []);
     stickers.forEach((sticker, index) => cols[index % COLS].push(sticker));
@@ -97,7 +94,6 @@
     return () => clearTimeout(timer);
   });
 
-  // (Re)load from the top when open on the stickers tab and the query changes.
   $effect(() => {
     if (open && enabled && tab === "stickers") {
       void debounced;
@@ -133,7 +129,7 @@
       offset += results.length;
       hasMore = results.length >= LIMIT;
     } catch {
-      hasMore = false; // stop trying on error, keep what we have
+      hasMore = false;
     } finally {
       loadingMore = false;
     }
@@ -392,9 +388,6 @@
     border-color: var(--accent);
   }
 
-  /* Masonry via real columns: a flex row of vertical stacks. Each sticker keeps
-     its natural aspect ratio (stickers are often wide banners), and the whole
-     grid scrolls vertically. */
   .sticker-grid {
     display: flex;
     gap: 8px;
@@ -470,7 +463,6 @@
     font-weight: 900;
     letter-spacing: 0.02em;
     line-height: 1;
-    /* GIPHY's signature pink→green wordmark. */
     background: linear-gradient(90deg, #ff6666 0%, #9933ff 50%, #00ff99 100%);
     -webkit-background-clip: text;
     background-clip: text;
@@ -590,8 +582,6 @@
     pointer-events: none;
   }
   .decor-cell {
-    /* Let 1fr tracks shrink below the images' intrinsic width so the grid wraps
-       into 5 columns and scrolls vertically instead of overflowing sideways. */
     min-width: 0;
     aspect-ratio: 1;
     display: flex;

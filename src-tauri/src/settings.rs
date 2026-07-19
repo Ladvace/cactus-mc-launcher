@@ -7,17 +7,14 @@ use tauri::AppHandle;
 use crate::error::Result;
 use crate::paths;
 
-/// Default parallel downloads — a good balance for most connections.
 fn default_concurrency() -> u32 {
     16
 }
 
-/// Clamp a user-set download concurrency into a safe range.
 pub fn clamp_concurrency(n: u32) -> usize {
     n.clamp(1, 64) as usize
 }
 
-/// Global launcher settings, persisted to `settings.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -33,29 +30,23 @@ pub struct Settings {
     pub java_paths: HashMap<u32, String>,
     pub max_memory_mb: u32,
     pub min_memory_mb: u32,
-    /// How many files to download at once across the launcher (launch pipeline,
-    /// content, modpacks). Higher can be faster on quick connections.
     #[serde(default = "default_concurrency")]
     pub max_concurrent_downloads: u32,
-    /// Extra JVM arguments appended at launch.
     pub jvm_args: String,
     pub game_width: u32,
     pub game_height: u32,
-    /// Username used for offline/dev launches (until Microsoft auth lands).
     pub offline_username: String,
     /// App background. Empty = default; otherwise `color:#rrggbb`,
     /// `pattern:<name>`, or `image:<data-uri>`.
     pub background: String,
-    /// Play subtle UI click sounds on buttons.
     pub ui_sounds: bool,
     /// User-supplied Giphy API key that enables the animated-sticker picker.
     /// Empty = stickers disabled (the emoji picker still works).
     pub giphy_api_key: String,
     /// Where the dock sits: "bottom" | "top" | "left" | "right".
     pub dock_position: String,
-    /// Placed-sprite decoration theme id ("" = none).
+    /// "" = none.
     pub decor_theme: String,
-    /// macOS-style magnify-on-hover for the dock.
     pub dock_magnify: bool,
     /// Default parent folder for new instances' game data. Empty = the app's
     /// own instances folder. Only affects instances created after it's set.
@@ -65,7 +56,6 @@ pub struct Settings {
     /// token overrides this. Empty = not configured.
     #[serde(default)]
     pub ngrok_authtoken: String,
-    /// Show the "Latest news" section on the Home screen.
     #[serde(default = "default_true")]
     pub show_news: bool,
     /// News layout: `true` = one story per page, `false` = a lead + two-up.
@@ -104,7 +94,6 @@ impl Default for Settings {
     }
 }
 
-/// Thread-safe settings holder that writes through to disk on save.
 #[derive(Default)]
 pub struct SettingsStore {
     inner: Mutex<Settings>,

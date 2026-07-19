@@ -9,14 +9,11 @@ use crate::error::{AppError, Result};
 
 const API_BASE: &str = "https://api.giphy.com/v1/stickers";
 
-/// A sticker result normalized for the UI.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Sticker {
     pub id: String,
-    /// Small rendition shown in the picker grid.
     pub preview: String,
-    /// Rendition downloaded and stored as the instance icon.
     pub full: String,
 }
 
@@ -41,8 +38,6 @@ struct Rendition {
     url: String,
 }
 
-/// Search stickers (or trending when the query is empty). `api_key` is the
-/// user's Giphy key from settings.
 pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Sticker>> {
     let api_key = api_key.trim();
     if api_key.is_empty() {
@@ -105,8 +100,6 @@ pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Stick
     Ok(stickers)
 }
 
-/// Download an image (e.g. a chosen sticker) and encode it as a data URI so the
-/// instance icon keeps working offline.
 pub async fn download_data_uri(url: &str) -> Result<String> {
     let resp = reqwest::get(url).await?.error_for_status()?;
     let content_type = resp

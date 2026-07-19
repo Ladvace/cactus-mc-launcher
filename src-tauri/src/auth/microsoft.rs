@@ -8,7 +8,6 @@ const TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0
 const SCOPE: &str = "XboxLive.signin offline_access";
 const DEVICE_CODE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
 
-/// A device-code challenge to show the user.
 #[derive(Debug, Clone, Deserialize)]
 pub struct DeviceCode {
     pub device_code: String,
@@ -19,7 +18,6 @@ pub struct DeviceCode {
     pub message: String,
 }
 
-/// A Microsoft OAuth token pair.
 #[derive(Debug, Clone)]
 pub struct MsToken {
     pub access_token: String,
@@ -41,14 +39,12 @@ struct TokenResponse {
     expires_in: Option<i64>,
 }
 
-/// One outcome of polling the token endpoint during device-code login.
 pub enum PollOutcome {
     Pending,
     SlowDown,
     Success(MsToken),
 }
 
-/// Request a device code to start the login flow.
 pub async fn request_device_code(client: &reqwest::Client, client_id: &str) -> Result<DeviceCode> {
     let resp = client
         .post(DEVICE_CODE_URL)

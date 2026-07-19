@@ -14,7 +14,6 @@ use crate::paths;
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldInfo {
-    /// Display name (the folder name).
     pub name: String,
     /// Path relative to the instance game dir (e.g. "world" or "saves/My World").
     pub folder: String,
@@ -67,7 +66,6 @@ fn make_info(game: &Path, dir: &Path, location: &str) -> WorldInfo {
     }
 }
 
-/// A folder holds a world if it contains a `level.dat`.
 fn is_world(dir: &Path) -> bool {
     dir.is_dir() && dir.join("level.dat").exists()
 }
@@ -76,7 +74,6 @@ pub fn list(app: &AppHandle, id: &str) -> Result<Vec<WorldInfo>> {
     let game = paths::instance_game_dir(app, id)?;
     let mut out = Vec::new();
 
-    // Client singleplayer saves.
     let saves = game.join("saves");
     if saves.is_dir() {
         for entry in std::fs::read_dir(&saves)?.flatten() {
@@ -101,7 +98,6 @@ pub fn list(app: &AppHandle, id: &str) -> Result<Vec<WorldInfo>> {
     Ok(out)
 }
 
-/// Resolve and validate a world folder inside the instance's game dir.
 fn resolve_world(game: &Path, folder: &str) -> Result<PathBuf> {
     if folder.is_empty() || folder.contains("..") {
         return Err(AppError::Other("invalid world folder".into()));
@@ -126,7 +122,6 @@ pub fn delete(app: &AppHandle, id: &str, folder: &str) -> Result<()> {
     Ok(())
 }
 
-/// Zip the world into `<instance>/backups/<name>-<timestamp>.zip`; returns the path.
 pub fn backup(app: &AppHandle, id: &str, folder: &str) -> Result<String> {
     let game = paths::instance_game_dir(app, id)?;
     let dir = resolve_world(&game, folder)?;

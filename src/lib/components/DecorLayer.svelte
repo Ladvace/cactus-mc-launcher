@@ -2,7 +2,6 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { DECOR_THEMES } from "$lib/themes";
 
-  // Sprites placed at fixed spots around the page for the active decor theme.
   const theme = $derived(
     DECOR_THEMES.find((decorTheme) => decorTheme.id === (settingsStore.settings.decorTheme ?? ""))
   );
@@ -21,7 +20,6 @@
 {/if}
 
 <style>
-  /* Above the background and content edges, below the dock, non-interactive. */
   .decor-layer {
     position: fixed;
     inset: 0;

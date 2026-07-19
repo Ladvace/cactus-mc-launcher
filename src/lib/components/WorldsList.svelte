@@ -48,7 +48,6 @@
       try {
         await revealItemInDir(path);
       } catch {
-        /* reveal is best-effort */
       }
     } catch (error) {
       toast.error(String(error));

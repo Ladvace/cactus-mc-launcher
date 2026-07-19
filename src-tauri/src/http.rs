@@ -11,10 +11,12 @@ pub const USER_AGENT: &str = concat!(
     " (+https://github.com/Ladvace/cactus-mc-launcher)"
 );
 
-/// One process-wide client so its connection pool (keep-alive, DNS cache, TLS
-/// sessions) is reused across every request. `reqwest::Client` is `Arc`-backed,
-/// so cloning it is cheap and shares the same pool.
 static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+pub fn backend_base() -> Option<String> {
+    let base = option_env!("CACTUS_API_BASE")?.trim().trim_end_matches('/');
+    (!base.is_empty()).then(|| base.to_string())
+}
 
 pub fn client() -> Result<reqwest::Client> {
     if let Some(existing) = CLIENT.get() {

@@ -16,7 +16,6 @@ use crate::modrinth;
 use crate::paths;
 use crate::sources::{self, Source};
 
-/// A piece of content installed into an instance (mod, resource pack, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContentItem {
@@ -50,7 +49,6 @@ struct ContentFile {
     items: Vec<ContentItem>,
 }
 
-/// The `content.json` sidecar for an instance.
 fn content_file(app: &AppHandle, instance_id: &str) -> Result<PathBuf> {
     Ok(paths::instance_dir(app, instance_id)?.join("content.json"))
 }
@@ -71,7 +69,6 @@ fn write_content(app: &AppHandle, instance_id: &str, data: &ContentFile) -> Resu
     Ok(())
 }
 
-/// The game subfolder a project type installs into.
 fn subdir(project_type: &str) -> &'static str {
     match project_type {
         "resourcepack" => "resourcepacks",
@@ -87,8 +84,6 @@ fn target_dir(app: &AppHandle, instance_id: &str, project_type: &str) -> Result<
     Ok(dir)
 }
 
-/// The on-disk file name for an item: the base name, plus a `.disabled` suffix
-/// when disabled.
 fn disk_name(file_name: &str, enabled: bool) -> String {
     if enabled {
         file_name.to_string()
@@ -97,13 +92,11 @@ fn disk_name(file_name: &str, enabled: bool) -> String {
     }
 }
 
-/// The on-disk path of an item, accounting for the `.disabled` suffix.
 fn item_path(app: &AppHandle, instance_id: &str, item: &ContentItem) -> Result<PathBuf> {
     let dir = target_dir(app, instance_id, &item.project_type)?;
     Ok(dir.join(disk_name(&item.file_name, item.enabled)))
 }
 
-/// Install a content version from a provider into an instance.
 pub async fn install(
     app: &AppHandle,
     instance_id: &str,
@@ -130,7 +123,6 @@ pub async fn install(
     let dir = target_dir(app, instance_id, project_type)?;
     let dest = dir.join(&file.filename);
 
-    // Deduplicated: fetched once into the shared cache, then hard-linked here.
     let client = modrinth::client()?;
     cache::install_one(&client, app, &file.url, &dest, file.hashes.sha1.as_deref()).await?;
 
@@ -146,7 +138,6 @@ pub async fn install(
     };
 
     let mut data = read_content(app, instance_id)?;
-    // Replace any existing entry for the same project (upgrade in place).
     if let Some(project_id) = &item.project_id {
         for old in data
             .items
@@ -164,12 +155,10 @@ pub async fn install(
     Ok(item)
 }
 
-/// List installed content for an instance.
 pub fn list(app: &AppHandle, instance_id: &str) -> Result<Vec<ContentItem>> {
     Ok(read_content(app, instance_id)?.items)
 }
 
-/// Enable or disable an item (toggles its `.disabled` extension on disk).
 pub fn set_enabled(
     app: &AppHandle,
     instance_id: &str,
@@ -196,8 +185,6 @@ pub fn set_enabled(
     write_content(app, instance_id, &data)?;
     Ok(())
 }
-
-// --- Modpack (.mrpack) install ---------------------------------------------
 
 #[derive(Debug, Deserialize)]
 struct MrIndex {
@@ -232,8 +219,6 @@ struct MrEnv {
     client: Option<String>,
 }
 
-/// The content type for a pack file, from its top-level directory. `None` for
-/// files that aren't tracked content (configs, etc.).
 fn content_type_for(path: &str) -> Option<&'static str> {
     match path.trim_start_matches("./").split('/').next()? {
         "mods" => Some("mod"),
@@ -281,8 +266,6 @@ fn emit_progress(
     );
 }
 
-/// Fetch a small image and encode it as a data URI so instance icons persist
-/// offline. Returns `None` on any failure or if the image is unexpectedly large.
 async fn fetch_icon_data_uri(client: &reqwest::Client, url: &str) -> Option<String> {
     let resp = client.get(url).send().await.ok()?;
     if !resp.status().is_success() {
@@ -306,9 +289,6 @@ async fn fetch_icon_data_uri(client: &reqwest::Client, url: &str) -> Option<Stri
     Some(format!("data:{content_type};base64,{encoded}"))
 }
 
-/// Install a Modrinth modpack version as a brand-new instance: downloads the
-/// `.mrpack`, reads its index, creates the instance, downloads every file, and
-/// applies the pack's `overrides`.
 pub async fn install_modpack(
     app: &AppHandle,
     version_id: &str,
@@ -335,7 +315,6 @@ pub async fn install_modpack(
     )
     .await?;
 
-    // Read the pack index from the zip.
     let index: MrIndex = {
         let file = std::fs::File::open(&mrpack)?;
         let mut zip = zip::ZipArchive::new(file)?;
@@ -347,7 +326,6 @@ pub async fn install_modpack(
         serde_json::from_str(&text)?
     };
 
-    // Resolve Minecraft version + loader from dependencies.
     let mc_version = index
         .dependencies
         .get("minecraft")
@@ -374,7 +352,6 @@ pub async fn install_modpack(
     let instance = Instance::new(name, InstanceKind::Client, mc_version, loader, loader_version, icon);
     app.state::<InstanceStore>().save(app, &instance)?;
 
-    // Download the pack's files (client-relevant only).
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
     let tasks: Vec<DownloadTask> = index
         .files
@@ -410,12 +387,9 @@ pub async fn install_modpack(
         .await?;
     }
 
-    // Apply overrides (files bundled directly in the pack).
     emit_progress(app, Some(&instance.id), 0, 0, "Applying overrides…");
     apply_overrides(&mrpack, &game_dir)?;
 
-    // Record the pack's mods/packs so the instance's Content tab lists them
-    // (and they can be toggled, updated, or removed like any other content).
     let mut content = read_content(app, &instance.id)?;
     for file in &index.files {
         let client_ok = file
@@ -436,7 +410,6 @@ pub async fn install_modpack(
         let ids = file.downloads.first().and_then(|url| parse_modrinth_ids(url));
         let (project_id, version_id) = match ids {
             Some((project, version)) => (Some(project), version),
-            // No Modrinth ids (external download) — key on the hash/name instead.
             None => (None, file.hashes.sha1.clone().unwrap_or_else(|| file_name.clone())),
         };
         let title = file_name.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(&file_name);
@@ -457,8 +430,6 @@ pub async fn install_modpack(
     emit_progress(app, Some(&instance.id), 1, 1, "Done");
     Ok(instance)
 }
-
-// --- CurseForge modpack (.zip with manifest.json + overrides/) ---------------
 
 #[derive(Deserialize)]
 struct CfManifest {
@@ -505,9 +476,6 @@ fn parse_cf_loader(id: &str) -> (ModLoader, Option<String>) {
     (loader, version)
 }
 
-/// Install a CurseForge modpack (`packId:fileId`) as a new instance. The pack's
-/// mods are CurseForge project/file references resolved through the proxy; the
-/// `overrides/` folder (configs) is applied on top.
 pub async fn install_cf_modpack(
     app: &AppHandle,
     version_id: &str,
@@ -579,7 +547,6 @@ pub async fn install_cf_modpack(
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
     let mods_dir = game_dir.join("mods");
 
-    // Resolve each mod's download URL through the proxy, concurrently.
     emit_progress(app, Some(&instance.id), 0, 0, "Resolving mods…");
     let concurrency =
         crate::settings::clamp_concurrency(app.state::<crate::settings::SettingsStore>().get().max_concurrent_downloads);
@@ -640,7 +607,6 @@ pub async fn install_cf_modpack(
     Ok(instance)
 }
 
-/// Extract `overrides/` and `client-overrides/` from the pack into the game dir.
 fn apply_overrides(mrpack: &PathBuf, game_dir: &std::path::Path) -> Result<()> {
     let file = std::fs::File::open(mrpack)?;
     let mut zip = zip::ZipArchive::new(file)?;
@@ -667,7 +633,6 @@ fn apply_overrides(mrpack: &PathBuf, game_dir: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-/// Remove an item and its file from the instance.
 pub fn remove(app: &AppHandle, instance_id: &str, version_id: &str) -> Result<()> {
     let mut data = read_content(app, instance_id)?;
     if let Some(pos) = data.items.iter().position(|item| item.version_id == version_id) {

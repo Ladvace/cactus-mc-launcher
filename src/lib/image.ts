@@ -1,11 +1,6 @@
-// Helpers for turning user input into compact instance-icon data URIs.
-
-/** Read a picked image file into a data URI. GIFs are kept raw so they keep
-    animating; everything else is cover-cropped to a small square thumbnail to
-    keep the stored instance JSON light. */
 export async function fileToIconDataUri(file: File, size = 256): Promise<string> {
   const raw = await readAsDataURL(file);
-  if (file.type === "image/gif") return raw; // preserve animation
+  if (file.type === "image/gif") return raw;
   return await downscaleSquare(raw, size);
 }
 
@@ -27,7 +22,6 @@ function downscaleSquare(src: string, size: number): Promise<string> {
       canvas.height = size;
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("no 2d context"));
-      // Cover-fit: scale so the image fills the square, centered.
       const scale = Math.max(size / img.width, size / img.height);
       const width = img.width * scale;
       const height = img.height * scale;
@@ -40,9 +34,6 @@ function downscaleSquare(src: string, size: number): Promise<string> {
   });
 }
 
-/** Read a picked image into a data URI for use as an app background: GIFs kept
-    raw (to animate), other formats scaled to fit within `max` on the long edge,
-    preserving aspect ratio. */
 export async function fileToBackgroundDataUri(file: File, max = 1366): Promise<string> {
   const raw = await readAsDataURL(file);
   if (file.type === "image/gif") return raw;
@@ -70,8 +61,6 @@ function downscaleFit(src: string, max: number): Promise<string> {
   });
 }
 
-/** Render an emoji to a PNG data URI. Canvas text uses the system colour-emoji
-    font, so this works reliably as an <img> source. */
 export function emojiToDataUri(emoji: string, size = 128): string {
   const canvas = document.createElement("canvas");
   canvas.width = size;

@@ -9,7 +9,6 @@ use crate::minecraft::version::{ArgValue, Argument, VersionDetail};
 const LAUNCHER_NAME: &str = "cactus-launcher";
 const LAUNCHER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// Everything needed to render a version's launch command for one instance.
 pub struct LaunchContext {
     pub classpath: Vec<PathBuf>,
     pub natives_dir: PathBuf,
@@ -55,18 +54,15 @@ fn classpath_string(paths: &[PathBuf]) -> String {
         .join(sep)
 }
 
-/// Build the full argument vector: JVM args, then main class, then game args.
 pub fn build(detail: &VersionDetail, ctx: &LaunchContext) -> Vec<String> {
     let subs = substitutions(detail, ctx);
 
-    // Feature flags gate certain arguments (e.g. custom resolution).
     let mut features = HashMap::new();
     features.insert("has_custom_resolution".to_string(), true);
     features.insert("is_demo_user".to_string(), false);
 
     let mut out = Vec::new();
 
-    // Memory + user JVM args always come first.
     out.push(format!("-Xmx{}M", ctx.max_mem));
     out.push(format!("-Xms{}M", ctx.min_mem));
     out.extend(ctx.extra_jvm.iter().filter(|s| !s.is_empty()).cloned());
@@ -98,8 +94,6 @@ pub fn build(detail: &VersionDetail, ctx: &LaunchContext) -> Vec<String> {
     out
 }
 
-/// Collect the applicable entries from a modern argument list, substituting
-/// placeholders and honoring OS/feature rules.
 fn collect(
     args: &[Argument],
     features: &HashMap<String, bool>,
@@ -127,8 +121,6 @@ fn collect(
     out
 }
 
-/// Replace every `${token}` in `input` with its substitution (unknown tokens
-/// are left untouched).
 fn apply(input: &str, subs: &HashMap<String, String>) -> String {
     let mut result = input.to_string();
     for (key, val) in subs {

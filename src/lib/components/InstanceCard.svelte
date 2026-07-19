@@ -20,7 +20,6 @@
   );
   const busy = $derived(launchStore.isBusy(instance.id));
   const running = $derived(launchStore.isRunning(instance.id));
-  // Cover mode: the icon fills the whole tile behind the label.
   const cover = $derived(instance.coverImage && !!instance.icon);
   const installing = $derived(installStore.isInstalling(instance.id));
   const installPct = $derived(installStore.pct(instance.id));
@@ -32,7 +31,7 @@
 
   function contextMenu(event: MouseEvent) {
     event.preventDefault();
-    event.stopPropagation(); // don't also open the page-level menu
+    event.stopPropagation();
     ui.openInstanceMenu(instance, event.clientX, event.clientY);
   }
 
@@ -128,7 +127,6 @@
     background: var(--bg-hover);
     transform: translateY(-2px);
   }
-  /* Marks a dedicated-server tile. */
   .kind-badge {
     position: absolute;
     top: 6px;
@@ -142,8 +140,6 @@
     background: var(--accent);
     pointer-events: none;
   }
-  /* When filling a grid tile, grow the art to center the (larger) icon and
-     keep the meta pinned to the bottom. */
   .card.fill {
     height: 100%;
   }
@@ -151,7 +147,6 @@
     flex: 1;
     padding: 0;
   }
-  /* Cover mode: full-bleed icon behind an overlaid label. */
   .card.cover {
     padding: 0;
     overflow: hidden;
@@ -190,7 +185,6 @@
     color: rgba(255, 255, 255, 0.85);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   }
-  /* Modpack download overlay — visible on the tile while installing. */
   .install-overlay {
     position: absolute;
     inset: 0;

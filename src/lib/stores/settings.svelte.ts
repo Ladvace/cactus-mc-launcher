@@ -24,7 +24,6 @@ const DEFAULTS: Settings = {
   newsSingle: false,
 };
 
-/// Reactive settings store, persisted through the Rust backend.
 class SettingsStore {
   settings = $state<Settings>({ ...DEFAULTS });
   loaded = $state(false);
@@ -40,9 +39,8 @@ class SettingsStore {
   }
 
   async save(next: Settings) {
-    // Persist to the backend first, then update in-memory state. Reactive
-    // consumers (e.g. the sticker picker enabling on a new API key) then only
-    // see the change once the backend can serve requests with it.
+    // Persist to the backend first, then update in-memory state, so reactive
+    // consumers only see the change once the backend can serve requests with it.
     await api.saveSettings(next);
     this.settings = next;
   }

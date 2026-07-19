@@ -79,6 +79,7 @@ pub fn run() {
             commands::get_local_ip,
             commands::add_server_to_instance,
             commands::get_achievements,
+            commands::backend_base,
             commands::get_news,
             commands::read_ops,
             commands::read_whitelist,

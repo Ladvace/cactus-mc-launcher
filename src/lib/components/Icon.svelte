@@ -1,6 +1,4 @@
 <script lang="ts">
-  // Pixel icons from @hackernoon/pixel-icon-library (an iconfont). We keep our
-  // semantic names and map them to the library's `hn-*` classes.
   interface Props {
     name: string;
     size?: number;
@@ -10,7 +8,7 @@
 
   const MAP: Record<string, string> = {
     home: "home",
-    compass: "search", // Browse / discover (distinct from Servers' globe)
+    compass: "search",
     library: "grid",
     settings: "cog",
     plus: "plus",

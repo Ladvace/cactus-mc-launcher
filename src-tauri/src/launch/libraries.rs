@@ -14,7 +14,6 @@ const MAVEN_CENTRAL: &str = "https://repo1.maven.org/maven2/";
 /// Convert a Maven coordinate (`group:artifact:version[:classifier][@ext]`) to a
 /// relative repository path.
 fn maven_to_path(name: &str) -> Option<String> {
-    // Split off an optional "@extension" suffix (e.g. "@zip").
     let (coords, ext) = match name.split_once('@') {
         Some((c, e)) => (c, e),
         None => (name, "jar"),
@@ -41,8 +40,6 @@ fn join_url(base: &str, rel: &str) -> String {
     }
 }
 
-/// Queue a download for a vanilla-style artifact and return its local path.
-///
 /// Forge's locally-generated libraries carry an empty `url`/`sha1`; those files
 /// are copied in by the installer, so we skip the hash and (if the file is
 /// already present) the download itself.
@@ -58,12 +55,10 @@ fn push_artifact(
     } else {
         Some(artifact.sha1.clone())
     };
-    // A library with no URL that already exists on disk (installer-provided).
     if artifact.url.is_empty() {
         if dest.exists() {
             return Some(dest);
         }
-        // No URL and no file — nothing we can fetch; skip it.
         return None;
     }
     downloads.push(DownloadTask {
@@ -75,19 +70,13 @@ fn push_artifact(
     Some(dest)
 }
 
-/// Result of resolving a version's libraries for the current OS/arch.
 pub struct ResolvedLibraries {
-    /// Jars to place on the classpath.
     pub classpath: Vec<PathBuf>,
-    /// Everything to download (classpath jars + native jars).
     pub downloads: Vec<DownloadTask>,
     /// Native jars to extract, with their optional exclude prefixes.
     pub natives: Vec<(PathBuf, Option<Vec<String>>)>,
 }
 
-/// Resolve all applicable libraries into download tasks, a classpath, and a
-/// list of native jars to extract.
-///
 /// Two native schemes exist:
 /// - **Old (≤1.18):** a `natives` OS→classifier map with an `extract` directive.
 ///   These classifier jars are extracted into the per-instance natives dir.
@@ -153,8 +142,6 @@ pub fn resolve(app: &AppHandle, libraries: &[Library]) -> Result<ResolvedLibrari
     })
 }
 
-/// Extract native binaries from a jar into `dest_dir`, skipping directories,
-/// `META-INF`, class files, and any excluded prefixes.
 pub fn extract_natives(
     jar: &PathBuf,
     dest_dir: &PathBuf,
@@ -188,7 +175,6 @@ pub fn extract_natives(
             }
         }
 
-        // Flatten to the base filename to keep natives directly in dest_dir.
         let file_name = match std::path::Path::new(&name).file_name() {
             Some(base_name) => base_name.to_owned(),
             None => continue,

@@ -101,13 +101,10 @@ fn complete_marker(install_dir: &Path) -> PathBuf {
     install_dir.join(".cactus-complete")
 }
 
-/// A runtime counts as installed only when its `java` binary exists AND the
-/// completion marker is present (the whole file set was downloaded).
 fn is_installed(install_dir: &Path) -> bool {
     complete_marker(install_dir).exists() && locate_java(install_dir).is_some()
 }
 
-/// The managed runtime component that provides a given major version.
 fn component_for_major(major: u32) -> Option<&'static str> {
     match major {
         8 => Some("jre-legacy"),
@@ -117,8 +114,6 @@ fn component_for_major(major: u32) -> Option<&'static str> {
     }
 }
 
-/// Path to the already-installed managed `java` for a major version, if present.
-/// Used to show what the app would use (and to autofill the settings inputs).
 pub fn managed_java_path(app: &AppHandle, major: u32) -> Option<String> {
     let component = component_for_major(major)?;
     let dir = paths::java_dir(app)
@@ -128,9 +123,6 @@ pub fn managed_java_path(app: &AppHandle, major: u32) -> Option<String> {
     locate_java(&dir).map(|path| path.to_string_lossy().into_owned())
 }
 
-/// Resolve which Java executable an instance should use: a per-instance override
-/// first, then the per-major setting matching the required Java, then the legacy
-/// global path. `None` = let [`ensure_java`] auto-manage a runtime.
 pub fn resolve_path<'a>(
     instance: &'a Instance,
     settings: &'a Settings,
@@ -150,7 +142,6 @@ pub fn resolve_path<'a>(
         .or(settings.java_path.as_deref())
 }
 
-/// Find the `java` executable within an installed runtime directory.
 fn locate_java(install_dir: &Path) -> Option<PathBuf> {
     let suffix = java_binary_name();
     [
@@ -199,10 +190,7 @@ fn preference(component: &str) -> u8 {
     }
 }
 
-/// Choose the best available component for the current platform: the exact one
-/// if present, otherwise the closest available runtime whose major version is at
-/// least the requested one (falling back to the newest available). Returns
-/// `(component_name, files_manifest_url)`.
+/// Returns `(component_name, files_manifest_url)`.
 fn pick_component(
     all: &AllRuntimes,
     required_component: &str,
@@ -211,14 +199,12 @@ fn pick_component(
 ) -> Option<(String, String)> {
     let map = all.get(platform_key(force_x64))?;
 
-    // Exact match, if that component actually has a build for this platform.
     if let Some(entries) = map.get(required_component) {
         if let Some(entry) = entries.first() {
             return Some((required_component.to_string(), entry.manifest.url.clone()));
         }
     }
 
-    // Otherwise gather every non-empty candidate with a known major version.
     let mut candidates: Vec<(String, String, u32)> = map
         .iter()
         .filter(|(component, _)| component.as_str() != "minecraft-java-exe")
@@ -229,7 +215,6 @@ fn pick_component(
         })
         .collect();
 
-    // Smallest sufficient major first; ties broken by component preference.
     candidates.sort_by_key(|(comp, _, major)| (*major, preference(comp)));
 
     candidates
@@ -249,10 +234,6 @@ async fn fetch_all(client: &reqwest::Client) -> Result<AllRuntimes> {
         .await?)
 }
 
-/// Ensure a usable Java executable, returning its path.
-///
-/// Priority: an explicit configured path, then a managed runtime matching (or
-/// compatible with) the version's required component, downloaded on first use.
 pub async fn ensure_java<F>(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -305,9 +286,7 @@ where
     })
 }
 
-/// Pre-install the common runtimes for the auto-setup button. `on_progress`
-/// receives (component_label, current, total) as each runtime downloads.
-/// Returns the human-readable labels of the runtimes that are now installed.
+/// `on_progress` receives (component_label, current, total) as each runtime downloads.
 pub async fn setup_common<F>(
     app: &AppHandle,
     client: &reqwest::Client,
@@ -324,7 +303,6 @@ where
     let mut installed = Vec::new();
 
     for component in COMMON_COMPONENTS {
-        // Skip components with no build for this platform (arch fallback covers them).
         let Some(entry) = map.get(component).and_then(|entries| entries.first()) else {
             continue;
         };
@@ -414,7 +392,6 @@ where
         }
     }
 
-    // All files + links are in place — mark the runtime complete.
     std::fs::write(complete_marker(install_dir), b"")?;
 
     Ok(())

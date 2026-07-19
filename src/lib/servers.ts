@@ -1,5 +1,3 @@
-// Default quick-connect servers. Public addresses + plain names only. Edit freely.
-
 export interface FeaturedServer {
   name: string;
   address: string;

@@ -53,7 +53,6 @@
 
   const earnedCustom = $derived(data?.custom.filter((c) => c.earned).length ?? 0);
 
-  // A hidden, still-locked advancement is shown as "???".
   function displayName(a: AdvancementView): string {
     return !a.done && a.hidden ? "???" : a.name;
   }
@@ -119,7 +118,6 @@
       >
     </div>
   {:else if data}
-    <!-- Overall completion -->
     <section class="hero">
       <div class="hero-ring" style="--pct:{data.completion.percent}">
         <span class="hero-pct">{data.completion.percent}%</span>
@@ -155,7 +153,6 @@
     </nav>
 
     {#if tab === "achievements"}
-      <!-- Custom challenges -->
       <section class="block">
         <h2>Cactus Challenges <span class="badge">launcher-exclusive</span></h2>
         <div class="custom-grid">
@@ -177,7 +174,6 @@
         </div>
       </section>
 
-      <!-- Native advancements -->
       <section class="block">
         <div class="block-head">
           <h2>Advancements</h2>
@@ -213,7 +209,6 @@
         {/if}
       </section>
     {:else}
-      <!-- Lifetime stats -->
       <section class="block">
         <div class="stat-grid">
           <div class="stat"><span class="v">{fmtHours(data.stats.playTimeTicks)}</span><span class="k">Playtime</span></div>
@@ -328,7 +323,6 @@
     color: var(--warning);
   }
 
-  /* Hero completion */
   .hero {
     display: flex;
     align-items: center;
@@ -413,7 +407,6 @@
     background: var(--accent);
   }
 
-  /* Tabs */
   .tabs {
     display: flex;
     gap: 4px;
@@ -488,7 +481,6 @@
     font-size: 12px;
   }
 
-  /* Custom challenge tiles */
   .custom-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -541,7 +533,6 @@
     margin-top: 2px;
   }
 
-  /* Advancement grid */
   .adv-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -597,7 +588,6 @@
     font-family: var(--font-mono, monospace);
   }
 
-  /* Stats */
   .stat-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));

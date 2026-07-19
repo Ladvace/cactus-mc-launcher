@@ -18,13 +18,9 @@ use crate::modrinth::{
 
 const GAME_ID: u64 = 432; // Minecraft
 
-/// CurseForge is reached through our backend proxy (which holds the API key
-/// server-side), never with a key baked into this client. The proxy base is
-/// baked from `CACTUS_API_BASE` (the deployed Worker URL — not a secret).
 /// `None` = CurseForge unavailable in this build.
 fn api_base() -> Option<String> {
-    let base = option_env!("CACTUS_API_BASE")?.trim().trim_end_matches('/');
-    (!base.is_empty()).then(|| format!("{base}/v1/curseforge"))
+    crate::http::backend_base().map(|base| format!("{base}/v1/curseforge"))
 }
 
 pub fn is_configured() -> bool {
@@ -41,7 +37,6 @@ fn client() -> Result<reqwest::Client> {
     crate::http::client()
 }
 
-/// URL of the backend's authenticated download proxy for a CurseForge file.
 /// Empty if CurseForge isn't configured (treated as "no download available").
 fn proxied_download_url(mod_id: u64, file_id: u64) -> String {
     api_base()
@@ -49,7 +44,6 @@ fn proxied_download_url(mod_id: u64, file_id: u64) -> String {
         .unwrap_or_default()
 }
 
-/// CurseForge class id for a project type.
 fn class_id(project_type: &str) -> u64 {
     match project_type {
         "modpack" => 4471,
@@ -81,7 +75,6 @@ fn loader_type(loader: &str) -> u64 {
     }
 }
 
-/// CurseForge sortField for our sort keys.
 fn sort_field(sort: &str) -> u64 {
     match sort {
         "downloads" => 6,  // TotalDownloads
@@ -91,8 +84,6 @@ fn sort_field(sort: &str) -> u64 {
 }
 
 const LOADER_NAMES: [&str; 5] = ["Forge", "Fabric", "Quilt", "NeoForge", "LiteLoader"];
-
-// --- API response shapes (only the fields we use) ---
 
 #[derive(Deserialize)]
 struct Logo {
@@ -198,8 +189,6 @@ struct FileResponse {
     data: CfFile,
 }
 
-// --- Mapping into normalized types ---
-
 fn map_mod(cf_mod: CfMod) -> SearchHit {
     let mut versions: Vec<String> = cf_mod
         .latest_files_indexes
@@ -285,8 +274,6 @@ fn map_file(cf_file: CfFile) -> Version {
         downloads: cf_file.download_count as u64,
     }
 }
-
-// --- Provider entry points ---
 
 pub async fn search(params: SearchParams) -> Result<SearchResults> {
     let base = ensure_configured()?;

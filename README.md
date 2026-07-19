@@ -93,7 +93,7 @@ bun run tauri build      # produce a release .app / .dmg
 | Feature | How to enable |
 | --- | --- |
 | Microsoft login | Set `AZURE_CLIENT_ID` in `src-tauri/.env` (a personal-accounts Azure app with public client flows; Mojang app approval required). Offline mode needs nothing. |
-| Community / CurseForge / presence | Deploy the [backend](#backend) and set `VITE_STREAMER_API_URL` + `CACTUS_API_BASE`. |
+| Community / CurseForge / presence | Deploy the [backend](#backend) and set `CACTUS_API_BASE` in `src-tauri/.env`. |
 | Stickers (Giphy) | Add a Giphy key in Settings. |
 
 Until configured, these stay inert and the launcher runs fully local.

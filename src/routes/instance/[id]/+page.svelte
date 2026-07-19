@@ -31,7 +31,6 @@
       : ["Content", "Worlds", "Screenshots", "Logs", "Settings"]
   );
   let activeTab = $state("Content");
-  // Keep the active tab valid when switching between client/server instances.
   $effect(() => {
     if (!tabs.includes(activeTab)) activeTab = "Content";
   });
@@ -50,7 +49,6 @@
     }
   }
 
-  // Auto-scroll the console to the newest line.
   $effect(() => {
     void runtime.logs.length;
     if (logEl) logEl.scrollTop = logEl.scrollHeight;
@@ -107,7 +105,6 @@
     }
   }
 
-  // Update checking: map installed versionId -> available newer version.
   let updates = $state<Record<string, { versionId: string; number: string }>>({});
   let checkingUpdates = $state(false);
   let updatingId = $state<string | null>(null);
@@ -217,7 +214,6 @@
     });
   }
 
-  // --- Game folder (per-instance install location) ---
   let gameFolder = $state("");
   let movingFolder = $state(false);
   $effect(() => {
@@ -662,7 +658,6 @@
     background: linear-gradient(180deg, var(--bg-raised), var(--bg-app));
     border-bottom: 1px solid var(--border-subtle);
   }
-  /* Shared centered content column so the header, tabs and body all line up. */
   .col {
     max-width: 960px;
     margin: 0 auto;
@@ -838,7 +833,6 @@
     line-height: 1.6;
   }
 
-  /* Launch progress */
   .progress {
     margin-top: 18px;
     max-width: 520px;
@@ -854,7 +848,6 @@
     font-size: 13px;
   }
 
-  /* Logs */
   .logs-head {
     display: flex;
     align-items: center;
@@ -904,7 +897,6 @@
     white-space: pre-wrap;
     word-break: break-word;
   }
-  /* Server console command bar */
   .console-input {
     display: flex;
     align-items: center;
@@ -935,7 +927,6 @@
     color: var(--text-muted);
   }
 
-  /* Content tab */
   .content-head {
     display: flex;
     align-items: center;

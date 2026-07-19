@@ -12,7 +12,6 @@
   let failed = $state(false);
   let page = $state(0);
 
-  // Layout: single = one story per page; otherwise a lead + a two-up column (3).
   const single = $derived(settingsStore.settings.newsSingle);
   const perPage = $derived(single ? 1 : 3);
 
@@ -25,7 +24,6 @@
   const featured = $derived(current[0] ?? null);
   const minis = $derived(current.slice(1));
 
-  // Keep the page index valid when the layout (and thus page count) changes.
   $effect(() => {
     if (page > pages.length - 1) page = Math.max(0, pages.length - 1);
   });
@@ -56,7 +54,6 @@
   function go(delta: number) {
     const n = pages.length;
     if (n === 0) return;
-    // Wrap around for an endless carousel.
     page = (page + delta + n) % n;
   }
 
@@ -71,7 +68,6 @@
   }
 </script>
 
-<!-- News is non-essential: hidden by setting, or if it fails to load. -->
 {#if settingsStore.settings.showNews && !failed && (loading || items.length > 0)}
   <section class="news">
     <div class="news-head">
@@ -116,7 +112,6 @@
     {:else if featured}
       {#key page}
         <div class="strip" class:single in:fade={{ duration: 140 }}>
-          <!-- Lead story -->
           <button
             class="feature"
             class:link={!!featured.link}
@@ -135,7 +130,6 @@
             </div>
           </button>
 
-          <!-- Two-up column (hidden in single-story layout) -->
           {#if !single}
           <div class="col">
             {#each minis as item (item.id)}
@@ -233,7 +227,6 @@
     }
   }
 
-  /* Lead story — large image with a gradient scrim + overlaid text. */
   .feature {
     height: var(--news-h);
     position: relative;
@@ -292,7 +285,6 @@
     margin-top: 2px;
   }
 
-  /* A column of two stacked mini cards. */
   .col {
     height: var(--news-h);
     display: flex;
@@ -373,7 +365,6 @@
     margin-left: auto;
   }
 
-  /* Step indicators */
   .dots {
     display: flex;
     justify-content: center;
@@ -398,7 +389,6 @@
     border-color: var(--accent);
   }
 
-  /* Skeletons */
   .skeleton {
     pointer-events: none;
   }

@@ -1,9 +1,7 @@
-// Parses the repo's CHANGELOG.md (bundled at build time) into structured
-// releases so the in-app changelog modal stays in sync with the file.
 import raw from "../../CHANGELOG.md?raw";
 
 export interface ChangeGroup {
-  title: string; // "Added" | "Changed" | "Fixed" | "" (ungrouped)
+  title: string;
   items: string[];
 }
 export interface Release {
@@ -19,7 +17,6 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
-/** Minimal inline markdown → HTML for trusted (bundled) changelog text. */
 export function renderInline(s: string): string {
   return escapeHtml(s)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
@@ -39,7 +36,7 @@ function parse(md: string): Release[] {
       group = null;
       continue;
     }
-    if (!rel) continue; // skip the intro before the first release
+    if (!rel) continue;
 
     const h3 = line.match(/^###\s+(.+)$/);
     if (h3) {
@@ -58,7 +55,6 @@ function parse(md: string): Release[] {
       continue;
     }
 
-    // Continuation of the previous bullet (indented, not a link reference).
     if (group?.items.length && /^\s+\S/.test(line) && !line.trimStart().startsWith("[")) {
       group.items[group.items.length - 1] += " " + line.trim();
     }

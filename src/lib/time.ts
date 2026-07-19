@@ -1,5 +1,3 @@
-/** Compact relative-time label: "just now", "5m ago", "3h ago", "2d ago".
- *  Returns `whenNull` for a null/empty timestamp. */
 export function timeAgo(iso: string | null | undefined, whenNull = "never"): string {
   if (!iso) return whenNull;
   const seconds = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);

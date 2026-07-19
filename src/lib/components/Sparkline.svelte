@@ -1,5 +1,4 @@
 <script lang="ts">
-  // A tiny inline line chart. `null` values break the line (e.g. server downtime).
   let {
     values,
     width = 200,
@@ -15,7 +14,6 @@
     }))
   );
 
-  // Line path, lifting the pen across null gaps.
   const linePath = $derived.by(() => {
     let path = "";
     let drawing = false;

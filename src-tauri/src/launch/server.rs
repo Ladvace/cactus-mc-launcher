@@ -14,7 +14,6 @@ use crate::minecraft::{self, version};
 use crate::paths;
 use crate::settings::Settings;
 
-/// Prepare and start a dedicated server for `instance`.
 pub async fn launch(app: AppHandle, instance: Instance, settings: Settings) -> Result<()> {
     let id = instance.id.clone();
     let result = prepare_and_spawn(&app, &instance, &settings).await;
@@ -31,7 +30,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
 
     let client = crate::http::client()?;
 
-    // Version metadata (for the Java requirement and the vanilla server jar).
     let manifest = minecraft::fetch_versions().await?;
     let entry = manifest
         .versions
@@ -68,7 +66,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     let run_dir = paths::instance_game_dir(app, id)?;
     write_eula(&run_dir)?;
 
-    // Build the loader-specific launch args (everything after the JVM args).
     super::emit_status(app, id, "downloading", Some("Preparing server files…".into()));
     let launch_args: Vec<String> = match instance.loader {
         ModLoader::Vanilla => prepare_vanilla(&client, &detail, &run_dir).await?,
@@ -110,8 +107,6 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
     Ok(())
 }
 
-/// `-Xms/-Xmx` plus any extra JVM args, resolving per-instance overrides over
-/// the global settings (and the legacy single `server_memory_mb`).
 fn memory_args(settings: &Settings, instance: &Instance) -> Vec<String> {
     let max = instance
         .max_memory_mb
@@ -133,7 +128,6 @@ fn memory_args(settings: &Settings, instance: &Instance) -> Vec<String> {
     args
 }
 
-/// Vanilla: download the official server jar and run it directly.
 async fn prepare_vanilla(
     client: &reqwest::Client,
     detail: &version::VersionDetail,
@@ -176,7 +170,6 @@ async fn prepare_fabric_like(
     };
     let launch_jar = run_dir.join(launch_name);
 
-    // Reuse a previous install.
     if launch_jar.exists() {
         return Ok(vec!["-jar".into(), path_str(&launch_jar), "nogui".into()]);
     }
@@ -188,7 +181,6 @@ async fn prepare_fabric_like(
     )
     .await?;
 
-    // Fetch the latest installer download URL from the loader's meta API.
     let installer_meta = match instance.loader {
         ModLoader::Quilt => "https://meta.quiltmc.org/v3/versions/installer",
         _ => "https://meta.fabricmc.net/v2/versions/installer",
@@ -219,7 +211,6 @@ async fn prepare_fabric_like(
         .await?;
     std::fs::write(&installer, &bytes)?;
 
-    // Installer CLIs differ between Fabric and Quilt.
     let mut cmd = tokio::process::Command::new(java);
     cmd.arg("-jar").arg(&installer).current_dir(run_dir);
     match instance.loader {

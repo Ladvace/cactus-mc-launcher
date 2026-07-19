@@ -11,8 +11,6 @@ use crate::instance::ModLoader;
 use crate::modrinth;
 use crate::sources::Source;
 
-/// Detected host machine specs, surfaced to the UI so the user can see what the
-/// recommendation is based on.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HostSpecs {
@@ -22,7 +20,6 @@ pub struct HostSpecs {
     pub arch: String,
 }
 
-/// A single recommended mod, resolved to a concrete Modrinth version.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModRec {
@@ -30,13 +27,10 @@ pub struct ModRec {
     pub version_id: String,
     pub title: String,
     pub reason: String,
-    /// Suggested default (all core mods are on by default; deps included).
     pub recommended: bool,
-    /// True if a version of this project is already installed in the instance.
     pub installed: bool,
 }
 
-/// The full recommendation returned by [`recommend`].
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TuneupPlan {
@@ -47,15 +41,12 @@ pub struct TuneupPlan {
     pub min_mem_mb: u32,
     pub jvm_args: String,
     pub mods: Vec<ModRec>,
-    /// Slugs that have no build for this loader/version (shown as skipped).
     pub unavailable: Vec<String>,
 }
 
-/// What the user chose to apply, sent back from the UI.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TuneupSelection {
-    /// Modrinth version ids the user kept ticked, each with its display title.
     pub mods: Vec<SelectedMod>,
     pub apply_memory: bool,
     pub apply_flags: bool,
@@ -71,7 +62,6 @@ pub struct SelectedMod {
     pub title: String,
 }
 
-/// Detect the host machine's RAM, core count, OS and architecture.
 pub fn detect_specs() -> HostSpecs {
     let mut sys = sysinfo::System::new();
     sys.refresh_memory();
@@ -96,8 +86,6 @@ const AIKAR_FLAGS: &str = "-XX:+UseG1GC -XX:+ParallelRefProcEnabled \
 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 \
 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1";
 
-/// Conservative, headroom-aware heap: ~half of RAM, floor 2 GB, cap 8 GB
-/// (vanilla + performance mods rarely benefit beyond that), rounded to 512 MB.
 /// Returns `(min_mb, max_mb, jvm_args)`.
 fn recommend_heap(total_ram_mb: u64) -> (u32, u32, String) {
     let half = (total_ram_mb / 2) as u32;
@@ -106,13 +94,11 @@ fn recommend_heap(total_ram_mb: u64) -> (u32, u32, String) {
     let jvm_args = if max >= 6144 {
         AIKAR_FLAGS.to_string()
     } else {
-        // Small heaps: just pick G1 explicitly; skip the tuning knobs.
         "-XX:+UseG1GC".to_string()
     };
     (min, max, jvm_args)
 }
 
-/// The Modrinth loader string for a mod loader (Vanilla has no mods).
 fn loader_str(loader: ModLoader) -> Option<&'static str> {
     match loader {
         ModLoader::Vanilla => None,
@@ -123,8 +109,6 @@ fn loader_str(loader: ModLoader) -> Option<&'static str> {
     }
 }
 
-/// Extra mods for the "visuals" mode — shader support on top of the core set.
-/// (Sodium/Embeddium from the core set are the required rendering base.)
 fn visuals_mods(loader: ModLoader) -> Vec<(&'static str, &'static str)> {
     match loader {
         ModLoader::Vanilla => vec![],
@@ -137,9 +121,6 @@ fn visuals_mods(loader: ModLoader) -> Vec<(&'static str, &'static str)> {
     }
 }
 
-/// Curated core performance mods per loader family, as `(slug, reason)`. These
-/// are all open-source, safe (no visual change, no anti-cheat concerns), and
-/// resolved against the instance's exact loader + Minecraft version at runtime.
 fn core_mods(loader: ModLoader) -> Vec<(&'static str, &'static str)> {
     match loader {
         ModLoader::Vanilla => vec![],
@@ -233,8 +214,6 @@ pub async fn recommend(app: &AppHandle, instance_id: &str, mode: &str) -> Result
     })
 }
 
-/// Apply the user's selected tune-up: install the chosen mods and, if opted in,
-/// set the instance's heap and JVM flags. Returns the number of mods installed.
 pub async fn apply(app: &AppHandle, instance_id: &str, selection: TuneupSelection) -> Result<usize> {
     let mut installed = 0;
     for chosen in &selection.mods {
@@ -270,7 +249,6 @@ pub async fn apply(app: &AppHandle, instance_id: &str, selection: TuneupSelectio
     Ok(installed)
 }
 
-/// Display name for a curated slug (avoids an extra project fetch per mod).
 fn friendly_title(slug: &str) -> String {
     match slug {
         "fabric-api" => "Fabric API",
@@ -294,19 +272,16 @@ mod tests {
 
     #[test]
     fn heap_is_conservative_and_capped() {
-        // 8 GB machine → ~4 GB heap, light GC.
         let (min, max, args) = recommend_heap(8192);
         assert_eq!(max, 4096);
         assert_eq!(min, 2048);
         assert_eq!(args, "-XX:+UseG1GC");
 
-        // 32 GB machine → capped at 8 GB with Aikar's flags.
         let (min, max, args) = recommend_heap(32768);
         assert_eq!(max, 8192);
         assert_eq!(min, 4096);
         assert!(args.contains("G1GC") && args.contains("MaxGCPauseMillis"));
 
-        // Tiny machine → floored at 2 GB.
         let (_, max, _) = recommend_heap(3000);
         assert_eq!(max, 2048);
     }

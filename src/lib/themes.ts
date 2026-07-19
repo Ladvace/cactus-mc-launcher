@@ -1,15 +1,7 @@
-// Appearance presets for Settings → Appearance.
-//
-// A preset sets the base `background` string (see background.ts) and optionally
-// a `decor` theme id. A decor theme places a few sprites (cropped from the
-// sprite sheet) at fixed spots around the page — corners and edges — for a
-// natural "themed" feel rather than a repeating wallpaper.
-
 const spriteUrl = (id: number) => `/decor/sprites/${String(id).padStart(2, "0")}.png`;
 
 interface Placement {
   sprite: string;
-  /** CSS edge offsets, e.g. "bottom:6px; left:10px;". */
   at: string;
   size: number;
   rotate?: number;
@@ -20,7 +12,6 @@ interface Placement {
 interface DecorTheme {
   id: string;
   placements: Placement[];
-  /** A small sprite that perches on the corner of the dock. */
   peek: string;
 }
 
@@ -73,14 +64,11 @@ export const THEME_PRESETS: ThemePreset[] = [
   { name: "Forest", bg: "color:#152018" },
   { name: "Dots", bg: "pattern:dots|#181620" },
   { name: "Grid", bg: "pattern:grid|#14181e" },
-  // Vibrant gradient backgrounds (the `color:` kind takes any CSS value).
   { name: "Sunset", bg: "color:linear-gradient(160deg, #d98a2b 0%, #8a4a2a 45%, #3a2340 100%)" },
   { name: "Orchid", bg: "color:linear-gradient(160deg, #b63a86 0%, #5a2456 55%, #2a1830 100%)" },
   { name: "Aurora", bg: "color:linear-gradient(155deg, #1fb38f 0%, #157a6e 45%, #10233a 100%)" },
   { name: "Cactus", bg: "color:linear-gradient(160deg, #d9e746 0%, #7ba32f 42%, #16230f 100%)" },
-  // Tiled stone-block texture at 50% over a warm overlay (opacity is adjustable).
   { name: "Ruins", bg: "texture:0.5|#211c17|/textures/stone-blocks.png" },
-  // Decor themes: vibrant solid base + placed sprites.
   { name: "Desert", bg: "color:#c9a866", decor: "desert" },
   { name: "Bloom", bg: "color:#c85a92", decor: "bloom" },
   { name: "Mystic", bg: "color:#1f9c86", decor: "mystic" },

@@ -78,7 +78,6 @@ fn is_online_mode(app: &AppHandle, id: &str) -> bool {
     true
 }
 
-/// Resolve a player name to (uuid, canonical name).
 async fn resolve_player(app: &AppHandle, id: &str, name: &str) -> Result<(String, String)> {
     if is_online_mode(app, id) {
         #[derive(Deserialize)]
@@ -160,7 +159,6 @@ mod tests {
             dash_uuid("0123456789abcdef0123456789abcdef"),
             "01234567-89ab-cdef-0123-456789abcdef"
         );
-        // wrong length passes through unchanged
         assert_eq!(dash_uuid("short"), "short");
     }
 }

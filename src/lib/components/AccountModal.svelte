@@ -22,12 +22,11 @@
   );
   const deviceCode = $derived(accountsStore.deviceCode);
 
-  // --- Skin viewer / changer (active Microsoft account) ---
   const active = $derived(accountsStore.active);
   let mode = $state<"3d" | "2d">("3d");
   let variant = $state<"classic" | "slim">("classic");
   let skinData = $state(""); // data URI for the 3D viewer (fetched to avoid CORS)
-  let capeData = $state(""); // active cape as a data URI
+  let capeData = $state("");
   let capes = $state<{ id: string; alias: string; url: string; active: boolean }[]>([]);
   let skinInput = $state<HTMLInputElement>();
   let changing = $state(false);
@@ -41,7 +40,6 @@
       skinData = "";
       return;
     }
-    // Ignore a late response if the account/modal changed while in flight.
     let cancelled = false;
     api
       .downloadImage(`https://minotar.net/skin/${activeAccount.uuid}`)
@@ -107,7 +105,7 @@
     try {
       const buffer = await file.arrayBuffer();
       await api.setSkin(Array.from(new Uint8Array(buffer)), variant);
-      skinData = await fileToDataUrl(file); // instant preview
+      skinData = await fileToDataUrl(file);
       skinMsg = "Skin updated ✓";
       setTimeout(() => (skinMsg = null), 4000);
     } catch (err) {
@@ -135,7 +133,6 @@
     try {
       await openUrl(url);
     } catch {
-      /* user can copy the link manually */
     }
   }
 
@@ -607,8 +604,6 @@
     font-size: 12.5px;
     margin: 4px 0 0;
   }
-  /* Smaller spinner just for the device-code status line (the skin loader keeps
-     the larger .spinner defined above). */
   .dc-status .spinner {
     width: 13px;
     height: 13px;
