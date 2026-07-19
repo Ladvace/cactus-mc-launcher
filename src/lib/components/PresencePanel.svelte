@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import Icon from "./Icon.svelte";
   import { boardApi } from "$lib/boardApi";
   import { boardAuth } from "$lib/stores/boardAuth.svelte";
@@ -27,13 +28,16 @@
     }
   });
 
-  // Poll while mounted; re-poll as soon as we have a session token.
+  // Lifecycle only: start polling on mount, stop on unmount. Wrapped in
+  // untrack so the reactive reads inside open()/poll() (players, token) don't
+  // turn this into a loop that re-opens (and clears presence) on every poll.
   $effect(() => {
-    presence.open();
-    return () => presence.close();
+    untrack(() => presence.open());
+    return () => untrack(() => presence.close());
   });
+  // Re-poll as soon as a session token arrives (depends on the token only).
   $effect(() => {
-    if (boardAuth.token) void presence.poll();
+    if (boardAuth.token) untrack(() => void presence.poll());
   });
 
   // Local editable copies of the broadcast fields (committed on change).

@@ -39,6 +39,7 @@ class PresenceStore {
   error = $state<string | null>(null);
 
   private timer: ReturnType<typeof setInterval> | null = null;
+  private polling = false;
 
   constructor() {
     const persisted = load();
@@ -116,7 +117,8 @@ class PresenceStore {
   /** One cycle: heartbeat (if online) then refresh the list. Safe to call anytime. */
   async poll() {
     const token = boardAuth.token;
-    if (!token) return;
+    if (!token || this.polling) return; // one cycle at a time — no stale overwrites
+    this.polling = true;
     this.loading = this.players.length === 0;
     try {
       if (this.enabled) await this.heartbeat();
@@ -126,6 +128,7 @@ class PresenceStore {
       this.error = String(error);
     } finally {
       this.loading = false;
+      this.polling = false;
     }
   }
 }
