@@ -17,6 +17,11 @@ Built with **Tauri v2** · **SvelteKit** · **Svelte 5 (runes)** · **Rust**
 
 ---
 
+> [!WARNING]
+> **Cactus is experimental and a work in progress.** It's early software under
+> active development — expect rough edges and bugs, and things may change between
+> versions. Please [report anything you hit](https://github.com/Ladvace/cactus-mc-launcher/issues).
+
 ## Screenshots
 
 |  |  |
