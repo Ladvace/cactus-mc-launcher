@@ -9,6 +9,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { copyText } from "$lib/clipboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { goto } from "$app/navigation";
 
   interface Props {
     open: boolean;
@@ -133,6 +134,11 @@
   }
 
   const copyCode = (code: string) => copyText(code, "Code copied.");
+
+  function openAchievements() {
+    onClose();
+    goto("/achievements");
+  }
 </script>
 
 <Modal title="Accounts" {open} {onClose} width={460}>
@@ -297,6 +303,14 @@
     {#if accountsStore.loginError}
       <p class="err">{accountsStore.loginError}</p>
     {/if}
+  </div>
+
+  <div class="achv-area">
+    <button class="btn ghost achv-btn" onclick={openAchievements}>
+      <Icon name="trophy" size={15} />
+      Achievements &amp; stats
+    </button>
+    <p class="achv-hint">Your lifetime progress across every instance.</p>
   </div>
 </Modal>
 
@@ -510,6 +524,24 @@
   }
   .add-btn {
     width: 100%;
+  }
+  .achv-area {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-subtle);
+    text-align: center;
+  }
+  .achv-btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .achv-hint {
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: var(--text-muted);
   }
   .notice {
     font-size: 12.5px;
