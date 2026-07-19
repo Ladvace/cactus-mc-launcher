@@ -5,7 +5,6 @@
   import { randomInstanceName } from "$lib/funnyNames";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
-  import { launchStore } from "$lib/stores/launch.svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import {
     MOD_LOADERS,
@@ -20,9 +19,8 @@
   interface Props {
     open: boolean;
     onClose: () => void;
-    prefill?: { mcVersion?: string; joinServer?: string } | null;
   }
-  let { open, onClose, prefill = null }: Props = $props();
+  let { open, onClose }: Props = $props();
 
   let name = $state("");
   let kind = $state<InstanceKind>("client");
@@ -74,11 +72,7 @@
     try {
       const list = await api.getMinecraftVersions();
       versions = list.versions;
-      // Honor a prefilled version (from server quick-connect) if it exists.
-      selectedVersion =
-        prefill?.mcVersion && list.versions.some((v) => v.id === prefill!.mcVersion)
-          ? prefill.mcVersion
-          : list.latestRelease;
+      selectedVersion = list.latestRelease;
     } catch (error) {
       versionError = String(error);
     } finally {
@@ -132,10 +126,8 @@
         loaderVersion:
           loader === "vanilla" ? null : selectedLoaderVersion || null,
       });
-      const joinServer = prefill?.joinServer;
       reset();
       onClose();
-      if (joinServer) launchStore.launch(inst.id, joinServer);
       goto(`/instance/${inst.id}`);
     } catch (error) {
       versionError = String(error);

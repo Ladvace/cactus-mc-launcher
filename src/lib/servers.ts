@@ -37,6 +37,7 @@ export const FEATURED_SERVERS: FeaturedServer[] = [
     address: "play.manacube.net",
     description: "Parkour, Islands (SkyBlock), Survival and seasonal events.",
     tags: ["Parkour", "SkyBlock"],
+    
     website: "https://manacube.com",
   },
   {

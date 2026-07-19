@@ -1,85 +1,11 @@
 <script lang="ts">
   import { openUrl } from "@tauri-apps/plugin-opener";
-  import { goto } from "$app/navigation";
   import { api } from "$lib/api";
   import { copyText } from "$lib/clipboard";
   import { serversStore } from "$lib/stores/servers.svelte";
-  import { instancesStore } from "$lib/stores/instances.svelte";
-  import { launchStore } from "$lib/stores/launch.svelte";
-  import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import type { ServerStatus } from "$lib/types";
   import Icon from "$lib/components/Icon.svelte";
-
-  const clientInstances = $derived(
-    instancesStore.instances.filter((i) => i.kind === "client"),
-  );
-  // Address of the card whose instance-chooser is open (2+ compatible case).
-  let chooserFor = $state<string | null>(null);
-
-  const VER = /\d+\.\d+(?:\.\d+)?/g;
-
-  function cmpVer(a: string, b: string): number {
-    const pa = a.split(".").map(Number);
-    const pb = b.split(".").map(Number);
-    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-      const d = (pa[i] ?? 0) - (pb[i] ?? 0);
-      if (d) return d;
-    }
-    return 0;
-  }
-
-  // Best-effort compatibility: does the server's reported version share this
-  // instance's exact version or its major.minor? Unknown version → assume ok.
-  function isCompatible(serverVersion: string | undefined, mcVersion: string): boolean {
-    if (!serverVersion) return true;
-    const mm = mcVersion.match(/\d+\.\d+/)?.[0] ?? mcVersion;
-    return serverVersion.includes(mcVersion) || serverVersion.includes(mm);
-  }
-
-  // The newest version the server advertises — what a new instance should target.
-  function targetVersion(serverVersion: string | undefined): string {
-    const tokens = serverVersion?.match(VER) ?? [];
-    return [...tokens].sort(cmpVer).at(-1) ?? "";
-  }
-
-  function compatibleFor(address: string) {
-    const sv = pings[address]?.status?.version;
-    return clientInstances.filter((i) => isCompatible(sv, i.mcVersion));
-  }
-
-  function play(address: string, instanceId: string) {
-    chooserFor = null;
-    const server = serversStore.servers.find((s) => s.address === address);
-    const modded = (pings[address]?.status?.mods?.length ?? 0) > 0;
-    if (server?.requires) {
-      toast.info(`${server.name} needs ${server.requires} — make sure this instance has it.`);
-    } else if (modded) {
-      toast.info("This is a modded server — make sure your instance has its mods.");
-    } else {
-      toast.success(`Launching into ${address}…`);
-    }
-    launchStore.launch(instanceId, address);
-    goto(`/instance/${instanceId}`);
-  }
-
-  function onPlayClick(address: string) {
-    const compatible = compatibleFor(address);
-    if (compatible.length === 1) {
-      play(address, compatible[0].id);
-    } else if (compatible.length > 1) {
-      chooserFor = chooserFor === address ? null : address;
-    } else {
-      // No compatible instance — offer to create one (pre-filled), then join.
-      const target = targetVersion(pings[address]?.status?.version);
-      ui.openCreateInstance({ mcVersion: target || undefined, joinServer: address });
-      toast.info(
-        target
-          ? `No ${target}-compatible instance — create one to join.`
-          : "No compatible instance — create one to join.",
-      );
-    }
-  }
 
   type Ping = { state: "loading" | "online" | "offline"; status?: ServerStatus };
 
@@ -87,7 +13,6 @@
   let showAdd = $state(false);
   let newName = $state("");
   let newAddress = $state("");
-  let newRequires = $state("");
 
   function pingOne(address: string) {
     pings[address] = { state: "loading" };
@@ -101,7 +26,6 @@
     for (const server of serversStore.servers) pingOne(server.address);
   }
 
-  // Ping the current list once on load.
   $effect(() => {
     refresh();
   });
@@ -110,21 +34,13 @@
     event.preventDefault();
     const address = newAddress.trim();
     if (!address) return;
-    const added = serversStore.add({
-      name: newName.trim() || address,
-      address,
-      description: "",
-      tags: [],
-      requires: newRequires.trim() || undefined,
-    });
-    if (!added) {
+    if (!serversStore.add({ name: newName.trim() || address, address, description: "", tags: [] })) {
       toast.error("That server is already in your list.");
       return;
     }
     pingOne(address);
     newName = "";
     newAddress = "";
-    newRequires = "";
     showAdd = false;
   }
 
@@ -155,7 +71,6 @@
     <form class="add-form" onsubmit={addServer}>
       <input class="in" placeholder="Name (optional)" bind:value={newName} maxlength="40" />
       <input class="in" placeholder="Address, e.g. play.example.net" bind:value={newAddress} maxlength="120" />
-      <input class="in" placeholder="Requires mod/modpack (optional)" bind:value={newRequires} maxlength="60" />
       <button class="btn primary sm" type="submit">Add</button>
       <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>Cancel</button>
     </form>
@@ -205,20 +120,11 @@
           </div>
         {/if}
 
-        {#if server.requires}
-          <span class="req"><Icon name="package" size={12} /> Requires {server.requires}</span>
-        {:else if ping?.status?.mods?.length}
-          <span class="req"><Icon name="package" size={12} /> Modded · {ping.status.mods.length} mods</span>
-        {/if}
-
         <div class="addr-row">
           <code class="addr">{server.address}</code>
           <div class="actions">
-            <button class="btn primary sm" onclick={() => onPlayClick(server.address)} title="Launch Minecraft and join">
-              <Icon name="play" size={13} /> Play
-            </button>
             <button class="btn sm" onclick={() => copyText(server.address, `Copied ${server.address}`)} title="Copy address">
-              <Icon name="copy" size={13} />
+              <Icon name="copy" size={13} /> Copy
             </button>
             {#if server.website}
               <button class="btn ghost sm" onclick={() => openUrl(server.website!)} title="Open website">
@@ -227,20 +133,6 @@
             {/if}
           </div>
         </div>
-
-        {#if chooserFor === server.address}
-          <div class="chooser">
-            <span class="chooser-label">
-              Choose an instance{#if ping?.status?.version} <span class="chooser-srv">server runs {ping.status.version}</span>{/if}
-            </span>
-            {#each compatibleFor(server.address) as instance (instance.id)}
-              <button class="chooser-item" onclick={() => play(server.address, instance.id)}>
-                <span>{instance.name}</span>
-                <span class="chooser-ver">{instance.mcVersion}</span>
-              </button>
-            {/each}
-          </div>
-        {/if}
       </div>
     {/each}
   </div>
@@ -316,6 +208,7 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-auto-rows: 1fr;
     gap: 0.9rem;
   }
   .card {
@@ -323,6 +216,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
+    height: 100%;
     padding: 0.9rem 1rem;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -414,13 +308,6 @@
     color: var(--text-muted);
     background: color-mix(in srgb, var(--text) 8%, transparent);
   }
-  .req {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.72rem;
-    color: var(--accent);
-  }
   .addr-row {
     display: flex;
     align-items: center;
@@ -440,45 +327,6 @@
     display: flex;
     gap: 0.35rem;
     flex-shrink: 0;
-  }
-  .chooser {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding-top: 0.4rem;
-    border-top: 1px solid var(--border);
-  }
-  .chooser-label {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    padding: 0.1rem 0.2rem;
-  }
-  .chooser-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.35rem 0.5rem;
-    background: none;
-    border: none;
-    border-radius: 6px;
-    color: var(--text);
-    font: inherit;
-    font-size: 0.82rem;
-    text-align: left;
-    cursor: pointer;
-  }
-  .chooser-item:hover {
-    background: color-mix(in srgb, var(--accent) 14%, transparent);
-  }
-  .chooser-ver {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    font-family: var(--font-mono, monospace);
-  }
-  .chooser-srv {
-    color: var(--text-muted);
-    font-weight: 400;
   }
   .disclaimer {
     margin: 2rem 0 0;

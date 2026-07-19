@@ -61,8 +61,7 @@ export const api = {
   getLoaderVersions: (loader: ModLoader, mcVersion: string) =>
     invoke<LoaderVersion[]>("get_loader_versions", { loader, mcVersion }),
 
-  launchInstance: (id: string, server?: string | null) =>
-    invoke<void>("launch_instance", { id, server: server ?? null }),
+  launchInstance: (id: string) => invoke<void>("launch_instance", { id }),
 
   stopInstance: (id: string) => invoke<void>("stop_instance", { id }),
 

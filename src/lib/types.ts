@@ -369,10 +369,6 @@ export interface ServerStatus {
   pingMs: number;
   /** Server-broadcast icon as a data: URI, if any. */
   favicon?: string | null;
-  /** Version name the server reports (e.g. "1.20.4"); a hint, not a guarantee. */
-  version: string;
-  /** Required mod ids from a Forge/NeoForge ping; empty for vanilla/Fabric. */
-  mods: string[];
 }
 
 /** One point in a server's player-count history (from the boards backend). */
