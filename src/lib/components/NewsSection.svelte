@@ -280,8 +280,9 @@
     gap: 12px;
   }
   .mini {
-    flex: 1;
-    min-height: 0;
+    /* Fixed half-column height so a lone card on the last page keeps its normal
+       size (top slot) instead of stretching to fill the whole column. */
+    height: calc((var(--news-h) - 12px) / 2);
     display: flex;
     gap: 10px;
     padding: 8px;
