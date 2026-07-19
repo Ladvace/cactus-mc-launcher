@@ -29,6 +29,9 @@ pub struct ServerStatus {
     pub motd: String,
     pub players: Vec<String>,
     pub ping_ms: u64,
+    /// The server's icon as a `data:image/png;base64,…` URI, if it broadcasts one
+    /// (the same icon the vanilla multiplayer list shows). `None` if absent.
+    pub favicon: Option<String>,
 }
 
 #[tauri::command]
@@ -88,6 +91,10 @@ async fn ping(address: &str) -> Result<ServerStatus> {
             })
             .unwrap_or_default(),
         ping_ms,
+        favicon: status["favicon"]
+            .as_str()
+            .filter(|s| s.starts_with("data:image/"))
+            .map(str::to_owned),
     })
 }
 

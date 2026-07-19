@@ -2,47 +2,99 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { api } from "$lib/api";
   import { copyText } from "$lib/clipboard";
-  import { FEATURED_SERVERS } from "$lib/servers";
+  import { serversStore } from "$lib/stores/servers.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import type { ServerStatus } from "$lib/types";
   import Icon from "$lib/components/Icon.svelte";
 
   type Ping = { state: "loading" | "online" | "offline"; status?: ServerStatus };
 
-  // Per-address ping state, keyed by server address.
   let pings = $state<Record<string, Ping>>({});
+  let showAdd = $state(false);
+  let newName = $state("");
+  let newAddress = $state("");
 
-  function refresh() {
-    for (const server of FEATURED_SERVERS) {
-      pings[server.address] = { state: "loading" };
-      api
-        .pingServer(server.address)
-        .then((status) => (pings[server.address] = { state: "online", status }))
-        .catch(() => (pings[server.address] = { state: "offline" }));
-    }
+  function pingOne(address: string) {
+    pings[address] = { state: "loading" };
+    api
+      .pingServer(address)
+      .then((status) => (pings[address] = { state: "online", status }))
+      .catch(() => (pings[address] = { state: "offline" }));
   }
 
-  // Ping every server once on load (each resolves independently).
+  function refresh() {
+    for (const server of serversStore.servers) pingOne(server.address);
+  }
+
+  // Ping the current list once on load.
   $effect(() => {
     refresh();
   });
+
+  function addServer(event: SubmitEvent) {
+    event.preventDefault();
+    const address = newAddress.trim();
+    if (!address) return;
+    if (!serversStore.add({ name: newName.trim() || address, address, description: "", tags: [] })) {
+      toast.error("That server is already in your list.");
+      return;
+    }
+    pingOne(address);
+    newName = "";
+    newAddress = "";
+    showAdd = false;
+  }
+
+  function removeServer(address: string) {
+    serversStore.remove(address);
+    delete pings[address];
+  }
 </script>
 
 <div class="page">
   <header class="head">
     <div>
       <h1>Servers</h1>
-      <p class="sub">Popular public servers. Copy an address and add it in Minecraft's Multiplayer menu.</p>
+      <p class="sub">Your quick-connect list — copy an address and add it in Minecraft's Multiplayer menu.</p>
     </div>
-    <button class="btn ghost sm" onclick={refresh} title="Refresh status">
-      <Icon name="refresh" size={15} /> Refresh
-    </button>
+    <div class="head-actions">
+      <button class="btn ghost sm" onclick={() => serversStore.reset()} title="Restore the default list">Reset</button>
+      <button class="btn ghost sm" onclick={refresh} title="Refresh status">
+        <Icon name="refresh" size={15} /> Refresh
+      </button>
+      <button class="btn primary sm" onclick={() => (showAdd = !showAdd)}>
+        <Icon name="plus" size={15} /> Add server
+      </button>
+    </div>
   </header>
 
+  {#if showAdd}
+    <form class="add-form" onsubmit={addServer}>
+      <input class="in" placeholder="Name (optional)" bind:value={newName} maxlength="40" />
+      <input class="in" placeholder="Address, e.g. play.example.net" bind:value={newAddress} maxlength="120" />
+      <button class="btn primary sm" type="submit">Add</button>
+      <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>Cancel</button>
+    </form>
+  {/if}
+
+  {#if serversStore.servers.length === 0}
+    <p class="empty">No servers yet. Add one above, or <button class="link" onclick={() => serversStore.reset()}>restore the defaults</button>.</p>
+  {/if}
+
   <div class="grid">
-    {#each FEATURED_SERVERS as server (server.address)}
+    {#each serversStore.servers as server (server.address)}
       {@const ping = pings[server.address]}
       <div class="card">
+        <button class="remove" title="Remove" aria-label="Remove {server.name}" onclick={() => removeServer(server.address)}>✕</button>
+
         <div class="card-head">
+          <div class="icon">
+            {#if ping?.status?.favicon}
+              <img src={ping.status.favicon} alt="" />
+            {:else}
+              <Icon name="globe" size={18} />
+            {/if}
+          </div>
           <h2>{server.name}</h2>
           <span
             class="status"
@@ -60,28 +112,24 @@
           </span>
         </div>
 
-        <p class="desc">{server.description}</p>
+        {#if server.description}
+          <p class="desc">{server.description}</p>
+        {/if}
 
-        <div class="tags">
-          {#each server.tags as tag}<span class="tag">{tag}</span>{/each}
-        </div>
+        {#if server.tags?.length}
+          <div class="tags">
+            {#each server.tags as tag}<span class="tag">{tag}</span>{/each}
+          </div>
+        {/if}
 
         <div class="addr-row">
           <code class="addr">{server.address}</code>
           <div class="actions">
-            <button
-              class="btn sm"
-              onclick={() => copyText(server.address, `Copied ${server.address}`)}
-              title="Copy address"
-            >
+            <button class="btn sm" onclick={() => copyText(server.address, `Copied ${server.address}`)} title="Copy address">
               <Icon name="copy" size={13} /> Copy
             </button>
             {#if server.website}
-              <button
-                class="btn ghost sm"
-                onclick={() => openUrl(server.website!)}
-                title="Open website"
-              >
+              <button class="btn ghost sm" onclick={() => openUrl(server.website!)} title="Open website">
                 <Icon name="globe" size={13} />
               </button>
             {/if}
@@ -93,8 +141,8 @@
 
   <p class="disclaimer">
     NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG
-    OR MICROSOFT. Server names are trademarks of their respective owners and are
-    listed here only to identify each service.
+    OR MICROSOFT. Server names and icons are the property of their respective owners
+    and are shown only to identify each service.
   </p>
 </div>
 
@@ -109,7 +157,12 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .head-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-shrink: 0;
   }
   h1 {
     margin: 0;
@@ -120,12 +173,47 @@
     color: var(--text-muted);
     font-size: 0.9rem;
   }
+  .add-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .in {
+    flex: 1;
+    min-width: 160px;
+    padding: 0.5rem 0.7rem;
+    background: var(--bg-input, var(--bg-card));
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 8px);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85rem;
+  }
+  .in:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .empty {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+  .link {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-decoration: underline;
+  }
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 0.9rem;
   }
   .card {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
@@ -134,26 +222,71 @@
     border: 1px solid var(--border);
     border-radius: var(--radius, 10px);
   }
+  .remove {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: opacity 0.12s, color 0.12s, background 0.12s;
+  }
+  .card:hover .remove {
+    opacity: 1;
+  }
+  .remove:hover {
+    color: var(--danger, #e5484d);
+    background: color-mix(in srgb, var(--danger, #e5484d) 15%, transparent);
+  }
   .card-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
+    gap: 0.55rem;
+    padding-right: 1.2rem;
+  }
+  .icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+    color: var(--text-muted);
+  }
+  .icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
   }
   h2 {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1.02rem;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .status {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     white-space: nowrap;
   }
   .status.online {
     color: var(--success, #3fb950);
   }
-  .status.offline {
-    color: var(--text-muted);
-  }
+  .status.offline,
   .status.loading {
     color: var(--text-muted);
   }
@@ -181,7 +314,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    margin-top: 0.15rem;
+    margin-top: auto;
   }
   .addr {
     font-family: var(--font-mono, monospace);

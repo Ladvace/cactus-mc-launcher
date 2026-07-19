@@ -367,6 +367,8 @@ export interface ServerStatus {
   motd: string;
   players: string[];
   pingMs: number;
+  /** Server-broadcast icon as a data: URI, if any. */
+  favicon?: string | null;
 }
 
 /** One point in a server's player-count history (from the boards backend). */
