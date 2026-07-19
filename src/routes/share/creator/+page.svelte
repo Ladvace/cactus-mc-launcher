@@ -246,7 +246,13 @@
     </div>
 
     {#if loadingBoards}
-      <div class="panel"><p class="muted">Loading…</p></div>
+      <div class="panel board-skeleton">
+        <span class="skeleton" style="width:44px;height:44px;border-radius:10px"></span>
+        <div class="board-skel-lines">
+          <span class="skeleton" style="width:40%;height:15px"></span>
+          <span class="skeleton" style="width:70%;height:11px"></span>
+        </div>
+      </div>
     {/if}
 
     {#if myBoard}
@@ -393,6 +399,17 @@
     border: 2px solid var(--border);
     padding: 18px 20px;
     margin-bottom: 16px;
+  }
+  .board-skeleton {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .board-skel-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
   }
   .panel h3 {
     font-size: 14px;

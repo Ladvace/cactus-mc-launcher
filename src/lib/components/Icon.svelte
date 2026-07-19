@@ -10,7 +10,7 @@
 
   const MAP: Record<string, string> = {
     home: "home",
-    compass: "globe", // Browse / discover
+    compass: "search", // Browse / discover (distinct from Servers' globe)
     library: "grid",
     settings: "cog",
     plus: "plus",

@@ -269,7 +269,17 @@
         Back to home
       </button>
     {:else}
-      <p class="muted">Loading…</p>
+      <div class="loading-detail">
+        <div class="loading-head">
+          <span class="skeleton" style="width:64px;height:64px;border-radius:12px"></span>
+          <div class="loading-lines">
+            <span class="skeleton" style="width:180px;height:20px"></span>
+            <span class="skeleton" style="width:120px;height:12px"></span>
+          </div>
+        </div>
+        <span class="skeleton" style="width:100%;height:38px;border-radius:8px"></span>
+        <span class="skeleton" style="width:100%;height:140px;border-radius:8px"></span>
+      </div>
     {/if}
   </div>
 {:else}
@@ -614,6 +624,24 @@
 </Modal>
 
 <style>
+  .loading-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 900px;
+    margin: 1.5rem auto;
+    width: 100%;
+  }
+  .loading-head {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .loading-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
   .detail {
     display: flex;
     flex-direction: column;
