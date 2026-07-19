@@ -46,6 +46,8 @@
     bolt: "bolt",
     trending: "trending",
     book: "book",
+    "chevron-left": "angle-left",
+    "chevron-right": "angle-right",
   };
 
   const iconClass = $derived(`hn hn-${MAP[name] ?? "grid"}`);

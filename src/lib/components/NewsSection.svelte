@@ -1,28 +1,34 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { fade } from "svelte/transition";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { api } from "$lib/api";
   import Icon from "./Icon.svelte";
   import type { NewsItem } from "$lib/types";
 
+  const PER_PAGE = 3; // 1 lead card + 2 stacked mini cards
+
   let items = $state<NewsItem[]>([]);
   let loading = $state(true);
   let failed = $state(false);
+  let page = $state(0);
 
-  const featured = $derived(items[0] ?? null);
-  // Remaining stories grouped into columns of two (stacked) for the scroller.
-  const columns = $derived.by(() => {
-    const rest = items.slice(1);
-    const cols: NewsItem[][] = [];
-    for (let i = 0; i < rest.length; i += 2) cols.push(rest.slice(i, i + 2));
-    return cols;
+  // Split into pages of three; each page renders a lead + a two-up column.
+  const pages = $derived.by(() => {
+    const out: NewsItem[][] = [];
+    for (let i = 0; i < items.length; i += PER_PAGE) out.push(items.slice(i, i + PER_PAGE));
+    return out;
   });
+  const current = $derived(pages[page] ?? []);
+  const featured = $derived(current[0] ?? null);
+  const minis = $derived(current.slice(1));
 
   async function load(force = false) {
     loading = true;
     failed = false;
     try {
       items = await api.getNews(force);
+      page = 0;
     } catch {
       failed = true;
     } finally {
@@ -31,6 +37,10 @@
   }
 
   onMount(() => load());
+
+  function go(delta: number) {
+    page = Math.min(Math.max(page + delta, 0), pages.length - 1);
+  }
 
   function open(item: NewsItem) {
     if (item.link) openUrl(item.link).catch(() => {});
@@ -48,48 +58,63 @@
   <section class="news">
     <div class="news-head">
       <h2>Latest news</h2>
-      <button class="refresh" title="Refresh news" onclick={() => load(true)} disabled={loading}>
-        <Icon name="refresh" size={13} />
-      </button>
+      <div class="head-actions">
+        {#if pages.length > 1}
+          <button class="nav" title="Previous" onclick={() => go(-1)} disabled={page === 0}>
+            <Icon name="chevron-left" size={14} />
+          </button>
+          <button
+            class="nav"
+            title="Next"
+            onclick={() => go(1)}
+            disabled={page >= pages.length - 1}
+          >
+            <Icon name="chevron-right" size={14} />
+          </button>
+        {/if}
+        <button class="nav" title="Refresh news" onclick={() => load(true)} disabled={loading}>
+          <Icon name="refresh" size={13} />
+        </button>
+      </div>
     </div>
 
-    <div class="strip">
-      {#if loading && items.length === 0}
+    {#if loading && items.length === 0}
+      <div class="strip">
         <div class="feature skeleton"><div class="sk-img"></div></div>
-        {#each Array(2) as _, c (c)}
-          <div class="col">
-            {#each Array(2) as _, i (i)}
-              <div class="mini skeleton">
-                <div class="sk-thumb"></div>
-                <div class="sk-lines"><span class="sk-line"></span><span class="sk-line short"></span></div>
-              </div>
-            {/each}
-          </div>
-        {/each}
-      {:else if featured}
-        <!-- Lead story -->
-        <button
-          class="feature"
-          class:link={!!featured.link}
-          class:noimg={!featured.image}
-          onclick={() => open(featured)}
-          style={featured.image ? `background-image:url('${featured.image}')` : ""}
-        >
-          <div class="feature-scrim">
-            {#if featured.category}<span class="cat">{featured.category}</span>{/if}
-            <h3 class="feature-title">{featured.title}</h3>
-            {#if featured.summary}<p class="feature-sum">{featured.summary}</p>{/if}
-            <span class="feature-meta">
-              {fmtDate(featured.date)}
-              {#if featured.link}<span class="more">Read more →</span>{/if}
-            </span>
-          </div>
-        </button>
+        <div class="col">
+          {#each Array(2) as _, i (i)}
+            <div class="mini skeleton">
+              <div class="sk-thumb"></div>
+              <div class="sk-lines"><span class="sk-line"></span><span class="sk-line short"></span></div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {:else if featured}
+      {#key page}
+        <div class="strip" in:fade={{ duration: 140 }}>
+          <!-- Lead story -->
+          <button
+            class="feature"
+            class:link={!!featured.link}
+            class:noimg={!featured.image}
+            onclick={() => open(featured)}
+            style={featured.image ? `background-image:url('${featured.image}')` : ""}
+          >
+            <div class="feature-scrim">
+              {#if featured.category}<span class="cat">{featured.category}</span>{/if}
+              <h3 class="feature-title">{featured.title}</h3>
+              {#if featured.summary}<p class="feature-sum">{featured.summary}</p>{/if}
+              <span class="feature-meta">
+                {fmtDate(featured.date)}
+                {#if featured.link}<span class="more">Read more →</span>{/if}
+              </span>
+            </div>
+          </button>
 
-        <!-- Two-up columns, scrolling horizontally -->
-        {#each columns as col, c (c)}
+          <!-- Two-up column -->
           <div class="col">
-            {#each col as item (item.id)}
+            {#each minis as item (item.id)}
               <button class="mini" class:link={!!item.link} onclick={() => open(item)}>
                 {#if item.image}
                   <div class="mini-thumb" style="background-image:url('{item.image}')"></div>
@@ -107,9 +132,24 @@
               </button>
             {/each}
           </div>
-        {/each}
+        </div>
+      {/key}
+
+      {#if pages.length > 1}
+        <div class="dots" role="tablist" aria-label="News pages">
+          {#each pages as _, i (i)}
+            <button
+              class="dot"
+              class:on={i === page}
+              role="tab"
+              aria-selected={i === page}
+              aria-label={`Page ${i + 1}`}
+              onclick={() => (page = i)}
+            ></button>
+          {/each}
+        </div>
       {/if}
-    </div>
+    {/if}
   </section>
 {/if}
 
@@ -120,13 +160,19 @@
   .news-head {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
     margin-bottom: 12px;
   }
   .news-head h2 {
     font-size: 15px;
   }
-  .refresh {
+  .head-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -137,30 +183,30 @@
     color: var(--text-muted);
     cursor: pointer;
   }
-  .refresh:hover:not(:disabled) {
+  .nav:hover:not(:disabled) {
     border-color: var(--accent);
     color: var(--accent);
   }
-  .refresh:disabled {
-    opacity: 0.5;
+  .nav:disabled {
+    opacity: 0.4;
     cursor: default;
   }
 
-  /* Horizontal scroller: lead card, then columns of two. */
   .strip {
     --news-h: 288px;
-    display: flex;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
     gap: 12px;
-    overflow-x: auto;
-    padding-bottom: 10px;
-    scroll-snap-type: x proximity;
+  }
+  @media (max-width: 760px) {
+    .strip {
+      grid-template-columns: 1fr;
+    }
   }
 
   /* Lead story — large image with a gradient scrim + overlaid text. */
   .feature {
-    flex: 0 0 clamp(300px, 42%, 440px);
     height: var(--news-h);
-    scroll-snap-align: start;
     position: relative;
     padding: 0;
     text-align: left;
@@ -219,7 +265,6 @@
 
   /* A column of two stacked mini cards. */
   .col {
-    flex: 0 0 clamp(260px, 32%, 330px);
     height: var(--news-h);
     display: flex;
     flex-direction: column;
@@ -228,7 +273,6 @@
   .mini {
     flex: 1;
     min-height: 0;
-    scroll-snap-align: start;
     display: flex;
     gap: 10px;
     padding: 8px;
@@ -297,6 +341,31 @@
   .more {
     color: var(--accent);
     margin-left: auto;
+  }
+
+  /* Step indicators */
+  .dots {
+    display: flex;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 12px;
+  }
+  .dot {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    background: var(--border);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.12s, width 0.15s, border-color 0.12s;
+  }
+  .dot:hover {
+    border-color: var(--accent);
+  }
+  .dot.on {
+    width: 22px;
+    background: var(--accent);
+    border-color: var(--accent);
   }
 
   /* Skeletons */
