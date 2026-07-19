@@ -212,9 +212,14 @@ pub fn compute(app: &AppHandle) -> Result<AchievementsPayload> {
     let mut instances_scanned = 0usize;
 
     for instance in app.state::<InstanceStore>().list() {
-        let game = match paths::instance_game_dir(app, &instance.id) {
-            Ok(dir) => dir,
-            Err(_) => continue,
+        // Resolve the game dir without creating it — this scan is read-only, so
+        // it must not spawn empty `minecraft/` folders for unlaunched instances.
+        let game = match instance.game_dir.as_deref().map(str::trim) {
+            Some(dir) if !dir.is_empty() => std::path::PathBuf::from(dir),
+            _ => match paths::default_game_dir(app, &instance.id) {
+                Ok(dir) => dir,
+                Err(_) => continue,
+            },
         };
         let saves = game.join("saves");
         if !saves.is_dir() {

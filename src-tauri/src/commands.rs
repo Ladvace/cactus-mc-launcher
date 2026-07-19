@@ -366,9 +366,14 @@ pub fn list_worlds(app: AppHandle, id: String) -> Result<Vec<crate::worlds::Worl
 }
 
 /// Aggregated cross-instance advancements + lifetime stats for the player.
+/// Runs off the main thread — the scan reads and parses every save's JSON.
 #[tauri::command]
-pub fn get_achievements(app: AppHandle) -> Result<crate::achievements::AchievementsPayload> {
-    crate::achievements::compute(&app)
+pub async fn get_achievements(
+    app: AppHandle,
+) -> Result<crate::achievements::AchievementsPayload> {
+    tauri::async_runtime::spawn_blocking(move || crate::achievements::compute(&app))
+        .await
+        .map_err(|err| AppError::Other(format!("achievements scan failed: {err}")))?
 }
 
 /// Zip a world into the instance's `backups/` folder; returns the zip path.

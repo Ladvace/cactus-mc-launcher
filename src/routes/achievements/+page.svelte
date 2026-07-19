@@ -235,7 +235,7 @@
               {#each data.stats.topMined as e (e.key)}
                 <li>
                   <span class="bar-label">{cleanKey(e.key)}</span>
-                  <div class="track"><div class="fill" style="width:{(e.count / data.stats.topMined[0].count) * 100}%"></div></div>
+                  <div class="track"><div class="fill" style="width:{(e.count / (data.stats.topMined[0].count || 1)) * 100}%"></div></div>
                   <span class="bar-val">{fmtNumber(e.count)}</span>
                 </li>
               {/each}
@@ -252,7 +252,7 @@
               {#each data.stats.topKilled as e (e.key)}
                 <li>
                   <span class="bar-label">{cleanKey(e.key)}</span>
-                  <div class="track"><div class="fill" style="width:{(e.count / data.stats.topKilled[0].count) * 100}%"></div></div>
+                  <div class="track"><div class="fill" style="width:{(e.count / (data.stats.topKilled[0].count || 1)) * 100}%"></div></div>
                   <span class="bar-val">{fmtNumber(e.count)}</span>
                 </li>
               {/each}

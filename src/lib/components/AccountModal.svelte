@@ -41,10 +41,13 @@
       skinData = "";
       return;
     }
+    // Ignore a late response if the account/modal changed while in flight.
+    let cancelled = false;
     api
       .downloadImage(`https://minotar.net/skin/${activeAccount.uuid}`)
-      .then((dataUri) => (skinData = dataUri))
-      .catch(() => (skinData = ""));
+      .then((dataUri) => !cancelled && (skinData = dataUri))
+      .catch(() => !cancelled && (skinData = ""));
+    return () => (cancelled = true);
   });
 
   $effect(() => {
@@ -54,13 +57,16 @@
       capeData = "";
       return;
     }
+    let cancelled = false;
     api
       .getCapes()
       .then((ownedCapes) => {
+        if (cancelled) return;
         capes = ownedCapes;
         loadActiveCape(ownedCapes);
       })
-      .catch(() => (capes = []));
+      .catch(() => !cancelled && (capes = []));
+    return () => (cancelled = true);
   });
 
   function loadActiveCape(capeList: typeof capes) {
@@ -601,18 +607,12 @@
     font-size: 12.5px;
     margin: 4px 0 0;
   }
-  .spinner {
+  /* Smaller spinner just for the device-code status line (the skin loader keeps
+     the larger .spinner defined above). */
+  .dc-status .spinner {
     width: 13px;
     height: 13px;
     border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
   }
   .err {
     margin: 12px 0 0;
