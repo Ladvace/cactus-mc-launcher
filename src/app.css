@@ -95,6 +95,54 @@ input[type="range"] {
   cursor: pointer;
 }
 
+/* Custom pixel checkbox, applied app-wide. Toggle switches (.switch) hide
+   their native input and render their own track/thumb, so they're unaffected. */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  background: var(--bg-input);
+  border: 2px solid var(--border);
+  border-radius: 0;
+  box-shadow: inset 1px 1px 0 rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+input[type="checkbox"]::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  transform: scale(0);
+  background: var(--accent-contrast);
+  /* Chunky checkmark drawn with a clip-path so it stays crisp at any size. */
+  clip-path: polygon(14% 44%, 0 65%, 40% 100%, 100% 16%, 82% 0, 37% 62%);
+  transition: transform 0.09s ease;
+}
+input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+input[type="checkbox"]:not(:disabled):hover {
+  border-color: var(--accent);
+}
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 h1,
 h2,
 h3,
