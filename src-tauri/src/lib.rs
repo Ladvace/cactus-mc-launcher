@@ -13,6 +13,7 @@ mod board_auth;
 mod settings;
 mod players;
 mod server_ping;
+mod servers_dat;
 mod snapshot;
 mod tunnel;
 mod sources;
@@ -74,6 +75,7 @@ pub fn run() {
             commands::backup_world,
             commands::delete_world,
             commands::get_local_ip,
+            commands::add_server_to_instance,
             commands::read_ops,
             commands::read_whitelist,
             commands::add_op,

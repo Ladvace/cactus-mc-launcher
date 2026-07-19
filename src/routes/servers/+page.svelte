@@ -3,6 +3,7 @@
   import { api } from "$lib/api";
   import { copyText } from "$lib/clipboard";
   import { serversStore } from "$lib/stores/servers.svelte";
+  import { instancesStore } from "$lib/stores/instances.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import type { ServerStatus } from "$lib/types";
   import Icon from "$lib/components/Icon.svelte";
@@ -13,6 +14,31 @@
   let showAdd = $state(false);
   let newName = $state("");
   let newAddress = $state("");
+
+  // Address of the card whose "add to instance" chooser is open.
+  let addToFor = $state<string | null>(null);
+  const clientInstances = $derived(
+    instancesStore.instances.filter((i) => i.kind === "client"),
+  );
+
+  async function addToInstance(instanceId: string, name: string, address: string) {
+    addToFor = null;
+    try {
+      await api.addServerToInstance(instanceId, name, address);
+      const inst = clientInstances.find((i) => i.id === instanceId);
+      toast.success(`Added ${name} to ${inst?.name ?? "the instance"}.`);
+    } catch (err) {
+      toast.error(String(err));
+    }
+  }
+
+  function onAddToClick(address: string) {
+    if (clientInstances.length === 0) {
+      toast.error("Create an instance first.");
+      return;
+    }
+    addToFor = addToFor === address ? null : address;
+  }
 
   function pingOne(address: string) {
     pings[address] = { state: "loading" };
@@ -126,6 +152,9 @@
             <button class="btn sm" onclick={() => copyText(server.address, `Copied ${server.address}`)} title="Copy address">
               <Icon name="copy" size={13} /> Copy
             </button>
+            <button class="btn ghost sm" onclick={() => onAddToClick(server.address)} title="Add to an instance's server list">
+              <Icon name="plus" size={13} />
+            </button>
             {#if server.website}
               <button class="btn ghost sm" onclick={() => openUrl(server.website!)} title="Open website">
                 <Icon name="globe" size={13} />
@@ -133,6 +162,18 @@
             {/if}
           </div>
         </div>
+
+        {#if addToFor === server.address}
+          <div class="chooser">
+            <span class="chooser-label">Add to instance…</span>
+            {#each clientInstances as instance (instance.id)}
+              <button class="chooser-item" onclick={() => addToInstance(instance.id, server.name, server.address)}>
+                <span>{instance.name}</span>
+                <span class="chooser-ver">{instance.mcVersion}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
     {/each}
   </div>
@@ -327,6 +368,41 @@
     display: flex;
     gap: 0.35rem;
     flex-shrink: 0;
+  }
+  .chooser {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--border);
+  }
+  .chooser-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    padding: 0.1rem 0.2rem;
+  }
+  .chooser-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .chooser-item:hover {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  .chooser-ver {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono, monospace);
   }
   .disclaimer {
     margin: 2rem 0 0;

@@ -943,3 +943,19 @@ pub async fn tuneup_apply(
 ) -> Result<usize> {
     crate::tuneup::apply(&app, &instance_id, selection).await
 }
+
+// ---------------------------------------------------------------------------
+// Server list sync (write a server into an instance's servers.dat)
+// ---------------------------------------------------------------------------
+
+/// Add a server to an instance's in-game multiplayer list (servers.dat).
+#[tauri::command]
+pub fn add_server_to_instance(
+    app: AppHandle,
+    instance_id: String,
+    name: String,
+    address: String,
+) -> Result<()> {
+    let game_dir = crate::paths::instance_game_dir(&app, &instance_id)?;
+    crate::servers_dat::add_server(&game_dir.join("servers.dat"), &name, &address)
+}

@@ -63,6 +63,9 @@ export const api = {
 
   launchInstance: (id: string) => invoke<void>("launch_instance", { id }),
 
+  addServerToInstance: (instanceId: string, name: string, address: string) =>
+    invoke<void>("add_server_to_instance", { instanceId, name, address }),
+
   stopInstance: (id: string) => invoke<void>("stop_instance", { id }),
 
   sendServerCommand: (id: string, command: string) =>
