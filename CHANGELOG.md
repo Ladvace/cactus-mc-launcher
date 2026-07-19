@@ -4,7 +4,7 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] — Unreleased
 
 ### Added
 - **Command palette** — press `⌘K` / `Ctrl+K` to fuzzy-search your instances,
@@ -62,7 +62,7 @@ Early builds establishing the foundation:
 - Adaptive **Tune-up** (hardware-aware performance recommendations), themes,
   a customizable dock, and click sounds.
 
-[Unreleased]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.2.0...HEAD
+[1.3.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.2.0...HEAD
 [1.2.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.2.0
 [1.1.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.0.0
