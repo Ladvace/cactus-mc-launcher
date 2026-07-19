@@ -4,6 +4,7 @@ import type { Instance } from "$lib/types";
 class UiStore {
   createInstanceOpen = $state(false);
   accountsOpen = $state(false);
+  commandPaletteOpen = $state(false);
 
   // Right-click menu on an instance tile.
   instanceMenu = $state<{ instance: Instance; x: number; y: number } | null>(
@@ -33,6 +34,12 @@ class UiStore {
   }
   closeAccounts() {
     this.accountsOpen = false;
+  }
+  toggleCommandPalette() {
+    this.commandPaletteOpen = !this.commandPaletteOpen;
+  }
+  closeCommandPalette() {
+    this.commandPaletteOpen = false;
   }
 
   openInstanceMenu(instance: Instance, x: number, y: number) {

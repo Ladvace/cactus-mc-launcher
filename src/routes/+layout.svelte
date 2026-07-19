@@ -10,6 +10,7 @@
   import DecorLayer from "$lib/components/DecorLayer.svelte";
   import Toaster from "$lib/components/Toaster.svelte";
   import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
+  import CommandPalette from "$lib/components/CommandPalette.svelte";
   import Onboarding from "$lib/components/Onboarding.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
@@ -59,6 +60,14 @@
     event.preventDefault();
   }
 
+  // Command palette: ⌘K (macOS) / Ctrl+K (Windows/Linux).
+  function onGlobalKeydown(event: KeyboardEvent) {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      ui.toggleCommandPalette();
+    }
+  }
+
   // Subtle click sound on any button (capture phase so it fires even when a
   // handler stops propagation). Gated by the uiSounds setting.
   function onGlobalClick(event: MouseEvent) {
@@ -72,7 +81,7 @@
   }
 </script>
 
-<svelte:window oncontextmenu={onContextMenu} onclickcapture={onGlobalClick} />
+<svelte:window oncontextmenu={onContextMenu} onclickcapture={onGlobalClick} onkeydown={onGlobalKeydown} />
 
 <div class="app">
   <div class="bg-layer" style="background: {bg};"></div>
@@ -95,6 +104,7 @@
 <GroupPicker />
 <Toaster />
 <UpdatePrompt />
+<CommandPalette />
 
 {#if !onboarded && settingsStore.loaded}
   <Onboarding onDone={() => (onboarded = true)} />
