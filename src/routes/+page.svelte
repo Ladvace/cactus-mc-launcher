@@ -16,6 +16,7 @@
   import { boardApi } from "$lib/boardApi";
   import { toast } from "$lib/stores/toast.svelte";
   import { MOD_LOADERS, type Instance, type ModLoader } from "$lib/types";
+  import { CMD_K } from "$lib/platform";
 
   let query = $state("");
   let loaderFilter = $state<ModLoader | "all">("all");
@@ -153,6 +154,11 @@
       <p>Arrange your instances into a home screen that's yours.</p>
     </div>
     <div class="hero-actions">
+      <button class="cmdk" title="Command palette" onclick={() => ui.toggleCommandPalette()}>
+        <Icon name="search" size={14} />
+        <span class="cmdk-label">Search…</span>
+        <kbd>{CMD_K}</kbd>
+      </button>
       <button class="btn ghost" title="Import a shared setup" onclick={openMenu}>
         <Icon name="download" size={15} /> Import
       </button>
@@ -275,8 +281,48 @@
   }
   .hero-actions {
     display: flex;
+    align-items: center;
     gap: 10px;
     flex-shrink: 0;
+  }
+  /* A search-bar-styled trigger that advertises the ⌘K/Ctrl+K palette. */
+  .cmdk {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    min-width: 190px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+  }
+  .cmdk:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .cmdk-label {
+    flex: 1;
+    text-align: left;
+    font-size: 13px;
+  }
+  .cmdk kbd {
+    font-family: var(--font-pixel), monospace;
+    font-size: 10.5px;
+    padding: 2px 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  @media (max-width: 620px) {
+    .cmdk-label {
+      display: none;
+    }
+    .cmdk {
+      min-width: 0;
+    }
   }
   .toast {
     position: fixed;
