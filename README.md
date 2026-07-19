@@ -63,7 +63,13 @@ Cactus is built on **Tauri**: the UI runs in the operating system's built-in Web
 
 > We don't publish an idle-RAM figure yet — a native-WebView app has a lower baseline than a bundled-Chromium one, but we'd rather measure it reproducibly before quoting a number.
 
-## Getting started
+## Download
+
+Grab the latest build from the [**website**](https://cactus.gianmarcocavallo.com) or the
+[**releases page**](https://github.com/Ladvace/cactus-mc-launcher/releases) —
+macOS, Windows, and Linux.
+
+## Building from source
 
 Requires [Bun](https://bun.sh) and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) (Rust toolchain + platform build deps).
 
@@ -94,7 +100,7 @@ Until configured, these stay inert and the launcher runs fully local.
 
 ## Backend
 
-The community boards, presence, snapshot sharing, and the CurseForge proxy are served by a small **Cloudflare Worker + Supabase + R2** backend that lives in its own repository. The desktop app only ever receives public URLs — no secret keys are shipped in the client. See that repo's `HOSTING.md` to deploy your own on free tiers.
+The community boards, presence, snapshot sharing, and the CurseForge proxy are served by a small **Cloudflare Worker + Supabase + R2** backend that lives in its own repository. The desktop app only ever receives public URLs — no secret keys are shipped in the client.
 
 ## Project structure
 
