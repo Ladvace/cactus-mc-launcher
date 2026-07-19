@@ -458,6 +458,188 @@ pub async fn install_modpack(
     Ok(instance)
 }
 
+// --- CurseForge modpack (.zip with manifest.json + overrides/) ---------------
+
+#[derive(Deserialize)]
+struct CfManifest {
+    #[serde(default)]
+    name: Option<String>,
+    minecraft: CfMinecraft,
+    #[serde(default)]
+    files: Vec<CfManifestFile>,
+}
+
+#[derive(Deserialize)]
+struct CfMinecraft {
+    version: String,
+    #[serde(rename = "modLoaders", default)]
+    mod_loaders: Vec<CfModLoader>,
+}
+
+#[derive(Deserialize)]
+struct CfModLoader {
+    id: String,
+    #[serde(default)]
+    primary: bool,
+}
+
+#[derive(Deserialize)]
+struct CfManifestFile {
+    #[serde(rename = "projectID")]
+    project_id: u64,
+    #[serde(rename = "fileID")]
+    file_id: u64,
+}
+
+/// Parse a CurseForge `modLoaders` id (e.g. `fabric-0.15.0`) into our loader.
+fn parse_cf_loader(id: &str) -> (ModLoader, Option<String>) {
+    let (name, version) = id.split_once('-').unwrap_or((id, ""));
+    let loader = match name {
+        "fabric" => ModLoader::Fabric,
+        "quilt" => ModLoader::Quilt,
+        "neoforge" => ModLoader::NeoForge,
+        "forge" => ModLoader::Forge,
+        _ => ModLoader::Vanilla,
+    };
+    let version = (!version.is_empty()).then(|| version.to_string());
+    (loader, version)
+}
+
+/// Install a CurseForge modpack (`packId:fileId`) as a new instance. The pack's
+/// mods are CurseForge project/file references resolved through the proxy; the
+/// `overrides/` folder (configs) is applied on top.
+pub async fn install_cf_modpack(
+    app: &AppHandle,
+    version_id: &str,
+    icon_url: Option<String>,
+) -> Result<Instance> {
+    use futures::stream::{self, StreamExt};
+
+    emit_progress(app, None, 0, 0, "Downloading modpack…");
+    let version = sources::curseforge::get_version(version_id).await?;
+    let file = version
+        .primary_file()
+        .ok_or_else(|| AppError::Other("this modpack has no file".into()))?;
+    if file.url.is_empty() {
+        return Err(AppError::Other(
+            "This modpack can't be downloaded automatically (author opted out on CurseForge)."
+                .into(),
+        ));
+    }
+
+    let client = crate::http::client()?;
+    let tmp = paths::meta_dir(app)?.join("tmp");
+    std::fs::create_dir_all(&tmp)?;
+    let pack = tmp.join(&file.filename);
+    download_one(
+        &client,
+        &DownloadTask {
+            url: file.url.clone(),
+            dest: pack.clone(),
+            sha1: file.hashes.sha1.clone(),
+            executable: false,
+        },
+    )
+    .await?;
+
+    let manifest: CfManifest = {
+        let f = std::fs::File::open(&pack)?;
+        let mut zip = zip::ZipArchive::new(f)?;
+        let mut entry = zip
+            .by_name("manifest.json")
+            .map_err(|_| AppError::Other("modpack is missing manifest.json".into()))?;
+        let mut text = String::new();
+        entry.read_to_string(&mut text)?;
+        serde_json::from_str(&text)?
+    };
+
+    let (loader, loader_version) = manifest
+        .minecraft
+        .mod_loaders
+        .iter()
+        .find(|l| l.primary)
+        .or_else(|| manifest.minecraft.mod_loaders.first())
+        .map(|l| parse_cf_loader(&l.id))
+        .unwrap_or((ModLoader::Vanilla, None));
+
+    let name = manifest.name.clone().unwrap_or_else(|| version.name.clone());
+    let icon = match icon_url.as_deref().filter(|url| !url.is_empty()) {
+        Some(url) => fetch_icon_data_uri(&client, url).await,
+        None => None,
+    };
+    let instance = Instance::new(
+        name,
+        InstanceKind::Client,
+        manifest.minecraft.version.clone(),
+        loader,
+        loader_version,
+        icon,
+    );
+    app.state::<InstanceStore>().save(app, &instance)?;
+    let game_dir = paths::instance_game_dir(app, &instance.id)?;
+    let mods_dir = game_dir.join("mods");
+
+    // Resolve each mod's download URL through the proxy, concurrently.
+    emit_progress(app, Some(&instance.id), 0, 0, "Resolving mods…");
+    let concurrency =
+        crate::settings::clamp_concurrency(app.state::<crate::settings::SettingsStore>().get().max_concurrent_downloads);
+    let resolved: Vec<Option<(DownloadTask, ContentItem)>> = stream::iter(manifest.files)
+        .map(|f| {
+            let mods_dir = mods_dir.clone();
+            async move {
+                let composite = format!("{}:{}", f.project_id, f.file_id);
+                let v = sources::curseforge::get_version(&composite).await.ok()?;
+                let cf_file = v.primary_file()?;
+                if cf_file.url.is_empty() {
+                    return None; // author opted out — skip
+                }
+                let title = cf_file.filename.rsplit_once('.').map_or(cf_file.filename.as_str(), |(s, _)| s);
+                Some((
+                    DownloadTask {
+                        url: cf_file.url.clone(),
+                        dest: mods_dir.join(&cf_file.filename),
+                        sha1: cf_file.hashes.sha1.clone(),
+                        executable: false,
+                    },
+                    ContentItem {
+                        project_id: Some(f.project_id.to_string()),
+                        version_id: composite,
+                        project_type: "mod".into(),
+                        title: title.to_string(),
+                        file_name: cf_file.filename.clone(),
+                        icon_url: None,
+                        enabled: true,
+                        source: "curseforge".into(),
+                    },
+                ))
+            }
+        })
+        .buffer_unordered(concurrency)
+        .collect()
+        .await;
+
+    let (tasks, items): (Vec<_>, Vec<_>) = resolved.into_iter().flatten().unzip();
+    {
+        let app_cb = app.clone();
+        let id = instance.id.clone();
+        cache::install_all(&client, app, tasks, concurrency, move |cur, total| {
+            emit_progress(&app_cb, Some(&id), cur, total, "Downloading mods…");
+        })
+        .await?;
+    }
+
+    emit_progress(app, Some(&instance.id), 0, 0, "Applying overrides…");
+    apply_overrides(&pack, &game_dir)?;
+
+    let mut content = read_content(app, &instance.id)?;
+    content.items.extend(items);
+    write_content(app, &instance.id, &content)?;
+
+    let _ = std::fs::remove_file(&pack);
+    emit_progress(app, Some(&instance.id), 1, 1, "Done");
+    Ok(instance)
+}
+
 /// Extract `overrides/` and `client-overrides/` from the pack into the game dir.
 fn apply_overrides(mrpack: &PathBuf, game_dir: &std::path::Path) -> Result<()> {
     let file = std::fs::File::open(mrpack)?;
@@ -525,6 +707,15 @@ mod tests {
         assert_eq!(content_type_for("resourcepacks/x.zip"), Some("resourcepack"));
         assert_eq!(content_type_for("shaderpacks/x.zip"), Some("shader"));
         assert_eq!(content_type_for("config/foo.toml"), None);
+    }
+
+    #[test]
+    fn parses_cf_modloader_ids() {
+        assert_eq!(parse_cf_loader("fabric-0.15.0"), (ModLoader::Fabric, Some("0.15.0".into())));
+        assert_eq!(parse_cf_loader("forge-47.2.0"), (ModLoader::Forge, Some("47.2.0".into())));
+        assert_eq!(parse_cf_loader("neoforge-21.0.1"), (ModLoader::NeoForge, Some("21.0.1".into())));
+        assert_eq!(parse_cf_loader("quilt-1.2.3"), (ModLoader::Quilt, Some("1.2.3".into())));
+        assert_eq!(parse_cf_loader("something"), (ModLoader::Vanilla, None));
     }
 
     #[test]

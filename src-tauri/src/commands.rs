@@ -567,9 +567,7 @@ pub async fn install_modpack(
 ) -> Result<Instance> {
     match source {
         Source::Modrinth => content::install_modpack(&app, &version_id, icon_url).await,
-        Source::CurseForge => Err(AppError::Other(
-            "CurseForge modpack install isn't supported yet".into(),
-        )),
+        Source::CurseForge => content::install_cf_modpack(&app, &version_id, icon_url).await,
     }
 }
 

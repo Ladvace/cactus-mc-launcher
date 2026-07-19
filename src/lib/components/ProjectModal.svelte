@@ -28,7 +28,6 @@
 
   const isModpack = $derived(hit?.projectType === "modpack");
   // CurseForge modpacks use a different (non-.mrpack) format we don't handle yet.
-  const modpackUnsupported = $derived(isModpack && hit?.source === "curseforge");
 
   let selectedInstanceId = $state("");
   let versions = $state<ModrinthVersion[]>([]);
@@ -249,13 +248,7 @@
     <p class="desc">{hit.description}</p>
 
     <div class="install-box">
-      {#if modpackUnsupported}
-        <p class="warn">
-          CurseForge modpacks use a different format that isn't supported yet —
-          Modrinth modpacks work. You can still install individual CurseForge
-          mods into an instance.
-        </p>
-      {:else if isModpack}
+      {#if isModpack}
         <p class="mp-note">
           Installs as a <strong>new instance</strong>{#if versions.length > 0}
             (latest {versions[0].versionNumber}{#if versions[0].gameVersions[0]}, MC
@@ -326,10 +319,7 @@
     {#if isModpack}
       <button
         class="btn primary"
-        disabled={installing ||
-          loadingVersions ||
-          versions.length === 0 ||
-          modpackUnsupported}
+        disabled={installing || loadingVersions || versions.length === 0}
         onclick={installModpack}
       >
         {installing ? "Installing…" : "Install modpack"}
