@@ -36,6 +36,7 @@
     { id: "act-create", label: "Create instance", hint: "Action", icon: "plus", run: () => ui.openCreateInstance() },
     { id: "act-accounts", label: "Accounts", hint: "Action", icon: "user", run: () => ui.openAccounts() },
     { id: "act-update", label: "Check for updates", hint: "Action", icon: "refresh", run: () => updater.check(true) },
+    { id: "act-changelog", label: "What's new", hint: "Action", icon: "clock", run: () => ui.openChangelog() },
   ]);
 
   const instanceCmds = $derived<Cmd[]>(

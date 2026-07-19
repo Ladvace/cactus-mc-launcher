@@ -11,6 +11,7 @@
   import Toaster from "$lib/components/Toaster.svelte";
   import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
+  import ChangelogModal from "$lib/components/ChangelogModal.svelte";
   import Onboarding from "$lib/components/Onboarding.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
@@ -105,6 +106,7 @@
 <Toaster />
 <UpdatePrompt />
 <CommandPalette />
+<ChangelogModal open={ui.changelogOpen} onClose={() => ui.closeChangelog()} />
 
 {#if !onboarded && settingsStore.loaded}
   <Onboarding onDone={() => (onboarded = true)} />

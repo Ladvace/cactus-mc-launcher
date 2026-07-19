@@ -5,6 +5,7 @@ class UiStore {
   createInstanceOpen = $state(false);
   accountsOpen = $state(false);
   commandPaletteOpen = $state(false);
+  changelogOpen = $state(false);
 
   // Right-click menu on an instance tile.
   instanceMenu = $state<{ instance: Instance; x: number; y: number } | null>(
@@ -40,6 +41,12 @@ class UiStore {
   }
   closeCommandPalette() {
     this.commandPaletteOpen = false;
+  }
+  openChangelog() {
+    this.changelogOpen = true;
+  }
+  closeChangelog() {
+    this.changelogOpen = false;
   }
 
   openInstanceMenu(instance: Instance, x: number, y: number) {
