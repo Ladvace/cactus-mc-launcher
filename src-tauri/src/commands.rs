@@ -339,6 +339,12 @@ pub async fn get_news(force: bool) -> Result<Vec<crate::news::NewsItem>> {
     crate::news::get(force).await
 }
 
+/// The player's Minecraft friends list (Mojang API, via the account token).
+#[tauri::command]
+pub async fn get_friends(app: AppHandle) -> Result<crate::friends::FriendsList> {
+    crate::friends::list(&app).await
+}
+
 #[tauri::command]
 pub async fn get_achievements(
     app: AppHandle,

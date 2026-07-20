@@ -3,6 +3,7 @@ mod auth;
 mod commands;
 mod content;
 mod error;
+mod friends;
 mod http;
 mod instance;
 mod launch;
@@ -81,6 +82,7 @@ pub fn run() {
             commands::get_achievements,
             commands::backend_base,
             commands::get_news,
+            commands::get_friends,
             commands::read_ops,
             commands::read_whitelist,
             commands::add_op,

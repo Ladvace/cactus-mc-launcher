@@ -416,6 +416,18 @@ export interface SelectedMod {
   title: string;
 }
 
+export interface Friend {
+  profileId: string;
+  name: string;
+}
+
+export interface FriendsList {
+  friends: Friend[];
+  incoming: Friend[];
+  outgoing: Friend[];
+  empty: boolean;
+}
+
 export interface NewsItem {
   id: string;
   title: string;

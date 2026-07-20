@@ -23,6 +23,7 @@ import type {
   TuneupSelection,
   AchievementsPayload,
   NewsItem,
+  FriendsList,
   UpdateInstance,
   VersionList,
   WorldInfo,
@@ -68,6 +69,8 @@ export const api = {
   getAchievements: () => invoke<AchievementsPayload>("get_achievements"),
 
   getNews: (force = false) => invoke<NewsItem[]>("get_news", { force }),
+
+  getFriends: () => invoke<FriendsList>("get_friends"),
 
   stopInstance: (id: string) => invoke<void>("stop_instance", { id }),
 

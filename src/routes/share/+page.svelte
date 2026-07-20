@@ -3,6 +3,7 @@
   import Icon from "$lib/components/Icon.svelte";
   import BoardView from "$lib/components/BoardView.svelte";
   import PresencePanel from "$lib/components/PresencePanel.svelte";
+  import FriendsList from "$lib/components/FriendsList.svelte";
   import { api } from "$lib/api";
   import { boardApi } from "$lib/boardApi";
   import { boardAuth } from "$lib/stores/boardAuth.svelte";
@@ -136,6 +137,7 @@
   </div>
 
   {#if active === "play"}
+    <FriendsList />
     <PresencePanel />
   {:else if active !== "discover"}
     <BoardView handle={active} />
