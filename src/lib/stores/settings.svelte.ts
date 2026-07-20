@@ -7,7 +7,7 @@ const DEFAULTS: Settings = {
   javaPaths: {},
   maxMemoryMb: 4096,
   minMemoryMb: 1024,
-  maxConcurrentDownloads: 16,
+  maxConcurrentDownloads: 8,
   jvmArgs: "",
   gameWidth: 854,
   gameHeight: 480,

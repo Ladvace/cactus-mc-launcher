@@ -8,7 +8,7 @@ use crate::error::Result;
 use crate::paths;
 
 fn default_concurrency() -> u32 {
-    16
+    8
 }
 
 pub fn clamp_concurrency(n: u32) -> usize {

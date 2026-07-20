@@ -46,6 +46,15 @@
   // Live sample of the chosen date format.
   const fmtDatePreview = $derived(formatDate(new Date().toISOString(), draft.dateFormat));
 
+  // Labelled ticks under the max-memory slider (a few GB marks).
+  const MEM_MIN = 1024;
+  const MEM_MAX = 16384;
+  const memTicks = [1, 4, 8, 12, 16].map((gb, i, arr) => ({
+    gb,
+    pct: ((gb * 1024 - MEM_MIN) / (MEM_MAX - MEM_MIN)) * 100,
+    align: i === 0 ? "start" : i === arr.length - 1 ? "end" : "mid",
+  }));
+
   let cacheStats = $state<CacheStats | null>(null);
   let cacheLoading = $state(false);
 
@@ -681,16 +690,23 @@
         <span>Maximum memory</span>
         <small>{draft.maxMemoryMb} MB</small>
       </div>
-      <input
-        type="range"
-        min="1024"
-        max="16384"
-        step="512"
-        bind:value={draft.maxMemoryMb}
-        class="range stepped"
-        style="--steps:{(16384 - 1024) / 1024}"
-        use:sliderFill={draft.maxMemoryMb}
-      />
+      <div class="mem">
+        <input
+          type="range"
+          min={MEM_MIN}
+          max={MEM_MAX}
+          step="512"
+          bind:value={draft.maxMemoryMb}
+          class="range stepped"
+          style="--steps:{(MEM_MAX - MEM_MIN) / 1024}"
+          use:sliderFill={draft.maxMemoryMb}
+        />
+        <div class="mem-ticks">
+          {#each memTicks as tick}
+            <span class="tick {tick.align}" style="left:{tick.pct}%">{tick.gb}<small>GB</small></span>
+          {/each}
+        </div>
+      </div>
     </div>
     <div class="setting">
       <div class="label">
@@ -706,7 +722,7 @@
     <div class="setting">
       <div class="label">
         <span>Concurrent downloads</span>
-        <small>{draft.maxConcurrentDownloads} at a time · 8–16 suits most connections (higher for fast, stable links)</small>
+        <small>{draft.maxConcurrentDownloads} at a time · 4–8 suits most connections. Higher isn't faster past your bandwidth — too many can hit server rate-limits, stall, or make downloads <em>slower</em>.</small>
       </div>
       <input
         type="range"
@@ -1301,6 +1317,35 @@
   }
   .range {
     width: 240px;
+  }
+  .mem {
+    width: 240px;
+  }
+  .mem .range {
+    width: 100%;
+  }
+  .mem-ticks {
+    position: relative;
+    height: 14px;
+    margin-top: 4px;
+  }
+  .mem-ticks .tick {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .mem-ticks .tick small {
+    font-size: 8px;
+    opacity: 0.7;
+    margin-left: 1px;
+  }
+  .mem-ticks .tick.start {
+    transform: none;
+  }
+  .mem-ticks .tick.end {
+    transform: translateX(-100%);
   }
   .res {
     display: flex;
