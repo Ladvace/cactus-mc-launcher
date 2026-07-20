@@ -24,6 +24,7 @@ import type {
   AchievementsPayload,
   NewsItem,
   FriendsList,
+  FriendsPrefs,
   UpdateInstance,
   VersionList,
   WorldInfo,
@@ -78,6 +79,11 @@ export const api = {
       profileId: opts.profileId ?? null,
       add: opts.add,
     }),
+
+  getFriendPrefs: () => invoke<FriendsPrefs>("get_friend_prefs"),
+
+  setFriendPrefs: (friendsEnabled: boolean, acceptInvites: boolean) =>
+    invoke<FriendsPrefs>("set_friend_prefs", { friendsEnabled, acceptInvites }),
 
   stopInstance: (id: string) => invoke<void>("stop_instance", { id }),
 

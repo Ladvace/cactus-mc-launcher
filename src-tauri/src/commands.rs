@@ -357,6 +357,22 @@ pub async fn friend_update(
     crate::friends::update(&app, name, profile_id, add).await
 }
 
+/// Read the account's friends feature settings (enabled / accept invites).
+#[tauri::command]
+pub async fn get_friend_prefs(app: AppHandle) -> Result<crate::friends::FriendsPrefs> {
+    crate::friends::get_prefs(&app).await
+}
+
+/// Turn the friends feature and invite-acceptance on/off for the account.
+#[tauri::command]
+pub async fn set_friend_prefs(
+    app: AppHandle,
+    friends_enabled: bool,
+    accept_invites: bool,
+) -> Result<crate::friends::FriendsPrefs> {
+    crate::friends::set_prefs(&app, friends_enabled, accept_invites).await
+}
+
 #[tauri::command]
 pub async fn get_achievements(
     app: AppHandle,

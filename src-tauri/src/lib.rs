@@ -84,6 +84,8 @@ pub fn run() {
             commands::get_news,
             commands::get_friends,
             commands::friend_update,
+            commands::get_friend_prefs,
+            commands::set_friend_prefs,
             commands::read_ops,
             commands::read_whitelist,
             commands::add_op,

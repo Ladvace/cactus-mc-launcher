@@ -5,9 +5,10 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { skinFace } from "$lib/skin";
   import Icon from "./Icon.svelte";
-  import type { FriendsList } from "$lib/types";
+  import type { FriendsList, FriendsPrefs } from "$lib/types";
 
   let data = $state<FriendsList | null>(null);
+  let prefs = $state<FriendsPrefs | null>(null);
   let loading = $state(false);
   let failed = $state(false);
   let busy = $state(false);
@@ -24,11 +25,25 @@
     failed = false;
     try {
       data = await api.getFriends();
+      prefs = await api.getFriendPrefs().catch(() => null);
     } catch {
       failed = true;
       data = null;
     } finally {
       loading = false;
+    }
+  }
+
+  async function togglePref(key: "friendsEnabled" | "acceptInvites") {
+    if (!prefs || busy) return;
+    busy = true;
+    const next = { ...prefs, [key]: !prefs[key] };
+    try {
+      prefs = await api.setFriendPrefs(next.friendsEnabled, next.acceptInvites);
+    } catch (err) {
+      toast.error(String(err));
+    } finally {
+      busy = false;
     }
   }
 
@@ -70,6 +85,24 @@
         <Icon name="refresh" size={12} />
       </button>
     </div>
+
+    {#if prefs}
+      <div class="prefs">
+        <label class="pref">
+          <input type="checkbox" checked={prefs.friendsEnabled} disabled={busy}
+            onchange={() => togglePref("friendsEnabled")} />
+          Friends enabled
+        </label>
+        <label class="pref">
+          <input type="checkbox" checked={prefs.acceptInvites} disabled={busy}
+            onchange={() => togglePref("acceptInvites")} />
+          Accept invites
+        </label>
+      </div>
+      {#if !prefs.friendsEnabled}
+        <p class="muted warn">Friends are off — turn them on so you can add friends and others can add you.</p>
+      {/if}
+    {/if}
 
     <form class="add" onsubmit={(e) => (e.preventDefault(), add())}>
       <input placeholder="Add a friend by username…" bind:value={addName} maxlength="16" spellcheck="false" />
@@ -172,6 +205,23 @@
   .refresh:disabled {
     opacity: 0.5;
     cursor: default;
+  }
+  .prefs {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+  .pref {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .warn {
+    margin-bottom: 10px;
+    color: var(--warning);
   }
   .add {
     display: flex;

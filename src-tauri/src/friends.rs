@@ -8,6 +8,7 @@ use tauri::AppHandle;
 use crate::error::{AppError, Result};
 
 const FRIENDS_URL: &str = "https://api.minecraftservices.com/friends";
+const ATTRS_URL: &str = "https://api.minecraftservices.com/player/attributes";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -69,6 +70,77 @@ async fn token(app: &AppHandle, client: &reqwest::Client) -> Result<String> {
         .await?
         .map(|account| account.mc_access_token)
         .ok_or_else(|| AppError::Other("Sign in with your Microsoft account first.".into()))
+}
+
+/// Whether the account has the friends feature and invite-acceptance enabled
+/// (Mojang `friendsPreferences`).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FriendsPrefs {
+    pub friends_enabled: bool,
+    pub accept_invites: bool,
+}
+
+pub async fn get_prefs(app: &AppHandle) -> Result<FriendsPrefs> {
+    let client = crate::http::client()?;
+    let token = token(app, &client).await?;
+    let resp = client
+        .get(ATTRS_URL)
+        .bearer_auth(&token)
+        .timeout(std::time::Duration::from_secs(20))
+        .send()
+        .await?;
+    if !resp.status().is_success() {
+        return Err(AppError::Other(format!(
+            "couldn't load friend settings ({})",
+            resp.status()
+        )));
+    }
+    let attrs: serde_json::Value = resp.json().await?;
+    let enabled = |key: &str| {
+        attrs
+            .pointer(&format!("/friendsPreferences/{key}"))
+            .and_then(|v| v.as_str())
+            == Some("ENABLED")
+    };
+    Ok(FriendsPrefs {
+        friends_enabled: enabled("friends"),
+        accept_invites: enabled("acceptInvites"),
+    })
+}
+
+pub async fn set_prefs(
+    app: &AppHandle,
+    friends_enabled: bool,
+    accept_invites: bool,
+) -> Result<FriendsPrefs> {
+    let client = crate::http::client()?;
+    let token = token(app, &client).await?;
+    let flag = |on: bool| if on { "ENABLED" } else { "DISABLED" };
+    let body = serde_json::json!({
+        "friendsPreferences": {
+            "friends": flag(friends_enabled),
+            "acceptInvites": flag(accept_invites),
+        }
+    });
+    let resp = client
+        .post(ATTRS_URL)
+        .bearer_auth(&token)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(20))
+        .send()
+        .await?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(AppError::Other(format!(
+            "couldn't update friend settings ({status}): {text}"
+        )));
+    }
+    Ok(FriendsPrefs {
+        friends_enabled,
+        accept_invites,
+    })
 }
 
 pub async fn list(app: &AppHandle) -> Result<FriendsList> {

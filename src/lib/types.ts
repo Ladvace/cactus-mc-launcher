@@ -428,6 +428,11 @@ export interface FriendsList {
   empty: boolean;
 }
 
+export interface FriendsPrefs {
+  friendsEnabled: boolean;
+  acceptInvites: boolean;
+}
+
 export interface NewsItem {
   id: string;
   title: string;
