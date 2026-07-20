@@ -126,7 +126,28 @@ pub async fn update(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        return Err(AppError::Other(format!("friend update failed ({status}): {text}")));
+        return Err(AppError::Other(friendly_error(&text, status)));
     }
     Ok(to_list(resp.json().await?))
+}
+
+/// Turn Mojang's `{ errorMessage, details: { status } }` into a readable message.
+fn friendly_error(body: &str, status: reqwest::StatusCode) -> String {
+    let json: serde_json::Value = serde_json::from_str(body).unwrap_or_default();
+    let detail = json
+        .get("details")
+        .and_then(|d| d.get("status"))
+        .and_then(|s| s.as_str());
+    match detail {
+        Some("INVITE_REJECTED") => {
+            "That player isn't accepting friend requests — they've turned Minecraft \
+             friends off or restricted who can add them (an Xbox privacy setting)."
+                .to_string()
+        }
+        _ => json
+            .get("errorMessage")
+            .and_then(|m| m.as_str())
+            .map(String::from)
+            .unwrap_or_else(|| format!("friend update failed ({status})")),
+    }
 }
