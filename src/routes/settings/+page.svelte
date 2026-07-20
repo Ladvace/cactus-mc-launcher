@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
+  import { sliderFill } from "$lib/slider";
   import { api } from "$lib/api";
   import { listen } from "@tauri-apps/api/event";
   import { getVersion } from "@tauri-apps/api/app";
@@ -572,6 +573,7 @@
           step="0.05"
           value={textureOpacity}
           oninput={(event) => setTextureOpacity(parseFloat(event.currentTarget.value))}
+          use:sliderFill={textureOpacity}
         />
         <span class="hex">{Math.round(textureOpacity * 100)}%</span>
       </div>
@@ -664,7 +666,9 @@
         max="16384"
         step="512"
         bind:value={draft.maxMemoryMb}
-        class="range"
+        class="range stepped"
+        style="--steps:{(16384 - 1024) / 1024}"
+        use:sliderFill={draft.maxMemoryMb}
       />
     </div>
     <div class="setting">
@@ -690,6 +694,7 @@
         step="1"
         bind:value={draft.maxConcurrentDownloads}
         class="range"
+        use:sliderFill={draft.maxConcurrentDownloads}
       />
     </div>
   </section>
@@ -1134,8 +1139,6 @@
   }
   .opacity-range {
     flex: 1;
-    cursor: pointer;
-    accent-color: var(--accent);
   }
   .path {
     font-family: var(--font-pixel);
@@ -1277,7 +1280,6 @@
   }
   .range {
     width: 240px;
-    accent-color: var(--accent);
   }
   .res {
     display: flex;

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
+  import { sliderFill } from "$lib/slider";
   import type { TuneupPlan } from "$lib/types";
   import Modal from "./Modal.svelte";
 
@@ -177,12 +178,15 @@
     <div class="heap" class:disabled={!applyMemory}>
       <input
         type="range"
+        class="stepped"
         min="1024"
         max={Math.max(2048, plan.specs.totalRamMb)}
         step="512"
+        style="--steps:{(Math.max(2048, plan.specs.totalRamMb) - 1024) / 1024}"
         bind:value={maxMem}
         disabled={!applyMemory}
         aria-label="Maximum memory"
+        use:sliderFill={maxMem}
       />
       <span class="heap-val"><strong>{gb(maxMem)} GB</strong> max · {gb(minMem)} GB min</span>
     </div>
@@ -271,8 +275,6 @@
   }
   .heap input[type="range"] {
     flex: 1;
-    accent-color: var(--accent);
-    cursor: pointer;
   }
   .heap-val {
     font-size: 0.85rem;
