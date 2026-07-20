@@ -55,17 +55,28 @@ fn map(list: Vec<RawFriend>) -> Vec<Friend> {
         .collect()
 }
 
+fn to_list(data: RawFriends) -> FriendsList {
+    FriendsList {
+        friends: map(data.friends),
+        incoming: map(data.incoming_requests),
+        outgoing: map(data.outgoing_requests),
+        empty: data.empty,
+    }
+}
+
+async fn token(app: &AppHandle, client: &reqwest::Client) -> Result<String> {
+    crate::auth::active_valid_account(app, client)
+        .await?
+        .map(|account| account.mc_access_token)
+        .ok_or_else(|| AppError::Other("Sign in with your Microsoft account first.".into()))
+}
+
 pub async fn list(app: &AppHandle) -> Result<FriendsList> {
     let client = crate::http::client()?;
-    let account = crate::auth::active_valid_account(app, &client)
-        .await?
-        .ok_or_else(|| {
-            AppError::Other("Sign in with your Microsoft account to see friends.".into())
-        })?;
-
+    let token = token(app, &client).await?;
     let resp = client
         .get(FRIENDS_URL)
-        .bearer_auth(&account.mc_access_token)
+        .bearer_auth(&token)
         .timeout(std::time::Duration::from_secs(20))
         .send()
         .await?;
@@ -75,12 +86,47 @@ pub async fn list(app: &AppHandle) -> Result<FriendsList> {
             resp.status()
         )));
     }
+    Ok(to_list(resp.json().await?))
+}
 
-    let data: RawFriends = resp.json().await?;
-    Ok(FriendsList {
-        friends: map(data.friends),
-        incoming: map(data.incoming_requests),
-        outgoing: map(data.outgoing_requests),
-        empty: data.empty,
-    })
+/// Add/accept (`add = true`) or remove/decline/cancel (`add = false`) a friend,
+/// by `name` or `profile_id`. Returns the updated list. Accepting an incoming
+/// request is the same as adding by that profile id.
+pub async fn update(
+    app: &AppHandle,
+    name: Option<String>,
+    profile_id: Option<String>,
+    add: bool,
+) -> Result<FriendsList> {
+    let client = crate::http::client()?;
+    let token = token(app, &client).await?;
+
+    let mut body = serde_json::Map::new();
+    if let Some(name) = name.filter(|s| !s.trim().is_empty()) {
+        body.insert("name".into(), serde_json::json!(name.trim()));
+    }
+    if let Some(id) = profile_id.filter(|s| !s.trim().is_empty()) {
+        body.insert("profileId".into(), serde_json::json!(id));
+    }
+    if body.is_empty() {
+        return Err(AppError::Other("Enter a player name.".into()));
+    }
+    body.insert(
+        "updateType".into(),
+        serde_json::json!(if add { "ADD" } else { "REMOVE" }),
+    );
+
+    let resp = client
+        .put(FRIENDS_URL)
+        .bearer_auth(&token)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(20))
+        .send()
+        .await?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(AppError::Other(format!("friend update failed ({status}): {text}")));
+    }
+    Ok(to_list(resp.json().await?))
 }

@@ -83,6 +83,7 @@ pub fn run() {
             commands::backend_base,
             commands::get_news,
             commands::get_friends,
+            commands::friend_update,
             commands::read_ops,
             commands::read_whitelist,
             commands::add_op,

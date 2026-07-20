@@ -72,6 +72,13 @@ export const api = {
 
   getFriends: () => invoke<FriendsList>("get_friends"),
 
+  friendUpdate: (opts: { name?: string; profileId?: string; add: boolean }) =>
+    invoke<FriendsList>("friend_update", {
+      name: opts.name ?? null,
+      profileId: opts.profileId ?? null,
+      add: opts.add,
+    }),
+
   stopInstance: (id: string) => invoke<void>("stop_instance", { id }),
 
   sendServerCommand: (id: string, command: string) =>

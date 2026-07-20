@@ -2,6 +2,7 @@
   import { api } from "$lib/api";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { presence } from "$lib/stores/presence.svelte";
+  import { toast } from "$lib/stores/toast.svelte";
   import { skinFace } from "$lib/skin";
   import Icon from "./Icon.svelte";
   import type { FriendsList } from "$lib/types";
@@ -9,6 +10,8 @@
   let data = $state<FriendsList | null>(null);
   let loading = $state(false);
   let failed = $state(false);
+  let busy = $state(false);
+  let addName = $state("");
 
   const account = $derived(accountsStore.active);
 
@@ -29,13 +32,31 @@
     }
   }
 
-  // Reload when the active account changes.
   $effect(() => {
     account;
     load();
   });
 
-  // Cross-reference with Cactus presence (uuids there are dashless).
+  async function mutate(opts: { name?: string; profileId?: string; add: boolean }, ok?: string) {
+    if (busy) return;
+    busy = true;
+    try {
+      data = await api.friendUpdate(opts);
+      if (ok) toast.success(ok);
+    } catch (err) {
+      toast.error(String(err));
+    } finally {
+      busy = false;
+    }
+  }
+
+  function add() {
+    const name = addName.trim();
+    if (!name) return;
+    addName = "";
+    mutate({ name, add: true }, `Friend request sent to ${name}.`);
+  }
+
   const onlineUuids = $derived(new Set(presence.players.map((p) => p.uuid)));
   const isOnline = (profileId: string) => onlineUuids.has(profileId.replace(/-/g, ""));
 </script>
@@ -45,30 +66,76 @@
   <section class="friends">
     <div class="head">
       <h3>Friends</h3>
-      {#if data && data.incoming.length > 0}
-        <span class="badge">{data.incoming.length} request{data.incoming.length > 1 ? "s" : ""}</span>
-      {/if}
-      <button class="refresh" title="Refresh" onclick={load} disabled={loading}>
+      <button class="refresh" title="Refresh" onclick={load} disabled={loading || busy}>
         <Icon name="refresh" size={12} />
       </button>
     </div>
 
+    <form class="add" onsubmit={(e) => (e.preventDefault(), add())}>
+      <input placeholder="Add a friend by username…" bind:value={addName} maxlength="16" spellcheck="false" />
+      <button class="btn primary sm" type="submit" disabled={busy || !addName.trim()}>Add</button>
+    </form>
+
     {#if loading && !data}
       <p class="muted">Loading…</p>
-    {:else if data && data.friends.length > 0}
-      <ul class="list">
-        {#each data.friends as friend (friend.profileId)}
-          <li>
-            <img class="face" src={skinFace(friend.profileId, 30)} alt="" />
-            <span class="name">{friend.name}</span>
-            {#if isOnline(friend.profileId)}
-              <span class="dot" title="Online in Cactus"></span>
-            {/if}
-          </li>
-        {/each}
-      </ul>
     {:else if data}
-      <p class="muted">No friends yet — add friends in Minecraft to see them here.</p>
+      {#if data.incoming.length > 0}
+        <p class="label">Requests received</p>
+        <ul class="list">
+          {#each data.incoming as person (person.profileId)}
+            <li>
+              <img class="face" src={skinFace(person.profileId, 30)} alt="" />
+              <span class="name">{person.name}</span>
+              <button class="ic accept" title="Accept" disabled={busy}
+                onclick={() => mutate({ profileId: person.profileId, add: true }, `${person.name} added.`)}>
+                <Icon name="check" size={13} />
+              </button>
+              <button class="ic decline" title="Decline" disabled={busy}
+                onclick={() => mutate({ profileId: person.profileId, add: false })}>
+                <Icon name="close" size={13} />
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      {#if data.friends.length > 0}
+        <p class="label">Your friends</p>
+        <ul class="list">
+          {#each data.friends as friend (friend.profileId)}
+            <li>
+              <img class="face" src={skinFace(friend.profileId, 30)} alt="" />
+              <span class="name">{friend.name}</span>
+              {#if isOnline(friend.profileId)}<span class="dot" title="Online in Cactus"></span>{/if}
+              <button class="ic remove" title="Remove friend" disabled={busy}
+                onclick={() => mutate({ profileId: friend.profileId, add: false }, `${friend.name} removed.`)}>
+                <Icon name="close" size={13} />
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      {#if data.outgoing.length > 0}
+        <p class="label">Requests sent</p>
+        <ul class="list">
+          {#each data.outgoing as person (person.profileId)}
+            <li>
+              <img class="face" src={skinFace(person.profileId, 30)} alt="" />
+              <span class="name">{person.name}</span>
+              <span class="pending">Pending</span>
+              <button class="ic remove" title="Cancel request" disabled={busy}
+                onclick={() => mutate({ profileId: person.profileId, add: false })}>
+                <Icon name="close" size={13} />
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      {#if data.empty}
+        <p class="muted">No friends yet — add one above, or add friends in Minecraft.</p>
+      {/if}
     {/if}
   </section>
 {/if}
@@ -85,14 +152,6 @@
   }
   .head h3 {
     font-size: 14px;
-  }
-  .badge {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-    background: var(--accent-soft);
-    padding: 2px 7px;
   }
   .refresh {
     margin-left: auto;
@@ -114,15 +173,41 @@
     opacity: 0.5;
     cursor: default;
   }
+  .add {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .add input {
+    flex: 1;
+    padding: 7px 10px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+  }
+  .add input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin: 8px 0 6px;
+  }
   .muted {
     color: var(--text-muted);
     font-size: 12.5px;
   }
   .list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: 6px;
     list-style: none;
+    margin-bottom: 6px;
   }
   .list li {
     display: flex;
@@ -137,20 +222,54 @@
     height: 26px;
     image-rendering: pixelated;
     border: 1px solid var(--border);
+    flex-shrink: 0;
   }
   .name {
+    flex: 1;
     font-size: 13px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .dot {
-    margin-left: auto;
     width: 8px;
     height: 8px;
     border-radius: 50%;
     background: #57c84a;
     box-shadow: 0 0 5px rgba(87, 200, 74, 0.9);
     flex-shrink: 0;
+  }
+  .pending {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .ic {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .ic:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .ic.accept:hover:not(:disabled) {
+    color: #57c84a;
+    border-color: #57c84a;
+  }
+  .ic.decline:hover:not(:disabled),
+  .ic.remove:hover:not(:disabled) {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+  .ic:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 </style>

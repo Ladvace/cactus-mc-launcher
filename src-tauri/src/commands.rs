@@ -345,6 +345,18 @@ pub async fn get_friends(app: AppHandle) -> Result<crate::friends::FriendsList> 
     crate::friends::list(&app).await
 }
 
+/// Add/accept (`add = true`) or remove/decline (`add = false`) a friend by
+/// name or profile id. Returns the updated list.
+#[tauri::command]
+pub async fn friend_update(
+    app: AppHandle,
+    name: Option<String>,
+    profile_id: Option<String>,
+    add: bool,
+) -> Result<crate::friends::FriendsList> {
+    crate::friends::update(&app, name, profile_id, add).await
+}
+
 #[tauri::command]
 pub async fn get_achievements(
     app: AppHandle,
