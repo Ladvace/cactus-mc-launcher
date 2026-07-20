@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
+  import { formatDate } from "$lib/time";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
   import { toPct } from "$lib/stores/install.svelte";
@@ -205,14 +206,7 @@
     }
   }
 
-  function fmtDate(iso: string | null): string {
-    if (!iso) return "Never";
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
+  const fmtDate = (iso: string | null) => (iso ? formatDate(iso) : "Never");
 
   let gameFolder = $state("");
   let movingFolder = $state(false);

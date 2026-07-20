@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { sliderFill } from "$lib/slider";
+  import { formatDate } from "$lib/time";
   import { api } from "$lib/api";
   import { listen } from "@tauri-apps/api/event";
   import { getVersion } from "@tauri-apps/api/app";
@@ -41,6 +42,9 @@
   let draft = $state<Settings>({ ...settingsStore.settings });
   let saved = $state(false);
   let saving = $state(false);
+
+  // Live sample of the chosen date format.
+  const fmtDatePreview = $derived(formatDate(new Date().toISOString(), draft.dateFormat));
 
   let cacheStats = $state<CacheStats | null>(null);
   let cacheLoading = $state(false);
@@ -397,6 +401,23 @@
         </label>
       </div>
     {/if}
+
+    <div class="setting">
+      <div class="label">
+        <span>Date format</span>
+        <small>How dates are shown across the app (e.g. {fmtDatePreview}).</small>
+      </div>
+      <select
+        class="select"
+        bind:value={draft.dateFormat}
+        onchange={() => settingsStore.save({ ...settingsStore.settings, dateFormat: draft.dateFormat })}
+      >
+        <option value="system">System default</option>
+        <option value="iso">ISO (2026-07-20)</option>
+        <option value="us">US (07/20/2026)</option>
+        <option value="eu">EU (20/07/2026)</option>
+      </select>
+    </div>
 
     <div class="setting">
       <div class="label">

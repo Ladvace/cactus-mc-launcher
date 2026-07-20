@@ -61,6 +61,13 @@ pub struct Settings {
     /// News layout: `true` = one story per page, `false` = a lead + two-up.
     #[serde(default)]
     pub news_single: bool,
+    /// How dates are displayed: "system" | "iso" | "us" | "eu".
+    #[serde(default = "default_date_format")]
+    pub date_format: String,
+}
+
+fn default_date_format() -> String {
+    "system".into()
 }
 
 fn default_true() -> bool {
@@ -90,6 +97,7 @@ impl Default for Settings {
             ngrok_authtoken: String::new(),
             show_news: true,
             news_single: false,
+            date_format: default_date_format(),
         }
     }
 }

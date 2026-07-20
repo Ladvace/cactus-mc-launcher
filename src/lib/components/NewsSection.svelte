@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { api } from "$lib/api";
+  import { formatDate } from "$lib/time";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import Icon from "./Icon.svelte";
   import type { NewsItem } from "$lib/types";
@@ -61,11 +62,7 @@
     if (item.link) openUrl(item.link).catch(() => {});
   }
 
-  function fmtDate(iso: string): string {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  }
+  const fmtDate = (iso: string) => formatDate(iso) || iso;
 </script>
 
 {#if settingsStore.settings.showNews && !failed && (loading || items.length > 0)}

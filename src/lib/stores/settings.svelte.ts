@@ -22,6 +22,7 @@ const DEFAULTS: Settings = {
   ngrokAuthtoken: "",
   showNews: true,
   newsSingle: false,
+  dateFormat: "system",
 };
 
 class SettingsStore {

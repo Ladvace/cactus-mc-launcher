@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "$lib/api";
+  import { formatDate } from "$lib/time";
   import Icon from "$lib/components/Icon.svelte";
   import type { AchievementsPayload, AdvancementView } from "$lib/types";
 
@@ -75,12 +76,7 @@
     if (km >= 1) return `${km.toFixed(1)} km`;
     return `${Math.round(cm / 100)} m`;
   }
-  function fmtDate(iso: string | null): string {
-    if (!iso) return "";
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return "";
-    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-  }
+  const fmtDate = (iso: string | null) => formatDate(iso);
   function cleanKey(key: string): string {
     const last = key.split(":").pop() ?? key;
     return last.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

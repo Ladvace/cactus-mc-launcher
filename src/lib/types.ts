@@ -211,6 +211,8 @@ export interface Settings {
   showNews: boolean;
   /** News layout: true = one story per page, false = a lead + two-up column. */
   newsSingle: boolean;
+  /** How dates are shown: "system" | "iso" | "us" | "eu". */
+  dateFormat: string;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";
