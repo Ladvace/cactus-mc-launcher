@@ -273,6 +273,9 @@
               {/if}
             {/if}
           </span>
+          {#if item.kind === "nav" && item.href === "/share"}
+            <span class="beta-badge">beta</span>
+          {/if}
           {#if active || activeInstance}<span class="dot"></span>{/if}
         </button>
       {/if}
@@ -494,6 +497,22 @@
     line-height: 1;
     color: var(--bg-app);
     background: var(--accent);
+    pointer-events: none;
+  }
+  /* "beta" tag on the Community dock tile. */
+  .beta-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    z-index: 4;
+    padding: 1px 4px;
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    border: 1px solid var(--bg-app);
     pointer-events: none;
   }
   .overflow {
