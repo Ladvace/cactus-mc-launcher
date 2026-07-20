@@ -4,6 +4,31 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] — 2026-07-20
+
+### Added
+- **Friends** — a Minecraft friends list in Play Together: view your friends
+  (with a live "online in Cactus" dot), add by username, and accept, decline,
+  or remove requests. Includes a toggle to turn the friends feature and invite
+  acceptance on/off. Uses Mojang's friends API directly from the launcher.
+- **Date format** setting (Settings → Interface) — System, ISO, US, or EU,
+  applied across the app.
+- A **beta** badge on the Community tab.
+
+### Changed
+- Custom pixel-styled range sliders, with per-GB tick marks on the memory
+  sliders.
+- Default concurrent downloads lowered to 8 (from 16), with a gentler
+  recommendation — high counts give diminishing returns and risk rate-limits.
+
+### Fixed
+- **Play Together / Community sign-in now works in released builds.** The old
+  sign-in verified your account through Mojang's session server *from the
+  backend*, which Mojang's CDN blocks from Cloudflare's IPs. Sign-in now uses a
+  Mojang-signed player certificate the backend verifies **offline** — no server
+  call to Mojang — so it works everywhere. Your Minecraft token still never
+  leaves the launcher.
+
 ## [1.3.1] — 2026-07-19
 
 ### Fixed
@@ -99,6 +124,7 @@ Early builds establishing the foundation:
 - Adaptive **Tune-up** (hardware-aware performance recommendations), themes,
   a customizable dock, and click sounds.
 
+[1.4.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Ladvace/cactus-mc-launcher/releases/tag/v1.2.0
