@@ -2,9 +2,12 @@
   import Modal from "./Modal.svelte";
   import Icon from "./Icon.svelte";
   import SkinViewer from "./SkinViewer.svelte";
+  import SkinEditor from "./SkinEditor.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { skinFace } from "$lib/skin";
+  import { skinCache } from "$lib/stores/skins.svelte";
+  import Select from "./Select.svelte";
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
   import { copyText } from "$lib/clipboard";
@@ -24,8 +27,13 @@
   const deviceCode = $derived(accountsStore.deviceCode);
 
   const active = $derived(accountsStore.active);
+  let editorOpen = $state(false);
   let mode = $state<"3d" | "2d">("3d");
   let variant = $state<"classic" | "slim">("classic");
+  const VARIANTS = $derived<{ value: "classic" | "slim"; label: string }[]>([
+    { value: "classic", label: t("account.modelClassic") },
+    { value: "slim", label: t("account.modelSlim") },
+  ]);
   let skinData = $state(""); // data URI for the 3D viewer (fetched to avoid CORS)
   let capeData = $state("");
   let capes = $state<{ id: string; alias: string; url: string; active: boolean }[]>([]);
@@ -39,6 +47,11 @@
     const activeAccount = active;
     if (!open || !activeAccount) {
       skinData = "";
+      return;
+    }
+    const cached = skinCache.getFull(activeAccount.uuid);
+    if (cached) {
+      skinData = cached;
       return;
     }
     let cancelled = false;
@@ -107,7 +120,27 @@
       const buffer = await file.arrayBuffer();
       await api.setSkin(Array.from(new Uint8Array(buffer)), variant);
       skinData = await fileToDataUrl(file);
+      skinCache.setSkin(active.uuid, skinData);
       skinMsg = t("account.skinUpdated");
+      setTimeout(() => (skinMsg = null), 4000);
+    } catch (err) {
+      toast.error(String(err));
+    } finally {
+      changing = false;
+    }
+  }
+
+  async function resetSkin() {
+    if (!active) return;
+    changing = true;
+    skinMsg = null;
+    try {
+      await api.resetSkin();
+      skinCache.clear(active.uuid);
+      skinData = await api
+        .downloadImage(`https://minotar.net/skin/${active.uuid}?ts=${Date.now()}`)
+        .catch(() => "");
+      skinMsg = t("account.skinReset");
       setTimeout(() => (skinMsg = null), 4000);
     } catch (err) {
       toast.error(String(err));
@@ -168,7 +201,7 @@
         {:else}
           <img
             class="skin-2d"
-            src={`https://minotar.net/armor/body/${active.uuid}/210.png`}
+            src={skinCache.getBody(active.uuid) ?? `https://minotar.net/armor/body/${active.uuid}/210.png`}
             alt={t("account.skinAlt", { username: active.username })}
           />
         {/if}
@@ -180,10 +213,7 @@
           <button class:on={mode === "2d"} onclick={() => (mode = "2d")}>2D</button>
         </div>
         <span class="skin-label">{t("account.model")}</span>
-        <select class="select" bind:value={variant}>
-          <option value="classic">{t("account.modelClassic")}</option>
-          <option value="slim">{t("account.modelSlim")}</option>
-        </select>
+        <Select bind:value={variant} options={VARIANTS} ariaLabel={t("account.model")} />
         {#if capes.length}
           <span class="skin-label">{t("account.cape")}</span>
           <div class="cape-row">
@@ -199,16 +229,22 @@
             {/each}
           </div>
         {/if}
-        <button
-          class="btn primary"
-          disabled={changing}
-          onclick={() => skinInput?.click()}
-        >
-          <Icon name="edit" size={14} />
-          {changing ? t("account.applying") : t("account.changeSkin")}
-        </button>
-        {#if skinMsg}<p class="skin-msg">{skinMsg}</p>{/if}
-        <p class="skin-hint">{t("account.skinUploadHint")}</p>
+        <div class="skin-actions">
+          <button
+            class="btn primary"
+            disabled={changing}
+            onclick={() => skinInput?.click()}
+          >
+            <Icon name="upload" size={14} />
+            {changing ? t("account.applying") : t("account.changeSkin")}
+          </button>
+          <button class="btn" onclick={() => (editorOpen = true)}>
+            <Icon name="edit" size={14} /> {t("skinEditor.drawSkin")}
+          </button>
+          <button class="btn ghost sm" disabled={changing} onclick={resetSkin}>
+            <Icon name="refresh" size={13} /> {t("account.resetSkin")}
+          </button>
+        </div>
       </div>
       <input
         bind:this={skinInput}
@@ -218,6 +254,8 @@
         onchange={onSkinFile}
       />
     </div>
+    {#if skinMsg}<p class="skin-msg">{skinMsg}</p>{/if}
+    <p class="skin-hint">{t("account.skinUploadHint")}</p>
   {/if}
 
   <div class="list">
@@ -319,6 +357,19 @@
   </div>
 </Modal>
 
+{#if active}
+  <SkinEditor
+    open={editorOpen}
+    onClose={() => (editorOpen = false)}
+    uuid={active.uuid}
+    {variant}
+    onApplied={(uri) => {
+      skinData = uri;
+      if (active) skinCache.setSkin(active.uuid, uri);
+    }}
+  />
+{/if}
+
 <style>
   .list {
     display: flex;
@@ -344,16 +395,18 @@
   }
   .skin-panel {
     display: flex;
+    align-items: stretch;
     gap: 16px;
     padding: 14px;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     background: var(--bg-input);
     border: 2px solid var(--border);
   }
   .skin-stage {
     position: relative;
     width: 170px;
-    height: 250px;
+    min-height: 250px;
+    align-self: stretch;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -405,6 +458,11 @@
     min-width: 0;
     justify-content: center;
   }
+  .skin-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
   .mode-toggle {
     display: flex;
     border: 2px solid var(--border);
@@ -446,12 +504,12 @@
     color: var(--accent);
   }
   .skin-msg {
-    margin: 0;
+    margin: 0 0 2px;
     font-size: 12px;
     color: var(--accent);
   }
   .skin-hint {
-    margin: 0;
+    margin: 0 0 16px;
     font-size: 11px;
     color: var(--text-muted);
   }

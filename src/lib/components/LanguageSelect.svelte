@@ -2,8 +2,8 @@
   import { LOCALES, type LocaleCode } from "$lib/i18n";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import Flag from "./Flag.svelte";
+  import Icon from "./Icon.svelte";
 
-  // Optional visual variant: "menu" opens below (Settings), "up" opens above.
   let { direction = "down" }: { direction?: "down" | "up" } = $props();
 
   let open = $state(false);
@@ -65,7 +65,7 @@
   >
     <Flag code={current.code} />
     <span class="name">{current.label}</span>
-    <span class="chev" class:flip={open}>▾</span>
+    <span class="chev" class:flip={open}><Icon name="chevron-down" size={12} /></span>
   </button>
 
   {#if open}
@@ -125,8 +125,9 @@
     white-space: nowrap;
   }
   .chev {
+    display: inline-flex;
+    align-items: center;
     color: var(--text-muted);
-    font-size: 11px;
     transition: transform 0.15s ease;
   }
   .chev.flip {

@@ -2,6 +2,7 @@
   import Modal from "./Modal.svelte";
   import LoaderIcon from "./LoaderIcon.svelte";
   import Icon from "./Icon.svelte";
+  import Select from "$lib/components/Select.svelte";
   import { randomInstanceName } from "$lib/funnyNames";
   import { t } from "$lib/i18n";
   import { api } from "$lib/api";
@@ -99,6 +100,21 @@
     versions.filter((version) =>
       showSnapshots ? true : version.type === "release"
     )
+  );
+
+  const loaderVersionOptions = $derived([
+    { value: "", label: t("create.latestStable") },
+    ...loaderVersions.map((loaderVersion) => ({
+      value: loaderVersion.version,
+      label: `${loaderVersion.version}${loaderVersion.stable ? "" : " (beta)"}`,
+    })),
+  ]);
+
+  const versionOptions = $derived(
+    visibleVersions.map((version) => ({
+      value: version.id,
+      label: `${version.id}${version.type !== "release" ? ` (${version.type})` : ""}`,
+    }))
   );
 
   const canCreate = $derived(
@@ -218,18 +234,11 @@
           {:else if loaderVersionError}
             <div class="status error">{loaderVersionError}</div>
           {:else}
-            <select
+            <Select
               id="ci-loader-version"
-              class="select"
               bind:value={selectedLoaderVersion}
-            >
-              <option value="">{t("create.latestStable")}</option>
-              {#each loaderVersions as loaderVersion (loaderVersion.version)}
-                <option value={loaderVersion.version}>
-                  {loaderVersion.version}{loaderVersion.stable ? "" : " (beta)"}
-                </option>
-              {/each}
-            </select>
+              options={loaderVersionOptions}
+            />
           {/if}
           {#if loader === "forge" || loader === "neoforge"}
             <p class="hint">
@@ -261,13 +270,7 @@
         <div class="status error">{versionError}</div>
         <button class="btn ghost" onclick={loadVersions}>{t("common.retry")}</button>
       {:else}
-        <select id="ci-version" class="select" bind:value={selectedVersion}>
-          {#each visibleVersions as version (version.id)}
-            <option value={version.id}>
-              {version.id}{version.type !== "release" ? ` (${version.type})` : ""}
-            </option>
-          {/each}
-        </select>
+        <Select id="ci-version" bind:value={selectedVersion} options={versionOptions} />
       {/if}
     </div>
 

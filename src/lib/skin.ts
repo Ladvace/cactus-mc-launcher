@@ -1,4 +1,5 @@
-/// Uses minotar.net (Steve fallback for unknown UUIDs; crafatar has frequent outages).
+import { skinCache } from "$lib/stores/skins.svelte";
+
 export function skinFace(uuid: string, displaySize: number): string {
-  return `https://minotar.net/helm/${uuid}/${displaySize * 2}.png`;
+  return skinCache.getFace(uuid) ?? `https://minotar.net/helm/${uuid}/${displaySize * 2}.png`;
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import Icon from "./Icon.svelte";
+  import Select from "$lib/components/Select.svelte";
   import { boardApi } from "$lib/boardApi";
   import { boardAuth } from "$lib/stores/boardAuth.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
@@ -53,6 +54,19 @@
   const versionsOnline = $derived(
     [...new Set(presence.players.map((player) => player.mcVersion).filter(Boolean))].sort() as string[]
   );
+
+  const loaderFieldOptions = [
+    { value: "", label: t("community.any") },
+    ...MOD_LOADERS.map((loaderOption) => ({ value: loaderOption.value, label: loaderOption.label })),
+  ];
+  const filterLoaderOptions = [
+    { value: "", label: t("community.anyLoader") },
+    ...MOD_LOADERS.map((loaderOption) => ({ value: loaderOption.value, label: loaderOption.label })),
+  ];
+  const filterVersionOptions = $derived([
+    { value: "", label: t("community.anyVersion") },
+    ...versionsOnline.map((version) => ({ value: version, label: version })),
+  ]);
 
   function passes(player: import("$lib/types").PresencePlayer): boolean {
     if (filterLoader && (player.loader ?? "") !== filterLoader) return false;
@@ -161,12 +175,7 @@
         </label>
         <label class="field short">
           <span>{t("community.loader")}</span>
-          <select class="select" bind:value={loader} onchange={saveFields}>
-            <option value="">{t("community.any")}</option>
-            {#each MOD_LOADERS as loaderOption}
-              <option value={loaderOption.value}>{loaderOption.label}</option>
-            {/each}
-          </select>
+          <Select bind:value={loader} options={loaderFieldOptions} onchange={saveFields} />
         </label>
         <label class="field">
           <span>{t("community.serverAddressLabel")}</span>
@@ -190,18 +199,18 @@
     <h3>{t("community.onlineNow")}</h3>
     <span class="count">{others.length + (me ? 1 : 0)}</span>
     <div class="filters">
-      <select class="select mini" bind:value={filterLoader} aria-label={t("community.filterByLoader")}>
-        <option value="">{t("community.anyLoader")}</option>
-        {#each MOD_LOADERS as loaderOption}
-          <option value={loaderOption.value}>{loaderOption.label}</option>
-        {/each}
-      </select>
-      <select class="select mini" bind:value={filterVersion} aria-label={t("community.filterByVersion")}>
-        <option value="">{t("community.anyVersion")}</option>
-        {#each versionsOnline as version}
-          <option value={version}>{version}</option>
-        {/each}
-      </select>
+      <Select
+        bind:value={filterLoader}
+        options={filterLoaderOptions}
+        ariaLabel={t("community.filterByLoader")}
+        width="150px"
+      />
+      <Select
+        bind:value={filterVersion}
+        options={filterVersionOptions}
+        ariaLabel={t("community.filterByVersion")}
+        width="150px"
+      />
       <button class="btn ghost sm" onclick={() => presence.poll()} disabled={presence.loading}>
         {t("community.refresh")}
       </button>
@@ -374,12 +383,6 @@
     display: flex;
     align-items: center;
     gap: 6px;
-  }
-  .select.mini {
-    width: auto;
-    padding: 6px 28px 6px 10px;
-    font-size: 12px;
-    background-position: right 8px center;
   }
   .field.short {
     flex: 0 0 130px;

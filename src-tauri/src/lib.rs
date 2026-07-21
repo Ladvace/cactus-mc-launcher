@@ -121,6 +121,7 @@ pub fn run() {
             commands::publish_setup,
             commands::instance_share_check,
             commands::set_skin,
+            commands::reset_skin,
             commands::get_capes,
             commands::set_cape,
             server_ping::ping_server,

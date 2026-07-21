@@ -14,6 +14,23 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
   style. The whole interface switches live — no restart. Dynamic content (mod,
   world, and achievement names, and raw error text) stays as its source provides
   it, falling back to English where a translation isn't available.
+- **Skin editor** — draw your own skin on an unwrapped 2D canvas (opened from the
+  account modal). Pencil, eraser, fill, and eyedropper tools, a colour palette,
+  undo/redo, part guides for head/body/arms/legs, and a live preview. Applies
+  straight to your Minecraft account.
+- **Reset skin** — a one-click button to revert your skin to the default
+  Steve/Alex.
+
+### Changed
+- Custom dropdowns everywhere — every menu now uses one consistent, themed,
+  keyboard-navigable picker instead of the OS-native one.
+
+### Fixed
+- Uploading or changing a skin now updates the face and preview **instantly**
+  everywhere, instead of lagging behind the avatar service's cache; the choice
+  also survives closing the modal.
+- Changing a skin no longer fails with a 401 when your session has been open a
+  while — the Minecraft token is refreshed automatically.
 
 ## [1.4.0] — 2026-07-20
 

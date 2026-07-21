@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
+  import Select from "$lib/components/Select.svelte";
   import { boardApi } from "$lib/boardApi";
   import { boardAuth } from "$lib/stores/boardAuth.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
@@ -30,6 +31,27 @@
   let loadingBoards = $state(false);
 
   const myBoard = $derived(boards[0] ?? null);
+
+  const kindOptions = $derived([
+    { value: "creator", label: t("community.kindCreator") },
+    { value: "streamer", label: t("community.kindStreamer") },
+    { value: "server", label: t("community.kindServer") },
+  ]);
+  const publishToOptions = $derived([
+    { value: "", label: t("community.standaloneCodeOnly") },
+    ...(myBoard ? [{ value: myBoard.handle, label: `@${myBoard.handle}` }] : []),
+  ]);
+  const instanceOptions = $derived([
+    { value: "", label: t("community.chooseInstance"), disabled: true },
+    ...instancesStore.instances.map((instance) => ({
+      value: instance.id,
+      label: `${instance.name} · ${instance.loader} ${instance.mcVersion}`,
+    })),
+  ]);
+  const formatOptions = [
+    { value: "cactuspack", label: ".cactuspack" },
+    { value: "mrpack", label: ".mrpack" },
+  ];
 
   function timeAgo(iso: string): string {
     const seconds = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
@@ -301,11 +323,7 @@
         <div class="form">
           <input class="input" placeholder={t("community.handlePlaceholder")} bind:value={handle} />
           <input class="input" placeholder={t("community.displayNamePlaceholder")} bind:value={displayName} />
-          <select class="select" bind:value={kind}>
-            <option value="creator">{t("community.kindCreator")}</option>
-            <option value="streamer">{t("community.kindStreamer")}</option>
-            <option value="server">{t("community.kindServer")}</option>
-          </select>
+          <Select bind:value={kind} options={kindOptions} width="160px" />
         </div>
         <input class="input mt" placeholder={t("community.shortDescriptionOptional")} bind:value={description} />
         {#if kind === "streamer"}
@@ -324,22 +342,9 @@
       <h3>{t("community.publishInstance")}</h3>
       <p class="muted">{publishTo ? t("community.snapshotToBoard", { handle: publishTo }) : t("community.snapshotStandalone")}</p>
       <div class="form">
-        <select class="select" bind:value={publishTo}>
-          <option value="">{t("community.standaloneCodeOnly")}</option>
-          {#if myBoard}
-            <option value={myBoard.handle}>@{myBoard.handle}</option>
-          {/if}
-        </select>
-        <select class="select" bind:value={instanceId}>
-          <option value="" disabled>{t("community.chooseInstance")}</option>
-          {#each instancesStore.instances as instance (instance.id)}
-            <option value={instance.id}>{instance.name} · {instance.loader} {instance.mcVersion}</option>
-          {/each}
-        </select>
-        <select class="select" bind:value={format}>
-          <option value="cactuspack">.cactuspack</option>
-          <option value="mrpack">.mrpack</option>
-        </select>
+        <Select bind:value={publishTo} options={publishToOptions} width="160px" />
+        <Select bind:value={instanceId} options={instanceOptions} width="160px" />
+        <Select bind:value={format} options={formatOptions} width="160px" />
       </div>
       <input class="input mt" placeholder={t("community.changelogPlaceholder")} bind:value={changelog} />
       <button class="btn primary mt" disabled={publishing || !instanceId} onclick={publish}>
@@ -453,8 +458,7 @@
     gap: 10px;
     flex-wrap: wrap;
   }
-  .form .input,
-  .form .select {
+  .form .input {
     flex: 1;
     min-width: 150px;
   }

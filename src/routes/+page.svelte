@@ -12,6 +12,7 @@
   import Icon from "$lib/components/Icon.svelte";
   import ContextMenu, { type MenuItem } from "$lib/components/ContextMenu.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import Select from "$lib/components/Select.svelte";
   import { api } from "$lib/api";
   import { boardApi } from "$lib/boardApi";
   import { toast } from "$lib/stores/toast.svelte";
@@ -21,6 +22,11 @@
 
   let query = $state("");
   let loaderFilter = $state<ModLoader | "all">("all");
+
+  const loaderOptions = $derived([
+    { value: "all", label: t("home.allLoaders") },
+    ...MOD_LOADERS.map((loader) => ({ value: loader.value, label: loader.label })),
+  ]);
   let arranging = $state(false);
   let openFolder = $state<string | null>(null);
 
@@ -176,12 +182,12 @@
           bind:value={query}
         />
       </div>
-      <select class="select loader-filter" bind:value={loaderFilter}>
-        <option value="all">{t("home.allLoaders")}</option>
-        {#each MOD_LOADERS as loader}
-          <option value={loader.value}>{loader.label}</option>
-        {/each}
-      </select>
+      <Select
+        bind:value={loaderFilter}
+        options={loaderOptions}
+        width="160px"
+        ariaLabel={t("home.allLoaders")}
+      />
       <button
         class="btn ghost arrange"
         class:on={arranging}
@@ -382,10 +388,6 @@
   .search-input:focus {
     outline: none;
     border-color: var(--accent);
-  }
-  .loader-filter {
-    width: auto;
-    min-width: 140px;
   }
   .arrange {
     flex-shrink: 0;

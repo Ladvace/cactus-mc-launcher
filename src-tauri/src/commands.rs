@@ -1,5 +1,5 @@
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::auth::{self, AccountInfo, AccountStore, AccountsState};
 use crate::content::{self, ContentItem};
@@ -775,37 +775,74 @@ pub async fn instance_share_check(app: AppHandle, instance_id: String) -> Result
 /// Change the active Microsoft account's Minecraft skin. `variant` is
 /// "classic" or "slim". `bytes` is a 64×64 (or 64×32) PNG skin.
 #[tauri::command]
-pub async fn set_skin(
-    app: AppHandle,
-    store: State<'_, AccountStore>,
-    bytes: Vec<u8>,
-    variant: String,
-) -> Result<()> {
-    let account = store
-        .active_account()
-        .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
-    let _ = &app;
-
+pub async fn set_skin(app: AppHandle, bytes: Vec<u8>, variant: String) -> Result<()> {
+    let client = crate::http::client()?;
     let variant = if variant == "slim" { "slim" } else { "classic" };
-    let form = reqwest::multipart::Form::new()
-        .text("variant", variant.to_string())
-        .part(
-            "file",
-            reqwest::multipart::Part::bytes(bytes)
-                .file_name("skin.png")
-                .mime_str("image/png")?,
-        );
 
-    let resp = crate::http::client()?
-        .post("https://api.minecraftservices.com/minecraft/profile/skins")
-        .bearer_auth(&account.mc_access_token)
-        .multipart(form)
-        .send()
-        .await?;
-    if !resp.status().is_success() {
+    let mut token = crate::auth::active_valid_account(&app, &client)
+        .await?
+        .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?
+        .mc_access_token;
+
+    for attempt in 0..2 {
+        let form = reqwest::multipart::Form::new()
+            .text("variant", variant.to_string())
+            .part(
+                "file",
+                reqwest::multipart::Part::bytes(bytes.clone())
+                    .file_name("skin.png")
+                    .mime_str("image/png")?,
+            );
+        let resp = client
+            .post("https://api.minecraftservices.com/minecraft/profile/skins")
+            .bearer_auth(&token)
+            .multipart(form)
+            .send()
+            .await?;
+        if resp.status().is_success() {
+            return Ok(());
+        }
         let status = resp.status();
+        if status == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+            if let Some(account) = app.state::<AccountStore>().active_account() {
+                token = crate::auth::refresh_account(&app, &client, &account)
+                    .await?
+                    .mc_access_token;
+                continue;
+            }
+        }
         let text = resp.text().await.unwrap_or_default();
         return Err(AppError::Other(format!("couldn't set skin ({status}): {text}")));
+    }
+    Ok(())
+}
+
+/// Reset the active Microsoft account's skin back to the default (Steve/Alex).
+#[tauri::command]
+pub async fn reset_skin(app: AppHandle) -> Result<()> {
+    let client = crate::http::client()?;
+    let url = "https://api.minecraftservices.com/minecraft/profile/skins/active";
+    let mut token = crate::auth::active_valid_account(&app, &client)
+        .await?
+        .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?
+        .mc_access_token;
+
+    for attempt in 0..2 {
+        let resp = client.delete(url).bearer_auth(&token).send().await?;
+        if resp.status().is_success() {
+            return Ok(());
+        }
+        let status = resp.status();
+        if status == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+            if let Some(account) = app.state::<AccountStore>().active_account() {
+                token = crate::auth::refresh_account(&app, &client, &account)
+                    .await?
+                    .mc_access_token;
+                continue;
+            }
+        }
+        let text = resp.text().await.unwrap_or_default();
+        return Err(AppError::Other(format!("couldn't reset skin ({status}): {text}")));
     }
     Ok(())
 }
@@ -820,11 +857,12 @@ pub struct Cape {
 }
 
 #[tauri::command]
-pub async fn get_capes(store: State<'_, AccountStore>) -> Result<Vec<Cape>> {
-    let account = store
-        .active_account()
+pub async fn get_capes(app: AppHandle) -> Result<Vec<Cape>> {
+    let client = crate::http::client()?;
+    let account = crate::auth::active_valid_account(&app, &client)
+        .await?
         .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
-    let profile: serde_json::Value = crate::http::client()?
+    let profile: serde_json::Value = client
         .get("https://api.minecraftservices.com/minecraft/profile")
         .bearer_auth(&account.mc_access_token)
         .send()
@@ -857,11 +895,11 @@ pub async fn get_capes(store: State<'_, AccountStore>) -> Result<Vec<Cape>> {
 }
 
 #[tauri::command]
-pub async fn set_cape(store: State<'_, AccountStore>, cape_id: Option<String>) -> Result<()> {
-    let account = store
-        .active_account()
-        .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
+pub async fn set_cape(app: AppHandle, cape_id: Option<String>) -> Result<()> {
     let client = crate::http::client()?;
+    let account = crate::auth::active_valid_account(&app, &client)
+        .await?
+        .ok_or_else(|| AppError::Other("Add a Microsoft account first.".into()))?;
     let url = "https://api.minecraftservices.com/minecraft/profile/capes/active";
     let resp = match cape_id {
         Some(id) => {

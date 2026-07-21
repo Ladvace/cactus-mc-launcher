@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api } from "$lib/api";
+  import Select from "$lib/components/Select.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { t, type MessageKey } from "$lib/i18n";
 
@@ -147,11 +148,11 @@
           {:else}
             <label class="field-label" for={`p-${field.key}`}>{t(field.label)}</label>
             {#if field.type === "select"}
-              <select id={`p-${field.key}`} class="select" bind:value={values[field.key]}>
-                {#each field.options ?? [] as option (option)}
-                  <option value={option}>{option}</option>
-                {/each}
-              </select>
+              <Select
+                id={`p-${field.key}`}
+                bind:value={values[field.key]}
+                options={(field.options ?? []).map((option) => ({ value: option, label: option }))}
+              />
             {:else}
               <input
                 id={`p-${field.key}`}

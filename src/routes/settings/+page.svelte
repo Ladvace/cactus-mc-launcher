@@ -3,6 +3,7 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { t, type MessageKey } from "$lib/i18n";
   import LanguageSelect from "$lib/components/LanguageSelect.svelte";
+  import Select from "$lib/components/Select.svelte";
   import { sliderFill } from "$lib/slider";
   import { formatDate } from "$lib/time";
   import { api } from "$lib/api";
@@ -47,6 +48,13 @@
 
   // Live sample of the chosen date format.
   const fmtDatePreview = $derived(formatDate(new Date().toISOString(), draft.dateFormat));
+
+  const DATE_FORMATS = $derived([
+    { value: "system", label: t("settings.dateSystem") },
+    { value: "iso", label: "ISO (2026-07-20)" },
+    { value: "us", label: "US (07/20/2026)" },
+    { value: "eu", label: "EU (20/07/2026)" },
+  ]);
 
   // Labelled ticks under the max-memory slider (a few GB marks).
   const MEM_MIN = 1024;
@@ -426,16 +434,12 @@
         <span>{t("settings.dateFormat")}</span>
         <small>{t("settings.dateFormatDesc", { sample: fmtDatePreview })}</small>
       </div>
-      <select
-        class="select"
+      <Select
         bind:value={draft.dateFormat}
+        options={DATE_FORMATS}
         onchange={() => settingsStore.save({ ...settingsStore.settings, dateFormat: draft.dateFormat })}
-      >
-        <option value="system">{t("settings.dateSystem")}</option>
-        <option value="iso">ISO (2026-07-20)</option>
-        <option value="us">US (07/20/2026)</option>
-        <option value="eu">EU (20/07/2026)</option>
-      </select>
+        ariaLabel={t("settings.dateFormat")}
+      />
     </div>
 
     <div class="setting">

@@ -46,6 +46,8 @@
     book: "book",
     "chevron-left": "angle-left",
     "chevron-right": "angle-right",
+    "chevron-down": "angle-down",
+    "chevron-up": "angle-up",
     close: "times",
   };
 

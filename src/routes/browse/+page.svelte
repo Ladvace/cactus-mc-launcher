@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "$lib/components/Icon.svelte";
   import ProjectModal from "$lib/components/ProjectModal.svelte";
+  import Select from "$lib/components/Select.svelte";
   import { api } from "$lib/api";
   import { formatCount } from "$lib/format";
   import { t, type MessageKey } from "$lib/i18n";
@@ -51,6 +52,27 @@
   const showLoader = $derived(activeType === "mod" || activeType === "modpack");
   const sourceLabel = $derived(
     SOURCES.find((option) => option.value === source)?.label ?? t("browse.contentSourceFallback")
+  );
+
+  const sourceOptions = $derived(
+    SOURCES.map((option) => ({
+      value: option.value,
+      label: `${option.label}${sourceEnabled[option.value] ? "" : t("browse.unavailableSuffix")}`,
+      disabled: !sourceEnabled[option.value],
+    }))
+  );
+  const gameVersionOptions = $derived([
+    { value: "", label: t("browse.anyVersion") },
+    ...gameVersions.map((version) => ({ value: version, label: version })),
+  ]);
+  const loaderOptions = $derived(
+    loaders.map((loaderOption) => ({
+      value: loaderOption,
+      label: loaderOption === "" ? t("browse.anyLoader") : loaderOption,
+    }))
+  );
+  const sortOptions = $derived(
+    sorts.map((sortOption) => ({ value: sortOption.value, label: t(sortOption.labelKey) }))
   );
 
   $effect(() => {
@@ -155,35 +177,21 @@
   </div>
 
   <div class="toolbar">
-    <select class="select filter" bind:value={source} title={t("browse.contentSource")}>
-      {#each SOURCES as sourceOption}
-        <option value={sourceOption.value} disabled={!sourceEnabled[sourceOption.value]}>
-          {sourceOption.label}{sourceEnabled[sourceOption.value] ? "" : t("browse.unavailableSuffix")}
-        </option>
-      {/each}
-    </select>
+    <Select
+      bind:value={source}
+      options={sourceOptions}
+      ariaLabel={t("browse.contentSource")}
+      width="160px"
+    />
     <div class="search">
       <Icon name="search" size={16} />
       <input class="search-input" placeholder={t("browse.searchPlaceholder")} bind:value={query} />
     </div>
-    <select class="select filter" bind:value={gameVersion}>
-      <option value="">{t("browse.anyVersion")}</option>
-      {#each gameVersions as version}
-        <option value={version}>{version}</option>
-      {/each}
-    </select>
+    <Select bind:value={gameVersion} options={gameVersionOptions} width="160px" />
     {#if showLoader}
-      <select class="select filter" bind:value={loader}>
-        {#each loaders as loaderOption}
-          <option value={loaderOption}>{loaderOption === "" ? t("browse.anyLoader") : loaderOption}</option>
-        {/each}
-      </select>
+      <Select bind:value={loader} options={loaderOptions} width="160px" />
     {/if}
-    <select class="select filter" bind:value={sort}>
-      {#each sorts as sortOption}
-        <option value={sortOption.value}>{t(sortOption.labelKey)}</option>
-      {/each}
-    </select>
+    <Select bind:value={sort} options={sortOptions} width="160px" />
   </div>
 
   {#if error}
@@ -310,10 +318,6 @@
   .search-input:focus {
     outline: none;
     border-color: var(--accent);
-  }
-  .filter {
-    width: auto;
-    min-width: 130px;
   }
   .status {
     padding: 48px;

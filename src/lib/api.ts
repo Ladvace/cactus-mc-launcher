@@ -220,6 +220,8 @@ export const api = {
   setSkin: (bytes: number[], variant: "classic" | "slim") =>
     invoke<void>("set_skin", { bytes, variant }),
 
+  resetSkin: () => invoke<void>("reset_skin"),
+
   getCapes: () =>
     invoke<{ id: string; alias: string; url: string; active: boolean }[]>(
       "get_capes"

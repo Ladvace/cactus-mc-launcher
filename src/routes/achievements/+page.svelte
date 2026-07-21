@@ -4,6 +4,7 @@
   import { t } from "$lib/i18n";
   import { formatDate } from "$lib/time";
   import Icon from "$lib/components/Icon.svelte";
+  import Select from "$lib/components/Select.svelte";
   import type { AchievementsPayload, AdvancementView } from "$lib/types";
 
   let data = $state<AchievementsPayload | null>(null);
@@ -54,6 +55,14 @@
   });
 
   const earnedCustom = $derived(data?.custom.filter((c) => c.earned).length ?? 0);
+
+  const categoryOptions = $derived([
+    { value: "all", label: t("achievements.allCategories") },
+    ...(data?.categories ?? []).map((cat) => ({
+      value: cat.key,
+      label: CATEGORY_LABELS[cat.key] ?? cat.key,
+    })),
+  ]);
 
   function displayName(a: AdvancementView): string {
     return !a.done && a.hidden ? "???" : a.name;
@@ -175,12 +184,11 @@
             <label class="chk">
               <input type="checkbox" bind:checked={showLocked} /> {t("achievements.showLocked")}
             </label>
-            <select bind:value={categoryFilter} class="select">
-              <option value="all">{t("achievements.allCategories")}</option>
-              {#each data.categories as cat (cat.key)}
-                <option value={cat.key}>{CATEGORY_LABELS[cat.key] ?? cat.key}</option>
-              {/each}
-            </select>
+            <Select
+              bind:value={categoryFilter}
+              options={categoryOptions}
+              ariaLabel={t("achievements.allCategories")}
+            />
           </div>
         </div>
 
@@ -466,15 +474,6 @@
     color: var(--text-muted);
     cursor: pointer;
   }
-  .select {
-    background: var(--bg-card);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 5px 8px;
-    font: inherit;
-    font-size: 12px;
-  }
-
   .custom-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
