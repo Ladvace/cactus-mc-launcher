@@ -8,6 +8,8 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { writeJson } from "$lib/storage";
   import { copyText } from "$lib/clipboard";
+  import { t } from "$lib/i18n";
+  import LanguageSelect from "./LanguageSelect.svelte";
   import { LINKS } from "$lib/links";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "./Icon.svelte";
@@ -56,7 +58,7 @@
     if (event.key === "Enter" && step === 0) next();
   }
 
-  const copyCode = (code: string) => copyText(code, "Code copied.");
+  const copyCode = (code: string) => copyText(code, t("onboarding.codeCopied"));
 </script>
 
 <svelte:window onkeydown={onKey} />
@@ -64,7 +66,11 @@
 <div class="onboard" transition:fly={{ y: 12, duration: 260 }}>
   <div class="glow"></div>
 
-  <button class="skip" onclick={() => finish(false)}>Skip</button>
+  <div class="lang-corner">
+    <LanguageSelect />
+  </div>
+
+  <button class="skip" onclick={() => finish(false)}>{t("common.skip")}</button>
 
   <div class="card">
     {#key step}
@@ -74,47 +80,45 @@
       >
         {#if step === 0}
           <img class="mascot" src="/empty-cactus.png" alt="" />
-          <h1>Welcome to <span class="brand">Cactus&nbsp;Launcher</span></h1>
+          <h1>{t("onboarding.welcome")} <span class="brand">Cactus&nbsp;Launcher</span></h1>
           <p class="lead">
-            A cozy home for your Minecraft worlds — arrange instances, install
-            mods, and play together. Let's get you set up.
+            {t("onboarding.welcomeLead")}
           </p>
           <button class="btn primary lg" onclick={next}>
-            Get started <Icon name="play" size={15} />
+            {t("onboarding.getStarted")} <Icon name="play" size={15} />
           </button>
         {:else if step === 1}
-          <span class="eyebrow">Your player</span>
-          <h1>Sign in to play</h1>
+          <span class="eyebrow">{t("onboarding.yourPlayer")}</span>
+          <h1>{t("onboarding.signInToPlay")}</h1>
           {#if accountsStore.active}
             <p class="lead">
-              Signed in as <strong>{accountsStore.active.username}</strong>. You're
-              ready to play online.
+              {t("onboarding.signedInAs")} <strong>{accountsStore.active.username}</strong>. {t("onboarding.readyOnline")}
             </p>
           {:else if accountsStore.deviceCode}
-            <p class="lead">Open the link and enter this code:</p>
+            <p class="lead">{t("onboarding.enterCode")}</p>
             <div class="code-row">
-              <button class="code" title="Copy" onclick={() => copyCode(accountsStore.deviceCode!.userCode)}>
+              <button class="code" title={t("onboarding.copy")} onclick={() => copyCode(accountsStore.deviceCode!.userCode)}>
                 {accountsStore.deviceCode.userCode}
               </button>
               <button class="btn ghost sm" onclick={() => openUrl(accountsStore.deviceCode!.verificationUri)}>
-                Open link
+                {t("onboarding.openLink")}
               </button>
             </div>
             <p class="status">
               <span class="spinner"></span>
               {accountsStore.deviceCode.status === "authorizing"
-                ? "Signing you in…"
-                : "Waiting for you to authorize…"}
+                ? t("onboarding.signingIn")
+                : t("onboarding.waitingAuth")}
             </p>
           {:else}
             {#if accountsStore.microsoftConfigured}
-              <p class="lead">Sign in with your Microsoft account to play online, or continue offline with just a name.</p>
+              <p class="lead">{t("onboarding.msLead")}</p>
               <button class="btn primary lg" onclick={() => accountsStore.login()}>
-                <Icon name="user" size={15} /> Sign in with Microsoft
+                <Icon name="user" size={15} /> {t("onboarding.signInMicrosoft")}
               </button>
-              <div class="divider"><span>or play offline</span></div>
+              <div class="divider"><span>{t("onboarding.orPlayOffline")}</span></div>
             {:else}
-              <p class="lead">Pick a name for offline play. You can sign in with Microsoft later from the account menu.</p>
+              <p class="lead">{t("onboarding.offlineLead")}</p>
             {/if}
             <input
               class="name-input"
@@ -125,13 +129,13 @@
             />
           {/if}
           <div class="nav">
-            <button class="btn ghost" onclick={back}>Back</button>
-            <button class="btn primary" onclick={next}>Continue</button>
+            <button class="btn ghost" onclick={back}>{t("common.back")}</button>
+            <button class="btn primary" onclick={next}>{t("common.continue")}</button>
           </div>
         {:else if step === 2}
-          <span class="eyebrow">Make it yours</span>
-          <h1>Pick a look</h1>
-          <p class="lead">Choose a theme — you can change it later in Settings.</p>
+          <span class="eyebrow">{t("onboarding.makeItYours")}</span>
+          <h1>{t("onboarding.pickLook")}</h1>
+          <p class="lead">{t("onboarding.pickLookLead")}</p>
           <div class="themes">
             {#each THEME_PRESETS as preset (preset.name)}
               <button
@@ -146,49 +150,47 @@
             {/each}
           </div>
           <div class="nav">
-            <button class="btn ghost" onclick={back}>Back</button>
-            <button class="btn primary" onclick={next}>Continue</button>
+            <button class="btn ghost" onclick={back}>{t("common.back")}</button>
+            <button class="btn primary" onclick={next}>{t("common.continue")}</button>
           </div>
         {:else if step === 3}
           <img class="illustration" src="/no-ads.png" alt="" />
-          <h1>No ads. No catch.</h1>
+          <h1>{t("onboarding.noAdsTitle")}</h1>
           <p class="lead">
-            Cactus is free and open-source — no ads, no tracking, no upsells,
-            no premium tier. Just you and your worlds, forever.
+            {t("onboarding.noAdsLead")}
           </p>
           <div class="nav">
-            <button class="btn ghost" onclick={back}>Back</button>
-            <button class="btn primary" onclick={next}>Continue</button>
+            <button class="btn ghost" onclick={back}>{t("common.back")}</button>
+            <button class="btn primary" onclick={next}>{t("common.continue")}</button>
           </div>
         {:else}
           <img class="mascot" src="/empty-cactus.png" alt="" />
-          <h1>You're all set{username.trim() ? `, ${username.trim()}` : ""}!</h1>
+          <h1>{t("onboarding.allSet", { name: username.trim() ? `, ${username.trim()}` : "" })}</h1>
           <p class="lead">
-            Create your first instance to start playing — Java is set up
-            automatically the first time you launch.
+            {t("onboarding.allSetLead")}
           </p>
           <div class="finish">
             <button class="btn primary lg" onclick={() => finish(true)}>
-              <Icon name="plus" size={15} /> Create my first instance
+              <Icon name="plus" size={15} /> {t("onboarding.createFirstInstance")}
             </button>
             <button class="btn ghost" onclick={() => finish(false)}>
-              I'll explore on my own
+              {t("onboarding.exploreOwn")}
             </button>
           </div>
           <div class="socials">
             {#if LINKS.discord}
               <button class="social" onclick={() => openUrl(LINKS.discord)}>
-                <Icon name="users" size={13} /> Join the Discord
+                <Icon name="users" size={13} /> {t("onboarding.joinDiscord")}
               </button>
             {/if}
             {#if LINKS.github}
               <button class="social" onclick={() => openUrl(LINKS.github)}>
-                ★ Star on GitHub
+                ★ {t("onboarding.starGithub")}
               </button>
             {/if}
           </div>
           <p class="tip">
-            Enable stickers (Giphy) and server sharing (ngrok) anytime in Settings.
+            {t("onboarding.enableExtrasTip")}
           </p>
         {/if}
       </div>
@@ -244,6 +246,12 @@
   }
   .skip:hover {
     color: var(--text);
+  }
+  .lang-corner {
+    position: absolute;
+    top: 18px;
+    left: 24px;
+    z-index: 3;
   }
   .card {
     position: relative;

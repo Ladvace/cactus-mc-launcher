@@ -3,10 +3,11 @@
   import Icon from "./Icon.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import type { Instance } from "$lib/types";
+  import { t } from "$lib/i18n";
 
   let {
     value = $bindable(""),
-    placeholder = "Select an instance",
+    placeholder = t("picker.selectInstance"),
   }: { value?: string; placeholder?: string } = $props();
 
   let open = $state(false);
@@ -111,13 +112,13 @@
         <input
           bind:this={searchEl}
           bind:value={query}
-          placeholder="Search instances…"
+          placeholder={t("picker.searchInstances")}
           spellcheck="false"
         />
       </div>
       <div class="list">
         {#if isEmpty}
-          <p class="none">No instances match.</p>
+          <p class="none">{t("picker.noMatch")}</p>
         {:else}
           {#each view.ungrouped as instance (instance.id)}
             {@render row(instance)}

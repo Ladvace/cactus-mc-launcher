@@ -23,6 +23,7 @@ const DEFAULTS: Settings = {
   showNews: true,
   newsSingle: false,
   dateFormat: "system",
+  language: "en",
 };
 
 class SettingsStore {

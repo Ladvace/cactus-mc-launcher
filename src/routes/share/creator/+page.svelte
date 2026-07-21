@@ -7,6 +7,7 @@
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t } from "$lib/i18n";
   import type { OwnedBoard } from "$lib/types";
 
   const ready = boardApi.configured();
@@ -32,12 +33,12 @@
 
   function timeAgo(iso: string): string {
     const seconds = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
-    if (seconds < 90) return "just now";
+    if (seconds < 90) return t("community.justNow");
     const minutes = Math.round(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 60) return t("community.minutesAgo", { count: minutes });
     const hours = Math.round(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.round(hours / 24)}d ago`;
+    if (hours < 24) return t("community.hoursAgo", { count: hours });
+    return t("community.daysAgo", { count: Math.round(hours / 24) });
   }
 
   let handle = $state("");
@@ -95,7 +96,7 @@
       streamUrl = "";
       serverAddress = "";
       await loadBoards();
-      toast.success("Board created.");
+      toast.success(t("community.boardCreated"));
     } catch (err) {
       toast.error(String(err));
     } finally {
@@ -114,7 +115,7 @@
       });
       changelog = "";
       toast.success(
-        publishTo ? "Published to your board." : "Published as a standalone code."
+        publishTo ? t("community.publishedToBoard") : t("community.publishedStandalone")
       );
     } catch (err) {
       toast.error(String(err));
@@ -132,7 +133,7 @@
       await boardApi.postMessage(token, handle, messageBody.trim());
       messageBody = "";
       await loadBoards();
-      toast.success("Announcement posted.");
+      toast.success(t("community.announcementPosted"));
     } catch (err) {
       toast.error(String(err));
     } finally {
@@ -149,7 +150,7 @@
     try {
       await boardApi.deleteMessage(token, handle, id);
       await loadBoards();
-      toast.success("Announcement deleted.");
+      toast.success(t("community.announcementDeleted"));
     } catch (err) {
       toast.error(String(err));
     } finally {
@@ -190,7 +191,7 @@
         isPublic: editPublic,
       });
       await loadBoards();
-      toast.success("Board saved.");
+      toast.success(t("community.boardSaved"));
     } catch (err) {
       toast.error(String(err));
     } finally {
@@ -207,7 +208,7 @@
       publishTo = "";
       confirmDelete = false;
       await loadBoards();
-      toast.success("Board deleted.");
+      toast.success(t("community.boardDeleted"));
     } catch (err) {
       toast.error(String(err));
     }
@@ -215,27 +216,27 @@
 </script>
 
 <div class="page">
-  <button class="back" onclick={() => goto("/share")}>← Community</button>
-  <h1>{myBoard ? "Your board" : "Create a board"}</h1>
+  <button class="back" onclick={() => goto("/share")}>← {t("nav.community")}</button>
+  <h1>{myBoard ? t("community.yourBoard") : t("community.createBoard")}</h1>
 
   {#if !ready}
     <div class="panel">
-      <p class="muted">The boards service isn't configured in this build.</p>
+      <p class="muted">{t("community.boardsNotConfigured")}</p>
     </div>
   {:else if !account}
     <div class="panel">
-      <h3>Add a Microsoft account</h3>
-      <p class="muted">Boards are tied to your Minecraft account. Add one to get started.</p>
+      <h3>{t("community.addMicrosoftAccount")}</h3>
+      <p class="muted">{t("community.boardsTiedToAccount")}</p>
       <button class="btn primary" onclick={() => ui.openAccounts()}>
-        <Icon name="user" size={15} /> Add account
+        <Icon name="user" size={15} /> {t("community.addAccount")}
       </button>
     </div>
   {:else if !boardAuth.signedIn || boardAuth.session?.uuid !== account.uuid}
     {#if boardAuth.error}
       <div class="panel">
-        <p class="muted">Couldn't start your creator session as <strong>{account.username}</strong>.</p>
+        <p class="muted">{t("community.creatorSessionFailedPrefix")} <strong>{account.username}</strong>.</p>
         <p class="err">{boardAuth.error}</p>
-        <button class="btn ghost" onclick={() => boardAuth.login()}>Retry</button>
+        <button class="btn ghost" onclick={() => boardAuth.login()}>{t("common.retry")}</button>
       </div>
     {:else}
       <div class="panel board-skeleton">
@@ -248,8 +249,8 @@
     {/if}
   {:else}
     <div class="who">
-      <span>Signed in as <strong>{boardAuth.session?.name}</strong></span>
-      <button class="link" onclick={() => ui.openAccounts()}>Switch account</button>
+      <span>{t("community.signedInAs")} <strong>{boardAuth.session?.name}</strong></span>
+      <button class="link" onclick={() => ui.openAccounts()}>{t("community.switchAccount")}</button>
     </div>
 
     {#if loadingBoards}
@@ -265,30 +266,30 @@
     {#if myBoard}
       <div class="panel">
         <div class="edit-head">
-          <h3>Your board — @{myBoard.handle}</h3>
-          <button class="link view" onclick={() => goto(`/share/${myBoard.handle}`)}>View public page ↗</button>
+          <h3>{t("community.yourBoardHandle", { handle: myBoard.handle })}</h3>
+          <button class="link view" onclick={() => goto(`/share/${myBoard.handle}`)}>{t("community.viewPublicPage")}</button>
         </div>
-        <input class="input" placeholder="Display name" bind:value={editName} />
-        <input class="input mt" placeholder="Description (optional)" bind:value={editDesc} />
+        <input class="input" placeholder={t("community.displayNamePlaceholder")} bind:value={editName} />
+        <input class="input mt" placeholder={t("community.descriptionOptional")} bind:value={editDesc} />
         {#if myBoard.kind === "streamer"}
-          <input class="input mt" placeholder="Stream URL (twitch.tv/… or youtube.com/…)" bind:value={editStream} />
+          <input class="input mt" placeholder={t("community.streamUrlPlaceholder")} bind:value={editStream} />
         {/if}
         {#if myBoard.kind === "server"}
-          <input class="input mt" placeholder="Server address (play.example.net)" bind:value={editServer} />
+          <input class="input mt" placeholder={t("community.serverAddressPlaceholder")} bind:value={editServer} />
         {/if}
         <label class="chk mt">
           <input type="checkbox" bind:checked={editPublic} />
-          Public — searchable in Discover
+          {t("community.publicSearchable")}
         </label>
         <div class="edit-actions mt">
           <button class="btn primary" disabled={savingEdit} onclick={saveEdit}>
-            {savingEdit ? "Saving…" : "Save changes"}
+            {savingEdit ? t("community.saving") : t("community.saveChanges")}
           </button>
           {#if confirmDelete}
-            <button class="btn danger" onclick={deleteBoard}>Confirm delete</button>
-            <button class="btn ghost" onclick={() => (confirmDelete = false)}>Cancel</button>
+            <button class="btn danger" onclick={deleteBoard}>{t("community.confirmDelete")}</button>
+            <button class="btn ghost" onclick={() => (confirmDelete = false)}>{t("common.cancel")}</button>
           {:else}
-            <button class="btn danger" onclick={() => (confirmDelete = true)}>Delete board</button>
+            <button class="btn danger" onclick={() => (confirmDelete = true)}>{t("community.deleteBoard")}</button>
           {/if}
         </div>
       </div>
@@ -296,41 +297,41 @@
 
     {#if !boards.length && !loadingBoards}
       <div class="panel">
-        <h3>Create your board</h3>
+        <h3>{t("community.createYourBoard")}</h3>
         <div class="form">
-          <input class="input" placeholder="handle (a–z, 0–9, _)" bind:value={handle} />
-          <input class="input" placeholder="Display name" bind:value={displayName} />
+          <input class="input" placeholder={t("community.handlePlaceholder")} bind:value={handle} />
+          <input class="input" placeholder={t("community.displayNamePlaceholder")} bind:value={displayName} />
           <select class="select" bind:value={kind}>
-            <option value="creator">Creator</option>
-            <option value="streamer">Streamer</option>
-            <option value="server">Server</option>
+            <option value="creator">{t("community.kindCreator")}</option>
+            <option value="streamer">{t("community.kindStreamer")}</option>
+            <option value="server">{t("community.kindServer")}</option>
           </select>
         </div>
-        <input class="input mt" placeholder="Short description (optional)" bind:value={description} />
+        <input class="input mt" placeholder={t("community.shortDescriptionOptional")} bind:value={description} />
         {#if kind === "streamer"}
-          <input class="input mt" placeholder="Stream URL (twitch.tv/… or youtube.com/…)" bind:value={streamUrl} />
+          <input class="input mt" placeholder={t("community.streamUrlPlaceholder")} bind:value={streamUrl} />
         {/if}
         {#if kind === "server"}
-          <input class="input mt" placeholder="Server address (play.example.net)" bind:value={serverAddress} />
+          <input class="input mt" placeholder={t("community.serverAddressPlaceholder")} bind:value={serverAddress} />
         {/if}
         <button class="btn primary mt" disabled={creating || !handle.trim()} onclick={createBoard}>
-          {creating ? "Creating…" : "Create board"}
+          {creating ? t("common.creating") : t("community.createBoardButton")}
         </button>
       </div>
     {/if}
 
     <div class="panel">
-      <h3>Publish an instance</h3>
-      <p class="muted">Snapshot one of your instances{publishTo ? ` to @${publishTo}` : " as a standalone shareable code"}.</p>
+      <h3>{t("community.publishInstance")}</h3>
+      <p class="muted">{publishTo ? t("community.snapshotToBoard", { handle: publishTo }) : t("community.snapshotStandalone")}</p>
       <div class="form">
         <select class="select" bind:value={publishTo}>
-          <option value="">Standalone (code only)</option>
+          <option value="">{t("community.standaloneCodeOnly")}</option>
           {#if myBoard}
             <option value={myBoard.handle}>@{myBoard.handle}</option>
           {/if}
         </select>
         <select class="select" bind:value={instanceId}>
-          <option value="" disabled>Choose an instance…</option>
+          <option value="" disabled>{t("community.chooseInstance")}</option>
           {#each instancesStore.instances as instance (instance.id)}
             <option value={instance.id}>{instance.name} · {instance.loader} {instance.mcVersion}</option>
           {/each}
@@ -340,18 +341,18 @@
           <option value="mrpack">.mrpack</option>
         </select>
       </div>
-      <input class="input mt" placeholder="What changed? (optional)" bind:value={changelog} />
+      <input class="input mt" placeholder={t("community.changelogPlaceholder")} bind:value={changelog} />
       <button class="btn primary mt" disabled={publishing || !instanceId} onclick={publish}>
-        {publishing ? "Publishing…" : "Publish"}
+        {publishing ? t("community.publishing") : t("community.publish")}
       </button>
     </div>
 
     {#if myBoard}
       <div class="panel">
-        <h3>Post an announcement to @{myBoard.handle}</h3>
-        <textarea class="input" rows="2" placeholder="Say something to your followers…" bind:value={messageBody}></textarea>
+        <h3>{t("community.postAnnouncementTo", { handle: myBoard.handle })}</h3>
+        <textarea class="input" rows="2" placeholder={t("community.announcementPlaceholder")} bind:value={messageBody}></textarea>
         <button class="btn ghost mt" disabled={postingMsg || !messageBody.trim()} onclick={postMessage}>
-          {postingMsg ? "Posting…" : "Post"}
+          {postingMsg ? t("community.posting") : t("community.post")}
         </button>
 
         {#if myBoard.messages.length}
@@ -364,8 +365,8 @@
                 </div>
                 <button
                   class="msg-del"
-                  title="Delete announcement"
-                  aria-label="Delete announcement"
+                  title={t("community.deleteAnnouncement")}
+                  aria-label={t("community.deleteAnnouncement")}
                   disabled={deletingMsg === message.id}
                   onclick={() => deleteMessage(message.id)}
                 >

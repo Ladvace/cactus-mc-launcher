@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { t } from "$lib/i18n";
   import { updater } from "$lib/stores/updater.svelte";
   import Icon from "./Icon.svelte";
 
@@ -13,19 +14,19 @@
       <div class="row">
         <Icon name="download" size={16} />
         <div class="text">
-          <strong>Update available</strong>
+          <strong>{t("update.available")}</strong>
           <span class="ver">v{updater.update.version}</span>
         </div>
       </div>
       <div class="actions">
-        <button class="btn ghost sm" onclick={() => updater.dismiss()}>Later</button>
-        <button class="btn primary sm" onclick={() => updater.install()}>Install &amp; restart</button>
+        <button class="btn ghost sm" onclick={() => updater.dismiss()}>{t("update.later")}</button>
+        <button class="btn primary sm" onclick={() => updater.install()}>{t("update.installRestart")}</button>
       </div>
     {:else}
       <div class="row">
         <span class="spinner" aria-hidden="true"></span>
         <div class="text">
-          <strong>{updater.phase === "installing" ? "Installing…" : "Downloading update…"}</strong>
+          <strong>{updater.phase === "installing" ? t("update.installing") : t("update.downloading")}</strong>
           {#if updater.phase === "downloading" && updater.pct !== null}
             <span class="ver">{updater.pct}%</span>
           {/if}

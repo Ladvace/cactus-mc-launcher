@@ -1,5 +1,6 @@
 <script lang="ts">
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { t } from "$lib/i18n";
   import { api } from "$lib/api";
   import { copyText } from "$lib/clipboard";
   import { serversStore } from "$lib/stores/servers.svelte";
@@ -37,7 +38,12 @@
     try {
       await api.addServerToInstance(instanceId, server.name, server.address);
       const inst = clientInstances.find((i) => i.id === instanceId);
-      toast.success(`Added ${server.name} to ${inst?.name ?? "the instance"}.`);
+      toast.success(
+        t("servers.addedToInstance", {
+          server: server.name,
+          instance: inst?.name ?? t("servers.theInstance"),
+        }),
+      );
     } catch (err) {
       toast.error(String(err));
     }
@@ -45,7 +51,7 @@
 
   function onAddToClick(event: MouseEvent, server: FeaturedServer) {
     if (clientInstances.length === 0) {
-      toast.error("Create an instance first.");
+      toast.error(t("servers.createInstanceFirst"));
       return;
     }
     if (addMenu?.server.address === server.address) {
@@ -77,7 +83,7 @@
     const address = newAddress.trim();
     if (!address) return;
     if (!serversStore.add({ name: newName.trim() || address, address, description: "", tags: [] })) {
-      toast.error("That server is already in your list.");
+      toast.error(t("servers.alreadyInList"));
       return;
     }
     pingOne(address);
@@ -95,38 +101,38 @@
 <div class="page">
   <header class="head">
     <div>
-      <h1>Servers</h1>
-      <p class="sub">Your quick-connect list — copy an address and add it in Minecraft's Multiplayer menu.</p>
+      <h1>{t("nav.servers")}</h1>
+      <p class="sub">{t("servers.subtitle")}</p>
     </div>
     <div class="head-actions">
-      <button class="btn ghost sm" onclick={() => serversStore.reset()} title="Restore the default list">Reset</button>
-      <button class="btn ghost sm" onclick={refresh} title="Refresh status">
-        <Icon name="refresh" size={15} /> Refresh
+      <button class="btn ghost sm" onclick={() => serversStore.reset()} title={t("servers.restoreDefaultList")}>{t("servers.reset")}</button>
+      <button class="btn ghost sm" onclick={refresh} title={t("servers.refreshStatus")}>
+        <Icon name="refresh" size={15} /> {t("servers.refresh")}
       </button>
       <button class="btn primary sm" onclick={() => (showAdd = !showAdd)}>
-        <Icon name="plus" size={15} /> Add server
+        <Icon name="plus" size={15} /> {t("servers.addServer")}
       </button>
     </div>
   </header>
 
   {#if showAdd}
     <form class="add-form" onsubmit={addServer}>
-      <input class="in" placeholder="Name (optional)" bind:value={newName} maxlength="40" />
-      <input class="in" placeholder="Address, e.g. play.example.net" bind:value={newAddress} maxlength="120" />
-      <button class="btn primary sm" type="submit">Add</button>
-      <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>Cancel</button>
+      <input class="in" placeholder={t("servers.namePlaceholder")} bind:value={newName} maxlength="40" />
+      <input class="in" placeholder={t("servers.addressPlaceholder")} bind:value={newAddress} maxlength="120" />
+      <button class="btn primary sm" type="submit">{t("common.add")}</button>
+      <button class="btn ghost sm" type="button" onclick={() => (showAdd = false)}>{t("common.cancel")}</button>
     </form>
   {/if}
 
   {#if serversStore.servers.length === 0}
-    <p class="empty">No servers yet. Add one above, or <button class="link" onclick={() => serversStore.reset()}>restore the defaults</button>.</p>
+    <p class="empty">{t("servers.emptyPrefix")}<button class="link" onclick={() => serversStore.reset()}>{t("servers.restoreDefaults")}</button>.</p>
   {/if}
 
   <div class="grid">
     {#each serversStore.servers as server (server.address)}
       {@const ping = pings[server.address]}
       <div class="card">
-        <button class="remove" title="Remove" aria-label="Remove {server.name}" onclick={() => removeServer(server.address)}>✕</button>
+        <button class="remove" title={t("common.remove")} aria-label={t("servers.removeServerAria", { name: server.name })} onclick={() => removeServer(server.address)}>✕</button>
 
         <div class="card-head">
           <div class="icon">
@@ -144,9 +150,9 @@
           {:else}
             <span class="status" class:online={ping.state === "online"} class:offline={ping.state === "offline"}>
               {#if ping.state === "online"}
-                ● {ping.status?.online?.toLocaleString()} online
+                ● {t("servers.countOnline", { count: ping.status?.online?.toLocaleString() ?? "0" })}
               {:else}
-                ● Offline
+                ● {t("servers.offline")}
               {/if}
             </span>
           {/if}
@@ -165,14 +171,14 @@
         <div class="addr-row">
           <code class="addr">{server.address}</code>
           <div class="actions">
-            <button class="btn sm" onclick={() => copyText(server.address, `Copied ${server.address}`)} title="Copy address">
-              <Icon name="copy" size={13} /> Copy
+            <button class="btn sm" onclick={() => copyText(server.address, t("servers.copiedAddress", { address: server.address }))} title={t("servers.copyAddress")}>
+              <Icon name="copy" size={13} /> {t("servers.copy")}
             </button>
-            <button class="btn ghost sm" onclick={(e) => onAddToClick(e, server)} title="Add to an instance's server list">
+            <button class="btn ghost sm" onclick={(e) => onAddToClick(e, server)} title={t("servers.addToInstanceList")}>
               <Icon name="plus" size={13} />
             </button>
             {#if server.website}
-              <button class="btn ghost sm" onclick={() => openUrl(server.website!)} title="Open website">
+              <button class="btn ghost sm" onclick={() => openUrl(server.website!)} title={t("servers.openWebsite")}>
                 <Icon name="globe" size={13} />
               </button>
             {/if}
@@ -188,9 +194,7 @@
   {/if}
 
   <p class="disclaimer">
-    NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG
-    OR MICROSOFT. Server names and icons are the property of their respective owners
-    and are shown only to identify each service.
+    {t("servers.disclaimer")}
   </p>
 </div>
 

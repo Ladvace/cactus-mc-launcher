@@ -3,6 +3,7 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { requiredJavaMajor } from "$lib/java";
+  import { t } from "$lib/i18n";
   import type { Instance } from "$lib/types";
 
   let { instance, isServer = false }: { instance: Instance; isServer?: boolean } =
@@ -13,9 +14,9 @@
   const javaMajor = $derived(requiredJavaMajor(instance.mcVersion));
   const javaPlaceholder = $derived.by(() => {
     const perMajor = globals.javaPaths?.[String(javaMajor)]?.trim();
-    if (perMajor) return `Java ${javaMajor} · ${perMajor}`;
-    if (globals.javaPath?.trim()) return `Global · ${globals.javaPath}`;
-    return `Managed Java ${javaMajor}`;
+    if (perMajor) return t("instance.javaPerMajor", { major: javaMajor, path: perMajor });
+    if (globals.javaPath?.trim()) return t("instance.globalValue", { value: globals.javaPath });
+    return t("instance.managedJava", { major: javaMajor });
   });
 
   let maxMem = $state("");
@@ -60,7 +61,7 @@
         gameHeight: isServer ? undefined : num(height),
         serverMemoryMb: 0, // migrate any legacy value into maxMemoryMb
       });
-      toast.success("Instance settings saved.");
+      toast.success(t("instance.settingsSaved"));
     } catch (error) {
       toast.error(String(error));
     } finally {
@@ -80,46 +81,46 @@
 
 <section class="card-block">
   <div class="head">
-    <h3>Java &amp; memory</h3>
-    <span class="muted">Overrides for this instance — leave blank to use the global setting.</span>
+    <h3>{t("instance.javaMemory")}</h3>
+    <span class="muted">{t("instance.overridesHint")}</span>
   </div>
 
   <div class="grid">
     <label class="field">
-      <span>Max memory (MB)</span>
-      <input class="input" type="number" min="512" step="512" placeholder={`Global · ${globals.maxMemoryMb}`} bind:value={maxMem} />
+      <span>{t("instance.maxMemory")}</span>
+      <input class="input" type="number" min="512" step="512" placeholder={t("instance.globalValue", { value: globals.maxMemoryMb })} bind:value={maxMem} />
     </label>
     <label class="field">
-      <span>Min memory (MB)</span>
-      <input class="input" type="number" min="256" step="256" placeholder={`Global · ${globals.minMemoryMb}`} bind:value={minMem} />
+      <span>{t("instance.minMemory")}</span>
+      <input class="input" type="number" min="256" step="256" placeholder={t("instance.globalValue", { value: globals.minMemoryMb })} bind:value={minMem} />
     </label>
 
     <label class="field wide">
-      <span>Extra JVM arguments</span>
-      <input class="input" placeholder={globals.jvmArgs?.trim() ? `Global · ${globals.jvmArgs}` : "e.g. -XX:+UseG1GC"} bind:value={jvm} />
+      <span>{t("instance.jvmArgs")}</span>
+      <input class="input" placeholder={globals.jvmArgs?.trim() ? t("instance.globalValue", { value: globals.jvmArgs }) : "e.g. -XX:+UseG1GC"} bind:value={jvm} />
     </label>
 
     <label class="field wide">
-      <span>Java path <small class="hint">· this version runs on Java {javaMajor}</small></span>
+      <span>{t("instance.javaPath")} <small class="hint">{t("instance.javaVersionHint", { major: javaMajor })}</small></span>
       <input class="input" placeholder={javaPlaceholder} bind:value={javaPath} spellcheck="false" />
     </label>
 
     {#if !isServer}
       <label class="field">
-        <span>Window width</span>
-        <input class="input" type="number" min="1" placeholder={`Global · ${globals.gameWidth}`} bind:value={width} />
+        <span>{t("instance.windowWidth")}</span>
+        <input class="input" type="number" min="1" placeholder={t("instance.globalValue", { value: globals.gameWidth })} bind:value={width} />
       </label>
       <label class="field">
-        <span>Window height</span>
-        <input class="input" type="number" min="1" placeholder={`Global · ${globals.gameHeight}`} bind:value={height} />
+        <span>{t("instance.windowHeight")}</span>
+        <input class="input" type="number" min="1" placeholder={t("instance.globalValue", { value: globals.gameHeight })} bind:value={height} />
       </label>
     {/if}
   </div>
 
   <div class="actions">
-    <button class="btn ghost sm" onclick={reset} disabled={saving}>Clear all</button>
+    <button class="btn ghost sm" onclick={reset} disabled={saving}>{t("instance.clearAll")}</button>
     <button class="btn primary sm" onclick={save} disabled={saving}>
-      {saving ? "Saving…" : "Save"}
+      {saving ? t("instance.saving") : t("common.save")}
     </button>
   </div>
 </section>

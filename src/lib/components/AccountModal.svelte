@@ -10,6 +10,7 @@
   import { copyText } from "$lib/clipboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { goto } from "$app/navigation";
+  import { t } from "$lib/i18n";
 
   interface Props {
     open: boolean;
@@ -18,7 +19,7 @@
   let { open, onClose }: Props = $props();
 
   const offlineName = $derived(
-    settingsStore.settings.offlineUsername || "Player"
+    settingsStore.settings.offlineUsername || t("account.defaultPlayer")
   );
   const deviceCode = $derived(accountsStore.deviceCode);
 
@@ -106,7 +107,7 @@
       const buffer = await file.arrayBuffer();
       await api.setSkin(Array.from(new Uint8Array(buffer)), variant);
       skinData = await fileToDataUrl(file);
-      skinMsg = "Skin updated ✓";
+      skinMsg = t("account.skinUpdated");
       setTimeout(() => (skinMsg = null), 4000);
     } catch (err) {
       toast.error(String(err));
@@ -136,7 +137,7 @@
     }
   }
 
-  const copyCode = (code: string) => copyText(code, "Code copied.");
+  const copyCode = (code: string) => copyText(code, t("account.codeCopied"));
 
   function openAchievements() {
     onClose();
@@ -144,7 +145,7 @@
   }
 </script>
 
-<Modal title="Accounts" {open} {onClose} width={460}>
+<Modal title={t("account.title")} {open} {onClose} width={460}>
   {#if active}
     <div class="skin-panel">
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -168,28 +169,28 @@
           <img
             class="skin-2d"
             src={`https://minotar.net/armor/body/${active.uuid}/210.png`}
-            alt="{active.username}'s skin"
+            alt={t("account.skinAlt", { username: active.username })}
           />
         {/if}
-        {#if dragOver}<div class="drop-hint">Drop a PNG skin</div>{/if}
+        {#if dragOver}<div class="drop-hint">{t("account.dropPngSkin")}</div>{/if}
       </div>
       <div class="skin-controls">
         <div class="mode-toggle">
           <button class:on={mode === "3d"} onclick={() => (mode = "3d")}>3D</button>
           <button class:on={mode === "2d"} onclick={() => (mode = "2d")}>2D</button>
         </div>
-        <span class="skin-label">Model</span>
+        <span class="skin-label">{t("account.model")}</span>
         <select class="select" bind:value={variant}>
-          <option value="classic">Classic (Steve)</option>
-          <option value="slim">Slim (Alex)</option>
+          <option value="classic">{t("account.modelClassic")}</option>
+          <option value="slim">{t("account.modelSlim")}</option>
         </select>
         {#if capes.length}
-          <span class="skin-label">Cape</span>
+          <span class="skin-label">{t("account.cape")}</span>
           <div class="cape-row">
             <button
               class="cape-btn"
               class:on={!capes.some((cape) => cape.active)}
-              onclick={() => chooseCape(null)}>None</button
+              onclick={() => chooseCape(null)}>{t("account.capeNone")}</button
             >
             {#each capes as cape (cape.id)}
               <button class="cape-btn" class:on={cape.active} onclick={() => chooseCape(cape.id)}>
@@ -204,10 +205,10 @@
           onclick={() => skinInput?.click()}
         >
           <Icon name="edit" size={14} />
-          {changing ? "Applying…" : "Change skin…"}
+          {changing ? t("account.applying") : t("account.changeSkin")}
         </button>
         {#if skinMsg}<p class="skin-msg">{skinMsg}</p>{/if}
-        <p class="skin-hint">Upload or drop a 64×64 PNG skin.</p>
+        <p class="skin-hint">{t("account.skinUploadHint")}</p>
       </div>
       <input
         bind:this={skinInput}
@@ -228,10 +229,10 @@
       <span class="avatar offline"><Icon name="user" size={18} /></span>
       <span class="info">
         <span class="name">{offlineName}</span>
-        <span class="kind">Offline</span>
+        <span class="kind">{t("account.offline")}</span>
       </span>
       {#if accountsStore.activeId === null}
-        <span class="badge">Active</span>
+        <span class="badge">{t("account.active")}</span>
       {/if}
     </button>
 
@@ -245,11 +246,11 @@
           </span>
         </button>
         {#if accountsStore.activeId === acc.id}
-          <span class="badge">Active</span>
+          <span class="badge">{t("account.active")}</span>
         {/if}
         <button
           class="remove"
-          title="Remove account"
+          title={t("account.removeAccount")}
           onclick={() => accountsStore.remove(acc.id)}
         >
           <Icon name="trash" size={15} />
@@ -261,35 +262,36 @@
   <div class="add-area">
     {#if !accountsStore.microsoftConfigured}
       <div class="notice">
-        Microsoft sign-in isn't configured. Add your Azure client ID in
-        <code>src-tauri/src/auth/mod.rs</code> to enable it.
+        {t("account.notConfigured")}
+        <code>src-tauri/src/auth/mod.rs</code>
+        {t("account.notConfiguredSuffix")}
       </div>
     {:else if deviceCode}
       <div class="device-code">
-        <p class="dc-title">Sign in to Microsoft</p>
+        <p class="dc-title">{t("account.signInMicrosoft")}</p>
         <p class="dc-instructions">
-          Open the link and enter this code:
+          {t("account.enterCode")}
         </p>
         <div class="code-row">
           <button
             class="code"
-            title="Click to copy"
+            title={t("account.clickToCopy")}
             onclick={() => copyCode(deviceCode.userCode)}
           >
             {deviceCode.userCode}
           </button>
           <button class="btn ghost sm" onclick={() => copyCode(deviceCode.userCode)}>
-            <Icon name="copy" size={14} /> Copy
+            <Icon name="copy" size={14} /> {t("account.copy")}
           </button>
         </div>
         <button class="btn primary" onclick={() => openLink(deviceCode.verificationUri)}>
-          Open {deviceCode.verificationUri}
+          {t("account.openUri", { uri: deviceCode.verificationUri })}
         </button>
         <p class="dc-status">
           <span class="spinner"></span>
           {deviceCode.status === "authorizing"
-            ? "Signing you in…"
-            : "Waiting for you to authorize…"}
+            ? t("account.signingIn")
+            : t("account.waitingAuthorize")}
         </p>
       </div>
     {:else}
@@ -299,7 +301,7 @@
         disabled={accountsStore.loggingIn}
       >
         <Icon name="plus" size={16} />
-        {accountsStore.loggingIn ? "Starting…" : "Add Microsoft account"}
+        {accountsStore.loggingIn ? t("account.starting") : t("account.addMicrosoft")}
       </button>
     {/if}
 
@@ -311,9 +313,9 @@
   <div class="achv-area">
     <button class="btn ghost achv-btn" onclick={openAchievements}>
       <Icon name="trophy" size={15} />
-      Achievements &amp; stats
+      {t("account.achievementsStats")}
     </button>
-    <p class="achv-hint">Your lifetime progress across every instance.</p>
+    <p class="achv-hint">{t("account.achievementsHint")}</p>
   </div>
 </Modal>
 

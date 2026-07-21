@@ -4,6 +4,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { updater } from "$lib/stores/updater.svelte";
   import type { Instance } from "$lib/types";
+  import { t } from "$lib/i18n";
   import Icon from "./Icon.svelte";
   import InstanceIcon from "./InstanceIcon.svelte";
 
@@ -28,16 +29,16 @@
   }
 
   const base = $derived<Cmd[]>([
-    { id: "nav-home", label: "Home", hint: "Go to", icon: "home", run: () => goto("/") },
-    { id: "nav-browse", label: "Browse mods", hint: "Go to", icon: "compass", run: () => goto("/browse") },
-    { id: "nav-servers", label: "Servers", hint: "Go to", icon: "globe", run: () => goto("/servers") },
-    { id: "nav-achievements", label: "Achievements", hint: "Go to", icon: "trophy", run: () => goto("/achievements") },
-    { id: "nav-community", label: "Community", hint: "Go to", icon: "users", run: () => goto("/share") },
-    { id: "nav-settings", label: "Settings", hint: "Go to", icon: "cog", run: () => goto("/settings") },
-    { id: "act-create", label: "Create instance", hint: "Action", icon: "plus", run: () => ui.openCreateInstance() },
-    { id: "act-accounts", label: "Accounts", hint: "Action", icon: "user", run: () => ui.openAccounts() },
-    { id: "act-update", label: "Check for updates", hint: "Action", icon: "refresh", run: () => updater.check(true) },
-    { id: "act-changelog", label: "What's new", hint: "Action", icon: "clock", run: () => ui.openChangelog() },
+    { id: "nav-home", label: t("nav.home"), hint: t("palette.hintGoTo"), icon: "home", run: () => goto("/") },
+    { id: "nav-browse", label: t("palette.browseMods"), hint: t("palette.hintGoTo"), icon: "compass", run: () => goto("/browse") },
+    { id: "nav-servers", label: t("nav.servers"), hint: t("palette.hintGoTo"), icon: "globe", run: () => goto("/servers") },
+    { id: "nav-achievements", label: t("palette.achievements"), hint: t("palette.hintGoTo"), icon: "trophy", run: () => goto("/achievements") },
+    { id: "nav-community", label: t("nav.community"), hint: t("palette.hintGoTo"), icon: "users", run: () => goto("/share") },
+    { id: "nav-settings", label: t("nav.settings"), hint: t("palette.hintGoTo"), icon: "cog", run: () => goto("/settings") },
+    { id: "act-create", label: t("palette.createInstance"), hint: t("palette.hintAction"), icon: "plus", run: () => ui.openCreateInstance() },
+    { id: "act-accounts", label: t("palette.accounts"), hint: t("palette.hintAction"), icon: "user", run: () => ui.openAccounts() },
+    { id: "act-update", label: t("palette.checkUpdates"), hint: t("palette.hintAction"), icon: "refresh", run: () => updater.check(true) },
+    { id: "act-changelog", label: t("palette.whatsNew"), hint: t("palette.hintAction"), icon: "clock", run: () => ui.openChangelog() },
   ]);
 
   const instanceCmds = $derived<Cmd[]>(
@@ -100,7 +101,7 @@
           bind:this={inputEl}
           bind:value={query}
           onkeydown={onKey}
-          placeholder="Search instances, pages, actions…"
+          placeholder={t("palette.placeholder")}
           spellcheck="false"
         />
       </div>
@@ -127,7 +128,7 @@
           </button>
         {/each}
         {#if results.length === 0}
-          <p class="empty">No matches</p>
+          <p class="empty">{t("palette.noMatches")}</p>
         {/if}
       </div>
     </div>

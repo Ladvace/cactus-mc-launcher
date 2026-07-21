@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
+  import { t, type MessageKey } from "$lib/i18n";
+  import LanguageSelect from "$lib/components/LanguageSelect.svelte";
   import { sliderFill } from "$lib/slider";
   import { formatDate } from "$lib/time";
   import { api } from "$lib/api";
@@ -32,11 +34,11 @@
   import { playClick } from "$lib/sound";
   import type { CacheStats, DockPosition, Settings } from "$lib/types";
 
-  const DOCK_POSITIONS: { value: DockPosition; label: string }[] = [
-    { value: "bottom", label: "Bottom" },
-    { value: "top", label: "Top" },
-    { value: "left", label: "Left" },
-    { value: "right", label: "Right" },
+  const DOCK_POSITIONS: { value: DockPosition; labelKey: MessageKey }[] = [
+    { value: "bottom", labelKey: "settings.dockBottom" },
+    { value: "top", labelKey: "settings.dockTop" },
+    { value: "left", labelKey: "settings.dockLeft" },
+    { value: "right", labelKey: "settings.dockRight" },
   ];
 
   let draft = $state<Settings>({ ...settingsStore.settings });
@@ -89,7 +91,7 @@
     clearingCache = true;
     try {
       cacheStats = await api.clearContentCache();
-      toast.success("Cache cleared.");
+      toast.success(t("settings.cacheCleared"));
     } catch (error) {
       toast.error(String(error));
     } finally {
@@ -112,7 +114,7 @@
   let movingData = $state(false);
 
   async function browseDataDir() {
-    const folder = await pickFolder("Choose where Cactus stores its data");
+    const folder = await pickFolder(t("settings.chooseDataFolder"));
     if (folder && folder !== dataDir) {
       pendingDataDir = folder;
       dataMoveOpen = true;
@@ -211,7 +213,7 @@
     }
   }
   function pickBgSticker() {
-    ui.openStickerPicker("App background", (uri) => {
+    ui.openStickerPicker(t("settings.appBackground"), (uri) => {
       draft.background = `image:${uri}`;
     });
   }
@@ -249,7 +251,7 @@
   }
 
   async function browseInstancesDir() {
-    const folder = await pickFolder("Choose where new instances install");
+    const folder = await pickFolder(t("settings.chooseInstancesFolder"));
     if (folder) draft.instancesDir = folder;
   }
 
@@ -297,7 +299,7 @@
     javaBusy = true;
     javaError = null;
     javaInstalled = [];
-    javaLabel = "Fetching runtime list…";
+    javaLabel = t("settings.fetchingRuntimeList");
     javaCur = 0;
     javaTotal = 0;
     try {
@@ -337,25 +339,25 @@
 
 <div class="page">
   <header class="head">
-    <h1>Settings</h1>
+    <h1>{t("settings.title")}</h1>
     <div class="head-actions">
-      {#if saved}<span class="saved">Saved ✓</span>{/if}
+      {#if saved}<span class="saved">{t("settings.saved")}</span>{/if}
       <button class="btn primary" onclick={save} disabled={saving}>
-        {saving ? "Saving…" : "Save changes"}
+        {saving ? t("settings.saving") : t("settings.saveChanges")}
       </button>
     </div>
   </header>
 
   <section class="card-block">
-    <h3>Account</h3>
+    <h3>{t("settings.account")}</h3>
     <div class="setting">
       <div class="label">
-        <span>Offline username</span>
-        <small>Used for offline launches until Microsoft sign-in is added.</small>
+        <span>{t("settings.offlineUsername")}</span>
+        <small>{t("settings.offlineUsernameDesc")}</small>
       </div>
       <input
         class="input narrow"
-        placeholder="Player"
+        placeholder={t("settings.offlineUsernamePlaceholder")}
         bind:value={draft.offlineUsername}
         autocomplete="off"
       />
@@ -363,11 +365,19 @@
   </section>
 
   <section class="card-block">
-    <h3>Interface</h3>
+    <h3>{t("settings.interface")}</h3>
     <div class="setting">
       <div class="label">
-        <span>Button sounds</span>
-        <small>Play a soft click when you press buttons.</small>
+        <span>{t("settings.language")}</span>
+        <small>{t("settings.languageDesc")}</small>
+      </div>
+      <LanguageSelect />
+    </div>
+
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.buttonSounds")}</span>
+        <small>{t("settings.buttonSoundsDesc")}</small>
       </div>
       <label class="switch">
         <input
@@ -381,8 +391,8 @@
 
     <div class="setting">
       <div class="label">
-        <span>News on Home</span>
-        <small>Show the latest Minecraft news on the Home screen.</small>
+        <span>{t("settings.newsOnHome")}</span>
+        <small>{t("settings.newsOnHomeDesc")}</small>
       </div>
       <label class="switch">
         <input
@@ -397,8 +407,8 @@
     {#if draft.showNews}
       <div class="setting">
         <div class="label">
-          <span>One story per page</span>
-          <small>Show a single large story per page instead of a lead plus two.</small>
+          <span>{t("settings.oneStoryPerPage")}</span>
+          <small>{t("settings.oneStoryPerPageDesc")}</small>
         </div>
         <label class="switch">
           <input
@@ -413,15 +423,15 @@
 
     <div class="setting">
       <div class="label">
-        <span>Date format</span>
-        <small>How dates are shown across the app (e.g. {fmtDatePreview}).</small>
+        <span>{t("settings.dateFormat")}</span>
+        <small>{t("settings.dateFormatDesc", { sample: fmtDatePreview })}</small>
       </div>
       <select
         class="select"
         bind:value={draft.dateFormat}
         onchange={() => settingsStore.save({ ...settingsStore.settings, dateFormat: draft.dateFormat })}
       >
-        <option value="system">System default</option>
+        <option value="system">{t("settings.dateSystem")}</option>
         <option value="iso">ISO (2026-07-20)</option>
         <option value="us">US (07/20/2026)</option>
         <option value="eu">EU (20/07/2026)</option>
@@ -430,7 +440,7 @@
 
     <div class="setting">
       <div class="label">
-        <span>Giphy API key (stickers)</span>
+        <span>{t("settings.giphyKey")}</span>
         <small>
           Animated stickers are off by default. Paste a free key from
           <button class="linkish" onclick={() => openUrl("https://developers.giphy.com")}>
@@ -453,8 +463,8 @@
 
     <div class="setting">
       <div class="label">
-        <span>Dock position</span>
-        <small>Which edge of the window the app dock sits on.</small>
+        <span>{t("settings.dockPosition")}</span>
+        <small>{t("settings.dockPositionDesc")}</small>
       </div>
       <div class="seg">
         {#each DOCK_POSITIONS as position}
@@ -463,7 +473,7 @@
             class:on={draft.dockPosition === position.value}
             onclick={() => (draft.dockPosition = position.value)}
           >
-            {position.label}
+            {t(position.labelKey)}
           </button>
         {/each}
       </div>
@@ -471,8 +481,8 @@
 
     <div class="setting">
       <div class="label">
-        <span>Magnify dock on hover</span>
-        <small>The macOS-style zoom as you move across dock icons.</small>
+        <span>{t("settings.magnifyDock")}</span>
+        <small>{t("settings.magnifyDockDesc")}</small>
       </div>
       <label class="switch">
         <input type="checkbox" bind:checked={draft.dockMagnify} />
@@ -482,11 +492,11 @@
   </section>
 
   <section class="card-block">
-    <h3>Appearance</h3>
+    <h3>{t("settings.appearance")}</h3>
 
     <div class="label themes-label">
-      <span>Theme presets</span>
-      <small>One-click backgrounds — solid colours, patterns, and cactus decor.</small>
+      <span>{t("settings.themePresets")}</span>
+      <small>{t("settings.themePresetsDesc")}</small>
     </div>
     <div class="themes">
       {#each THEME_PRESETS as preset (preset.name)}
@@ -515,11 +525,8 @@
 
     <div class="setting bg-setting">
       <div class="label">
-        <span>Background</span>
-        <small>
-          Give the app a solid colour, a pattern, or your own image / GIF /
-          sticker.
-        </small>
+        <span>{t("settings.background")}</span>
+        <small>{t("settings.backgroundDesc")}</small>
       </div>
       <div
         class="bg-preview"
@@ -533,28 +540,28 @@
         class:on={kind === "default"}
         onclick={() => (draft.background = "")}
       >
-        Default
+        {t("settings.bgDefault")}
       </button>
       <button
         class="chip"
         class:on={kind === "color"}
         onclick={() => setColor(colorValue)}
       >
-        Solid color
+        {t("settings.bgSolidColor")}
       </button>
       <button
         class="chip"
         class:on={kind === "pattern"}
         onclick={() => setPattern(activePattern || "dots")}
       >
-        Pattern
+        {t("settings.bgPattern")}
       </button>
       <button
         class="chip"
         class:on={kind === "image"}
         onclick={pickBgSticker}
       >
-        Image / GIF
+        {t("settings.bgImageGif")}
       </button>
     </div>
 
@@ -576,25 +583,25 @@
         {/each}
       </div>
       <div class="bg-detail bg-color">
-        <span class="bg-color-label">Base color</span>
+        <span class="bg-color-label">{t("settings.baseColor")}</span>
         {@render colorField(patternColor, setPatternColor)}
       </div>
     {:else if kind === "image"}
       <div class="bg-detail">
         <button class="btn ghost" onclick={() => bgFileInput?.click()}>
-          <Icon name="edit" size={14} /> Upload…
+          <Icon name="edit" size={14} /> {t("settings.upload")}
         </button>
         <button class="btn ghost" onclick={pickBgSticker}>
-          <Icon name="sparkles" size={14} /> Stickers & GIFs…
+          <Icon name="sparkles" size={14} /> {t("settings.stickersGifs")}
         </button>
       </div>
       <div class="bg-detail bg-color">
-        <span class="bg-color-label">Tint</span>
+        <span class="bg-color-label">{t("settings.tint")}</span>
         {@render colorField(imageColor, setImageColor)}
       </div>
     {:else if kind === "texture"}
       <div class="bg-detail bg-color">
-        <span class="bg-color-label">Texture opacity</span>
+        <span class="bg-color-label">{t("settings.textureOpacity")}</span>
         <input
           type="range"
           class="opacity-range"
@@ -618,53 +625,46 @@
   </section>
 
   <section class="card-block">
-    <h3>Java & Memory</h3>
+    <h3>{t("settings.javaMemory")}</h3>
     <div class="setting">
       <div class="label">
-        <span>Managed Java</span>
-        <small>
-          Pre-download the runtimes Minecraft needs (Java 8, 17 & 21). Used
-          automatically at launch — you don't need to set a path below.
-        </small>
+        <span>{t("settings.managedJava")}</span>
+        <small>{t("settings.managedJavaDesc")}</small>
       </div>
       <button class="btn primary" onclick={setupJava} disabled={javaBusy}>
-        {javaBusy ? "Installing…" : "Auto-install Java"}
+        {javaBusy ? t("settings.installing") : t("settings.autoInstallJava")}
       </button>
     </div>
     {#if javaBusy || javaInstalled.length > 0 || javaError}
       <div class="java-status">
         {#if javaBusy}
-          <ProgressBar label={javaLabel || "Preparing…"} pct={javaPct} />
+          <ProgressBar label={javaLabel || t("settings.preparing")} pct={javaPct} />
         {:else if javaError}
           <p class="java-err">{javaError}</p>
         {:else}
-          <p class="java-ok">✓ Ready: {javaInstalled.join(", ")}</p>
+          <p class="java-ok">{t("settings.javaReady", { list: javaInstalled.join(", ") })}</p>
         {/if}
       </div>
     {/if}
     <div class="setting">
       <div class="label">
-        <span>Java runtimes (optional)</span>
-        <small>
-          Leave empty to use managed Java. Point a version at your own JDK if you
-          prefer — each Minecraft version uses the Java it needs (8 for old
-          versions, 17 for 1.17–1.20, 21 for 1.20.5+).
-        </small>
+        <span>{t("settings.javaRuntimes")}</span>
+        <small>{t("settings.javaRuntimesDesc")}</small>
       </div>
     </div>
     {#each JAVA_MAJORS as major (major)}
       <div class="setting java-major">
         <div class="label">
-          <span>Java {major}</span>
+          <span>{t("settings.javaVersion", { major })}</span>
           <small>
             {javaManaged(major)
               ? managedPaths[String(major)]
-                ? "Managed by Cactus"
-                : "Downloaded automatically when needed"
-              : "Using your own Java"}
+                ? t("settings.managedByCactus")
+                : t("settings.downloadedWhenNeeded")
+              : t("settings.usingOwnJava")}
           </small>
         </div>
-        <label class="switch" title="Manage automatically">
+        <label class="switch" title={t("settings.manageAutomatically")}>
           <input
             type="checkbox"
             checked={javaManaged(major)}
@@ -677,7 +677,7 @@
         class="input java-input"
         class:managed={javaManaged(major)}
         disabled={javaManaged(major)}
-        placeholder="/path/to/java"
+        placeholder={t("settings.javaPathPlaceholder")}
         value={javaManaged(major)
           ? (managedPaths[String(major)] ?? "")
           : (draft.javaPaths[String(major)] ?? "")}
@@ -687,7 +687,7 @@
     {/each}
     <div class="setting">
       <div class="label">
-        <span>Maximum memory</span>
+        <span>{t("settings.maxMemory")}</span>
         <small>{draft.maxMemoryMb} MB</small>
       </div>
       <div class="mem">
@@ -710,8 +710,8 @@
     </div>
     <div class="setting">
       <div class="label">
-        <span>JVM arguments</span>
-        <small>Extra flags passed to the JVM at launch.</small>
+        <span>{t("settings.jvmArguments")}</span>
+        <small>{t("settings.jvmArgumentsDesc")}</small>
       </div>
       <input
         class="input narrow"
@@ -721,8 +721,8 @@
     </div>
     <div class="setting">
       <div class="label">
-        <span>Concurrent downloads</span>
-        <small>{draft.maxConcurrentDownloads} at a time · 4–8 suits most connections. Higher isn't faster past your bandwidth — too many can hit server rate-limits, stall, or make downloads <em>slower</em>.</small>
+        <span>{t("settings.concurrentDownloads")}</span>
+        <small>{t("settings.concurrentDownloadsDesc", { count: draft.maxConcurrentDownloads })}<em>{t("settings.slower")}</em>.</small>
       </div>
       <input
         type="range"
@@ -737,9 +737,9 @@
   </section>
 
   <section class="card-block">
-    <h3>Game window</h3>
+    <h3>{t("settings.gameWindow")}</h3>
     <div class="setting">
-      <div class="label"><span>Default resolution</span></div>
+      <div class="label"><span>{t("settings.defaultResolution")}</span></div>
       <div class="res">
         <input type="number" class="input tiny" bind:value={draft.gameWidth} />
         <span>×</span>
@@ -748,31 +748,30 @@
           class="btn ghost"
           onclick={resetResolution}
           disabled={draft.gameWidth === 854 && draft.gameHeight === 480}
-          title="Reset to 854 × 480"
+          title={t("settings.resetResolutionTitle")}
         >
-          <Icon name="refresh" size={14} /> Reset
+          <Icon name="refresh" size={14} /> {t("settings.reset")}
         </button>
       </div>
     </div>
   </section>
 
   <section class="card-block">
-    <h3>Servers</h3>
+    <h3>{t("settings.servers")}</h3>
     <div class="setting">
       <div class="label">
-        <span>ngrok authtoken</span>
+        <span>{t("settings.ngrokAuthtoken")}</span>
         <small>
-          Lets you share a server over the internet (no port-forwarding). Get a
-          free token at
+          {t("settings.ngrokDesc1")}
           <button class="linkish" onclick={() => openUrl("https://dashboard.ngrok.com/get-started/your-authtoken")}>
             ngrok.com
-          </button>. A server can override this with its own key.
+          </button>{t("settings.ngrokDesc2")}
         </small>
       </div>
       <input
         class="input narrow"
         type="password"
-        placeholder="Paste your ngrok authtoken"
+        placeholder={t("settings.ngrokPlaceholder")}
         bind:value={draft.ngrokAuthtoken}
         onblur={() => persistCredential("ngrokAuthtoken")}
         onkeydown={(event) => event.key === "Enter" && event.currentTarget.blur()}
@@ -783,54 +782,45 @@
   </section>
 
   <section class="card-block">
-    <h3>Storage</h3>
+    <h3>{t("settings.storage")}</h3>
     <div class="setting">
       <div class="label">
-        <span>App data folder</span>
-        <small>
-          Everything Cactus stores — instances, downloads, and settings. Moving
-          it relocates all data and reloads the app.
-        </small>
+        <span>{t("settings.appDataFolder")}</span>
+        <small>{t("settings.appDataFolderDesc")}</small>
         <small class="path">{dataDir || "…"}</small>
       </div>
       <div class="folder-actions">
-        <button class="btn ghost" onclick={browseDataDir} disabled={anyRunning}>Move…</button>
-        <button class="btn ghost" onclick={resetDataDir} disabled={anyRunning}>Reset</button>
+        <button class="btn ghost" onclick={browseDataDir} disabled={anyRunning}>{t("settings.move")}</button>
+        <button class="btn ghost" onclick={resetDataDir} disabled={anyRunning}>{t("settings.reset")}</button>
       </div>
     </div>
     {#if anyRunning}
-      <p class="muted-note">Close running instances before moving the data folder.</p>
+      <p class="muted-note">{t("settings.closeRunningInstances")}</p>
     {/if}
     <div class="setting">
       <div class="label">
-        <span>Instances folder</span>
-        <small>
-          Where new instances' game data (mods, saves, worlds) is installed.
-          Existing instances stay where they are.
-        </small>
-        <small class="path">{draft.instancesDir || "Default (app data folder)"}</small>
+        <span>{t("settings.instancesFolder")}</span>
+        <small>{t("settings.instancesFolderDesc")}</small>
+        <small class="path">{draft.instancesDir || t("settings.defaultAppDataFolder")}</small>
       </div>
       <div class="folder-actions">
-        <button class="btn ghost" onclick={browseInstancesDir}>Browse…</button>
+        <button class="btn ghost" onclick={browseInstancesDir}>{t("settings.browse")}</button>
         {#if draft.instancesDir}
-          <button class="btn ghost" onclick={() => (draft.instancesDir = "")}>Reset</button>
+          <button class="btn ghost" onclick={() => (draft.instancesDir = "")}>{t("settings.reset")}</button>
         {/if}
       </div>
     </div>
     <div class="setting">
       <div class="label">
-        <span>Shared content cache</span>
-        <small
-          >Mods, resource packs & shaders are downloaded once and hard-linked
-          into each instance — identical files never take space twice.</small
-        >
+        <span>{t("settings.sharedContentCache")}</span>
+        <small>{t("settings.sharedContentCacheDesc")}</small>
       </div>
       <div class="folder-actions">
         <button class="btn ghost" onclick={clearCache} disabled={cacheLoading || clearingCache}>
-          {clearingCache ? "Clearing…" : "Clear cache"}
+          {clearingCache ? t("settings.clearing") : t("settings.clearCache")}
         </button>
         <button class="btn ghost" onclick={loadCache} disabled={cacheLoading}>
-          {cacheLoading ? "…" : "Refresh"}
+          {cacheLoading ? "…" : t("settings.refresh")}
         </button>
       </div>
     </div>
@@ -838,43 +828,40 @@
       <div class="stats">
         <div class="stat">
           <span class="n">{cacheStats.files}</span>
-          <span class="l">unique files</span>
+          <span class="l">{t("settings.uniqueFiles")}</span>
         </div>
         <div class="stat">
           <span class="n">{formatBytes(cacheStats.bytes)}</span>
-          <span class="l">on disk</span>
+          <span class="l">{t("settings.onDisk")}</span>
         </div>
         <div class="stat save">
           <span class="n">{formatBytes(cacheStats.savedBytes)}</span>
-          <span class="l">saved by sharing</span>
+          <span class="l">{t("settings.savedBySharing")}</span>
         </div>
       </div>
     {/if}
 
     <div class="setting danger-row">
       <div class="label">
-        <span>Reset everything</span>
-        <small>
-          Delete all instances, downloads, and settings and start fresh. This
-          can't be undone.
-        </small>
+        <span>{t("settings.resetEverything")}</span>
+        <small>{t("settings.resetEverythingDesc")}</small>
       </div>
       <button class="btn danger" onclick={() => (resetOpen = true)}>
-        <Icon name="trash" size={14} /> Reset…
+        <Icon name="trash" size={14} /> {t("settings.resetEllipsis")}
       </button>
     </div>
   </section>
 
   <section class="card-block">
-    <h3>About</h3>
-    <p class="about-app">Cactus Launcher — spiky but not spooky.</p>
+    <h3>{t("settings.about")}</h3>
+    <p class="about-app">{t("settings.aboutTagline")}</p>
     <div class="setting">
       <div class="label">
-        <span>Updates</span>
-        <small>You're on{appVersion ? ` v${appVersion}` : " the current version"}.</small>
+        <span>{t("settings.updates")}</span>
+        <small>{appVersion ? t("settings.onVersion", { version: appVersion }) : t("settings.onCurrentVersion")}</small>
       </div>
       <button class="btn ghost sm" onclick={() => updater.check(true)} disabled={updater.checking}>
-        <Icon name="refresh" size={14} /> {updater.checking ? "Checking…" : "Check for updates"}
+        <Icon name="refresh" size={14} /> {updater.checking ? t("settings.checking") : t("settings.checkForUpdates")}
       </button>
     </div>
     <div class="about-links">
@@ -889,11 +876,11 @@
         </button>
       {/if}
       <button class="btn ghost sm" onclick={() => ui.openChangelog()}>
-        <Icon name="clock" size={14} /> Changelog
+        <Icon name="clock" size={14} /> {t("settings.changelog")}
       </button>
     </div>
     <p class="about-credit">
-      Created by
+      {t("settings.createdBy")}
       {#if LINKS.website}
         <button class="linkish" onclick={() => openUrl(LINKS.website)}>{LINKS.authorName}</button>
       {:else}
@@ -903,39 +890,38 @@
   </section>
 
   <div class="save-bar">
-    {#if saved}<span class="saved">Saved ✓</span>{/if}
+    {#if saved}<span class="saved">{t("settings.saved")}</span>{/if}
     <button class="btn primary" onclick={save} disabled={saving}>
-      {saving ? "Saving…" : "Save changes"}
+      {saving ? t("settings.saving") : t("settings.saveChanges")}
     </button>
   </div>
 
   <p class="app-version">Cactus Launcher{appVersion ? ` v${appVersion}` : ""}</p>
 </div>
 
-<Modal title="Move app data?" open={dataMoveOpen} onClose={() => (dataMoveOpen = false)} width={440}>
+<Modal title={t("settings.moveDataTitle")} open={dataMoveOpen} onClose={() => (dataMoveOpen = false)} width={440}>
   <p class="reset-warn">
-    Move all app data to
-    <strong>{pendingDataDir ?? "the default folder"}</strong>
-    and reload? Existing files are moved — this can take a moment for large
-    downloads.
+    {t("settings.moveDataWarn1")}
+    <strong>{pendingDataDir ?? t("settings.theDefaultFolder")}</strong>
+    {t("settings.moveDataWarn2")}
   </p>
   <div class="reset-actions">
-    <button class="btn ghost" onclick={() => (dataMoveOpen = false)}>Cancel</button>
+    <button class="btn ghost" onclick={() => (dataMoveOpen = false)}>{t("common.cancel")}</button>
     <button class="btn primary" onclick={confirmMoveData} disabled={movingData}>
-      {movingData ? "Moving…" : "Move & reload"}
+      {movingData ? t("settings.moving") : t("settings.moveAndReload")}
     </button>
   </div>
 </Modal>
 
-<Modal title="Reset everything?" open={resetOpen} onClose={() => (resetOpen = false)} width={430}>
+<Modal title={t("settings.resetEverythingTitle")} open={resetOpen} onClose={() => (resetOpen = false)} width={430}>
   <p class="reset-warn">
-    This permanently deletes <strong>all instances, downloads, and settings</strong>
-    and restarts the app fresh. This can't be undone.
+    {t("settings.resetWarn1")} <strong>{t("settings.resetWarnBold")}</strong>
+    {t("settings.resetWarn2")}
   </p>
   <div class="reset-actions">
-    <button class="btn ghost" onclick={() => (resetOpen = false)}>Cancel</button>
+    <button class="btn ghost" onclick={() => (resetOpen = false)}>{t("common.cancel")}</button>
     <button class="btn danger" onclick={resetEverything} disabled={resetting}>
-      {resetting ? "Resetting…" : "Delete everything"}
+      {resetting ? t("settings.resetting") : t("settings.deleteEverything")}
     </button>
   </div>
 </Modal>

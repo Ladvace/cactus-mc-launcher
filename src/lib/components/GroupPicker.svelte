@@ -3,6 +3,7 @@
   import Icon from "./Icon.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { t } from "$lib/i18n";
 
   const inst = $derived(ui.groupFor);
 
@@ -34,17 +35,17 @@
 </script>
 
 <Modal
-  title="Move to group"
+  title={t("group.moveTitle")}
   open={!!inst}
   onClose={() => ui.closeGroupPicker()}
   width={380}
 >
   {#if inst}
-    <p class="lead">Move <strong>{inst.name}</strong> to…</p>
+    <p class="lead">{t("group.movePrefix")} <strong>{inst.name}</strong> {t("group.moveSuffix")}</p>
 
     <div class="options">
       <button class="opt" class:on={!inst.group} onclick={() => assign("")}>
-        <Icon name="home" size={14} /> No group
+        <Icon name="home" size={14} /> {t("group.noGroup")}
       </button>
       {#each groups as group (group)}
         <button class="opt" class:on={inst.group === group} onclick={() => assign(group)}>
@@ -57,12 +58,12 @@
     <div class="new">
       <input
         class="input"
-        placeholder="New group…"
+        placeholder={t("group.newGroupPlaceholder")}
         bind:value={newGroup}
         onkeydown={(event) => event.key === "Enter" && createAndAssign()}
       />
       <button class="btn primary" disabled={!newGroup.trim()} onclick={createAndAssign}>
-        Create
+        {t("common.create")}
       </button>
     </div>
   {/if}

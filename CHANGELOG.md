@@ -4,6 +4,17 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] — 2026-07-21
+
+### Added
+- **Languages** — Cactus now speaks **English, French, Spanish, German,
+  Portuguese, and Chinese**.
+  Pick your language from Settings → Interface or straight from the onboarding
+  screen, through a custom dropdown with pixel-art flags that matches the app's
+  style. The whole interface switches live — no restart. Dynamic content (mod,
+  world, and achievement names, and raw error text) stays as its source provides
+  it, falling back to English where a translation isn't available.
+
 ## [1.4.0] — 2026-07-20
 
 ### Added
@@ -124,6 +135,7 @@ Early builds establishing the foundation:
 - Adaptive **Tune-up** (hardware-aware performance recommendations), themes,
   a customizable dock, and click sounds.
 
+[1.5.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.2.0...v1.3.0

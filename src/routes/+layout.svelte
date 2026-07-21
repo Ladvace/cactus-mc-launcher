@@ -20,6 +20,7 @@
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { initBoardApi } from "$lib/boardApi";
   import { ui } from "$lib/stores/ui.svelte";
+  import { currentLocale } from "$lib/i18n";
   import { backgroundCss } from "$lib/background";
   import { readJson } from "$lib/storage";
   import { playClick } from "$lib/sound";
@@ -47,6 +48,11 @@
     installStore.init();
     accountsStore.init();
     initBoardApi();
+  });
+
+  // Keep the document language in sync with the chosen UI locale.
+  $effect(() => {
+    document.documentElement.lang = currentLocale();
   });
 
   function onContextMenu(event: MouseEvent) {

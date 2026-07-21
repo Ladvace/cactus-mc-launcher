@@ -2,6 +2,7 @@
   import Icon from "./Icon.svelte";
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t } from "$lib/i18n";
   import type { OpEntry, PlayerEntry } from "$lib/types";
 
   let { id, running = false }: { id: string; running?: boolean } = $props();
@@ -70,77 +71,76 @@
 <div class="players">
   <p class="lead muted">
     {#if running}
-      Changes apply live on the running server.
+      {t("server.playersLiveHint")}
     {:else}
-      The server is stopped — changes are written for its next start. Adding a
-      player looks up their account (online-mode) to record the right UUID.
+      {t("server.playersStoppedHint")}
     {/if}
   </p>
 
   <section class="list-block">
     <div class="block-head">
-      <h3>Operators</h3>
+      <h3>{t("server.operators")}</h3>
       <span class="muted">{ops.length}</span>
     </div>
-    <p class="block-hint">Ops can run admin commands (gamemode, give, stop, kick…).</p>
+    <p class="block-hint">{t("server.opsHint")}</p>
     <div class="add-row">
       <input
         class="input"
-        placeholder="Player name"
+        placeholder={t("server.playerNamePlaceholder")}
         bind:value={opName}
         disabled={busy}
         onkeydown={(event) => event.key === "Enter" && addOp()}
       />
-      <button class="btn primary sm" disabled={busy || !opName.trim()} onclick={addOp}>Op</button>
+      <button class="btn primary sm" disabled={busy || !opName.trim()} onclick={addOp}>{t("server.op")}</button>
     </div>
     {#if ops.length}
       <ul class="rows">
         {#each ops as op (op.uuid)}
           <li class="row">
             <span class="name">{op.name}</span>
-            <span class="lvl">level {op.level}</span>
-            <button class="del" title="Remove op" disabled={busy} onclick={() => removeOp(op.name)}>
+            <span class="lvl">{t("server.opLevel", { level: op.level })}</span>
+            <button class="del" title={t("server.removeOp")} disabled={busy} onclick={() => removeOp(op.name)}>
               <Icon name="trash" size={13} />
             </button>
           </li>
         {/each}
       </ul>
     {:else}
-      <p class="empty muted">No operators.</p>
+      <p class="empty muted">{t("server.noOperators")}</p>
     {/if}
   </section>
 
   <section class="list-block">
     <div class="block-head">
-      <h3>Whitelist</h3>
+      <h3>{t("server.whitelist")}</h3>
       <span class="muted">{whitelist.length}</span>
     </div>
     <p class="block-hint">
-      When <code>white-list</code> is on (Properties tab), only these players can join.
+      {t("server.whitelistHintPrefix")}<code>white-list</code>{t("server.whitelistHintSuffix")}
     </p>
     <div class="add-row">
       <input
         class="input"
-        placeholder="Player name"
+        placeholder={t("server.playerNamePlaceholder")}
         bind:value={wlName}
         disabled={busy}
         onkeydown={(event) => event.key === "Enter" && addWl()}
       />
-      <button class="btn primary sm" disabled={busy || !wlName.trim()} onclick={addWl}>Add</button>
+      <button class="btn primary sm" disabled={busy || !wlName.trim()} onclick={addWl}>{t("common.add")}</button>
     </div>
     {#if whitelist.length}
       <ul class="rows">
         {#each whitelist as player (player.uuid)}
           <li class="row">
             <span class="name">{player.name}</span>
-            <button class="del" title="Remove" disabled={busy} onclick={() => removeWl(player.name)}>
+            <button class="del" title={t("common.remove")} disabled={busy} onclick={() => removeWl(player.name)}>
               <Icon name="trash" size={13} />
             </button>
           </li>
         {/each}
       </ul>
     {:else}
-      <p class="empty muted">Whitelist is empty.</p>
+      <p class="empty muted">{t("server.whitelistEmpty")}</p>
     {/if}
   </section>
 </div>

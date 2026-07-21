@@ -4,6 +4,7 @@
   import { presence } from "$lib/stores/presence.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { skinFace } from "$lib/skin";
+  import { t } from "$lib/i18n";
   import Icon from "./Icon.svelte";
   import type { FriendsList, FriendsPrefs } from "$lib/types";
 
@@ -69,7 +70,7 @@
     const name = addName.trim();
     if (!name) return;
     addName = "";
-    mutate({ name, add: true }, `Friend request sent to ${name}.`);
+    mutate({ name, add: true }, t("community.friendRequestSent", { name }));
   }
 
   const onlineUuids = $derived(new Set(presence.players.map((p) => p.uuid)));
@@ -80,8 +81,8 @@
 {#if account && !failed}
   <section class="friends">
     <div class="head">
-      <h3>Friends</h3>
-      <button class="refresh" title="Refresh" onclick={load} disabled={loading || busy}>
+      <h3>{t("community.friends")}</h3>
+      <button class="refresh" title={t("community.refresh")} onclick={load} disabled={loading || busy}>
         <Icon name="refresh" size={12} />
       </button>
     </div>
@@ -91,39 +92,39 @@
         <label class="pref">
           <input type="checkbox" checked={prefs.friendsEnabled} disabled={busy}
             onchange={() => togglePref("friendsEnabled")} />
-          Friends enabled
+          {t("community.friendsEnabled")}
         </label>
         <label class="pref">
           <input type="checkbox" checked={prefs.acceptInvites} disabled={busy}
             onchange={() => togglePref("acceptInvites")} />
-          Accept invites
+          {t("community.acceptInvites")}
         </label>
       </div>
       {#if !prefs.friendsEnabled}
-        <p class="muted warn">Friends are off — turn them on so you can add friends and others can add you.</p>
+        <p class="muted warn">{t("community.friendsOffWarning")}</p>
       {/if}
     {/if}
 
     <form class="add" onsubmit={(e) => (e.preventDefault(), add())}>
-      <input placeholder="Add a friend by username…" bind:value={addName} maxlength="16" spellcheck="false" />
-      <button class="btn primary sm" type="submit" disabled={busy || !addName.trim()}>Add</button>
+      <input placeholder={t("community.addFriendPlaceholder")} bind:value={addName} maxlength="16" spellcheck="false" />
+      <button class="btn primary sm" type="submit" disabled={busy || !addName.trim()}>{t("common.add")}</button>
     </form>
 
     {#if loading && !data}
-      <p class="muted">Loading…</p>
+      <p class="muted">{t("common.loading")}</p>
     {:else if data}
       {#if data.incoming.length > 0}
-        <p class="label">Requests received</p>
+        <p class="label">{t("community.requestsReceived")}</p>
         <ul class="list">
           {#each data.incoming as person (person.profileId)}
             <li>
               <img class="face" src={skinFace(person.profileId, 30)} alt="" />
               <span class="name">{person.name}</span>
-              <button class="ic accept" title="Accept" disabled={busy}
-                onclick={() => mutate({ profileId: person.profileId, add: true }, `${person.name} added.`)}>
+              <button class="ic accept" title={t("community.accept")} disabled={busy}
+                onclick={() => mutate({ profileId: person.profileId, add: true }, t("community.friendAdded", { name: person.name }))}>
                 <Icon name="check" size={13} />
               </button>
-              <button class="ic decline" title="Decline" disabled={busy}
+              <button class="ic decline" title={t("community.decline")} disabled={busy}
                 onclick={() => mutate({ profileId: person.profileId, add: false })}>
                 <Icon name="close" size={13} />
               </button>
@@ -133,15 +134,15 @@
       {/if}
 
       {#if data.friends.length > 0}
-        <p class="label">Your friends</p>
+        <p class="label">{t("community.yourFriends")}</p>
         <ul class="list">
           {#each data.friends as friend (friend.profileId)}
             <li>
               <img class="face" src={skinFace(friend.profileId, 30)} alt="" />
               <span class="name">{friend.name}</span>
-              {#if isOnline(friend.profileId)}<span class="dot" title="Online in Cactus"></span>{/if}
-              <button class="ic remove" title="Remove friend" disabled={busy}
-                onclick={() => mutate({ profileId: friend.profileId, add: false }, `${friend.name} removed.`)}>
+              {#if isOnline(friend.profileId)}<span class="dot" title={t("community.onlineInCactus")}></span>{/if}
+              <button class="ic remove" title={t("community.removeFriend")} disabled={busy}
+                onclick={() => mutate({ profileId: friend.profileId, add: false }, t("community.friendRemoved", { name: friend.name }))}>
                 <Icon name="close" size={13} />
               </button>
             </li>
@@ -150,14 +151,14 @@
       {/if}
 
       {#if data.outgoing.length > 0}
-        <p class="label">Requests sent</p>
+        <p class="label">{t("community.requestsSent")}</p>
         <ul class="list">
           {#each data.outgoing as person (person.profileId)}
             <li>
               <img class="face" src={skinFace(person.profileId, 30)} alt="" />
               <span class="name">{person.name}</span>
-              <span class="pending">Pending</span>
-              <button class="ic remove" title="Cancel request" disabled={busy}
+              <span class="pending">{t("community.pending")}</span>
+              <button class="ic remove" title={t("community.cancelRequest")} disabled={busy}
                 onclick={() => mutate({ profileId: person.profileId, add: false })}>
                 <Icon name="close" size={13} />
               </button>
@@ -167,7 +168,7 @@
       {/if}
 
       {#if data.empty}
-        <p class="muted">No friends yet — add one above, or add friends in Minecraft.</p>
+        <p class="muted">{t("community.noFriendsYet")}</p>
       {/if}
     {/if}
   </section>

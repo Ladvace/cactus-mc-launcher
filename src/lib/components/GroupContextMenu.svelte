@@ -5,6 +5,7 @@
   import { groupCovers } from "$lib/stores/groupCovers.svelte";
   import { fileToIconDataUri } from "$lib/image";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t } from "$lib/i18n";
 
   let { onOpenFolder }: { onOpenFolder: (name: string) => void } = $props();
 
@@ -19,20 +20,20 @@
     const name = groupMenu.name;
     const hasCover = !!groupCovers.get(name);
     return [
-      { label: "Open folder", icon: "folder", onSelect: () => onOpenFolder(name) },
+      { label: t("group.openFolder"), icon: "folder", onSelect: () => onOpenFolder(name) },
       { separator: true },
-      { label: "Upload cover…", icon: "edit", onSelect: () => pickFile(name) },
+      { label: t("group.uploadCover"), icon: "edit", onSelect: () => pickFile(name) },
       {
-        label: "Stickers & emoji…",
+        label: t("group.stickersEmoji"),
         icon: "sparkles",
         onSelect: () =>
-          ui.openStickerPicker(`Cover for ${name}`, (uri) => groupCovers.set(name, uri)),
+          ui.openStickerPicker(t("group.coverFor", { name }), (uri) => groupCovers.set(name, uri)),
       },
       ...(hasCover
-        ? [{ label: "Remove cover", icon: "refresh", onSelect: () => groupCovers.clear(name) }]
+        ? [{ label: t("group.removeCover"), icon: "refresh", onSelect: () => groupCovers.clear(name) }]
         : []),
       { separator: true },
-      { label: "Ungroup all", icon: "trash", onSelect: () => ungroupAll(name) },
+      { label: t("group.ungroupAll"), icon: "trash", onSelect: () => ungroupAll(name) },
     ];
   });
 

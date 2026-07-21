@@ -1,6 +1,7 @@
 <script lang="ts">
   import Modal from "./Modal.svelte";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
   import { ui } from "$lib/stores/ui.svelte";
   import { api } from "$lib/api";
   import { settingsStore } from "$lib/stores/settings.svelte";
@@ -162,28 +163,28 @@
     ui.closeStickerPicker();
   }
 
-  const GROUPS = [
+  const GROUPS = $derived([
     {
-      name: "Blocks & tools",
+      name: t("sticker.groupBlocks"),
       emoji: ["⛏️", "🗡️", "🪓", "⚒️", "🛡️", "🏹", "🧨", "💎", "💠", "🧱", "🗺️", "🧭", "🔥", "💧", "🌳", "🌸"],
     },
     {
-      name: "Mobs",
+      name: t("sticker.groupMobs"),
       emoji: ["🐷", "🐑", "🐮", "🐔", "🐺", "🐝", "🦊", "🐢", "🐼", "🐉", "👾", "🧟", "💀", "👻", "🕷️", "🦇"],
     },
     {
-      name: "Faces",
+      name: t("sticker.groupFaces"),
       emoji: ["😀", "😎", "🤠", "🤖", "😈", "🥳", "🤩", "😴", "🤯", "🫠", "👽", "🎃", "🥸", "😤", "🤓", "🫡"],
     },
     {
-      name: "Symbols",
+      name: t("sticker.groupSymbols"),
       emoji: ["⭐", "🌈", "⚡", "❤️", "🏆", "🎮", "✨", "🔷", "🟢", "🟣", "🟡", "🔶", "☠️", "🌙", "☀️", "🎯"],
     },
-  ];
+  ]);
 </script>
 
 <Modal
-  title={picker?.title ?? "Choose an image"}
+  title={picker?.title ?? t("sticker.chooseImage")}
   {open}
   onClose={() => ui.closeStickerPicker()}
   width={480}
@@ -198,14 +199,14 @@
         class:active={tab === "stickers"}
         onclick={() => (tab = "stickers")}
       >
-        <Icon name="sparkles" size={14} /> Stickers
+        <Icon name="sparkles" size={14} /> {t("sticker.stickers")}
       </button>
       <button
         class="tab"
         class:active={tab === "emoji"}
         onclick={() => (tab = "emoji")}
       >
-        Emoji
+        {t("sticker.emoji")}
       </button>
     </div>
 
@@ -213,7 +214,7 @@
       <div class="decor-grid" class:busy={applying}>
         {#each DECOR_SPRITES as url (url)}
           <button class="decor-cell" disabled={applying} onclick={() => chooseDecor(url)}>
-            <img src={url} alt="decoration" loading="lazy" />
+            <img src={url} alt={t("sticker.decorationAlt")} loading="lazy" />
           </button>
         {/each}
       </div>
@@ -221,39 +222,39 @@
       {#if !enabled || editingKey}
         <div class="notice">
           <p>
-            <strong>{editingKey ? "Update your Giphy API key" : "Animated stickers are off."}</strong>
+            <strong>{editingKey ? t("sticker.updateKey") : t("sticker.stickersOff")}</strong>
           </p>
           <p>
-            Paste a free Giphy API key to turn them on (grab one at
+            {t("sticker.giphyPromptBefore")}
             <button class="linkish" onclick={() => openUrl("https://developers.giphy.com")}>
               developers.giphy.com</button
-            >). The Emoji tab always works.
+            >{t("sticker.giphyPromptAfter")}
           </p>
           <div class="key-row">
             <input
               class="key-input"
               type="password"
-              placeholder="Giphy API key"
+              placeholder={t("sticker.keyPlaceholder")}
               autocomplete="off"
               spellcheck="false"
               bind:value={keyDraft}
               onkeydown={(event) => event.key === "Enter" && saveKey()}
             />
             <button class="btn primary sm" disabled={savingKey || !keyDraft.trim()} onclick={saveKey}>
-              {savingKey ? "Saving…" : "Save"}
+              {savingKey ? t("sticker.saving") : t("common.save")}
             </button>
             {#if editingKey}
-              <button class="btn ghost sm" onclick={() => (editingKey = false)}>Cancel</button>
+              <button class="btn ghost sm" onclick={() => (editingKey = false)}>{t("common.cancel")}</button>
             {/if}
           </div>
-          <p class="tiny">You can also change this later in Settings → Interface.</p>
+          <p class="tiny">{t("sticker.changeLater")}</p>
         </div>
       {:else}
         <div class="search">
           <Icon name="search" size={16} />
           <input
             class="search-input"
-            placeholder="Search stickers…"
+            placeholder={t("sticker.searchPlaceholder")}
             bind:value={query}
           />
         </div>
@@ -278,11 +279,11 @@
                 editingKey = true;
               }}
             >
-              Change API key
+              {t("sticker.changeKey")}
             </button>
           </div>
         {:else if stickers.length === 0}
-          <p class="muted">No stickers found.</p>
+          <p class="muted">{t("sticker.noStickers")}</p>
         {:else}
           <div class="sticker-grid" class:busy={applying} onscroll={onScroll}>
             {#each columns as col, colIndex (colIndex)}
@@ -290,11 +291,11 @@
                 {#each col as sticker (sticker.id)}
                   <button
                     class="cell"
-                    title="Use this sticker"
+                    title={t("sticker.useSticker")}
                     disabled={applying}
                     onclick={() => chooseSticker(sticker)}
                   >
-                    <img src={sticker.preview} alt="sticker" loading="lazy" />
+                    <img src={sticker.preview} alt={t("sticker.stickerAlt")} loading="lazy" />
                   </button>
                 {/each}
                 {#if loadingMore}
@@ -317,7 +318,7 @@
             {#each group.emoji as emoji}
               <button
                 class="emoji"
-                title={`Use ${emoji}`}
+                title={t("sticker.useEmoji", { emoji })}
                 onclick={() => chooseEmoji(emoji)}
               >
                 {emoji}

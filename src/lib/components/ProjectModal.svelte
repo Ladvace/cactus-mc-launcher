@@ -6,6 +6,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { installStore, toPct } from "$lib/stores/install.svelte";
   import { formatCount } from "$lib/format";
+  import { t } from "$lib/i18n";
   import { goto } from "$app/navigation";
   import { listen } from "@tauri-apps/api/event";
   import { openUrl } from "@tauri-apps/plugin-opener";
@@ -51,12 +52,12 @@
   );
   const installLabel = $derived(
     installing
-      ? "Installing…"
+      ? t("browse.installing")
       : isUpToDate
-        ? "Reinstall"
+        ? t("browse.reinstall")
         : isInstalled
-          ? "Update"
-          : "Install"
+          ? t("browse.update")
+          : t("browse.install")
   );
 
   let mpCurrent = $state(0);
@@ -133,7 +134,7 @@
     error = null;
     try {
       versions = await api.contentVersions(searchHit.source as Source, searchHit.projectId, null, null);
-      if (versions.length === 0) versionError = "No downloadable version found.";
+      if (versions.length === 0) versionError = t("browse.noDownloadableVersion");
     } catch (err) {
       versions = [];
       versionError = String(err);
@@ -153,7 +154,7 @@
         searchHit.projectType === "mod" && loader !== "vanilla" ? loader : null;
       versions = await api.contentVersions(searchHit.source as Source, searchHit.projectId, loaderFilter, mcVersion);
       if (versions.length === 0) {
-        versionError = `No version compatible with ${loader} ${mcVersion}.`;
+        versionError = t("browse.noCompatibleVersion", { loader, mcVersion });
       }
       if (selectedInstance) {
         const content = await api.listContent(selectedInstance.id);
@@ -194,7 +195,7 @@
     error = null;
     mpCurrent = 0;
     mpTotal = 0;
-    mpMessage = "Starting…";
+    mpMessage = t("browse.starting");
     try {
       const instance = await api.installModpack(
         hit.source as Source,
@@ -223,7 +224,7 @@
   }
 </script>
 
-<Modal title={hit?.title ?? "Project"} open={open && !!hit} onClose={close} width={640}>
+<Modal title={hit?.title ?? t("browse.projectFallback")} open={open && !!hit} onClose={close} width={640}>
   {#if hit}
     <div class="head">
       {#if hit.iconUrl}
@@ -233,9 +234,9 @@
       {/if}
       <div class="meta">
         <h3>{hit.title}</h3>
-        <p class="by">by {hit.author}</p>
+        <p class="by">{t("browse.byAuthor", { author: hit.author })}</p>
         <div class="stats">
-          <span><Icon name="package" size={13} /> {formatCount(hit.downloads)} downloads</span>
+          <span><Icon name="package" size={13} /> {t("browse.downloads", { count: formatCount(hit.downloads) })}</span>
           <span class="type">{hit.projectType}</span>
         </div>
       </div>
@@ -246,19 +247,17 @@
     <div class="install-box">
       {#if isModpack}
         <p class="mp-note">
-          Installs as a <strong>new instance</strong>{#if versions.length > 0}
-            (latest {versions[0].versionNumber}{#if versions[0].gameVersions[0]}, MC
-              {versions[0].gameVersions[0]}{/if}){/if}.
+          {t("browse.installsAsA")}<strong>{t("browse.newInstance")}</strong>{#if versions.length > 0}{versions[0].gameVersions[0] ? t("browse.mpVersionMc", { version: versions[0].versionNumber, mc: versions[0].gameVersions[0] }) : t("browse.mpVersion", { version: versions[0].versionNumber })}{/if}.
         </p>
         {#if loadingVersions}
-          <span class="muted">Finding latest version…</span>
+          <span class="muted">{t("browse.findingLatestVersion")}</span>
         {:else if versionError}
           <span class="warn">{versionError}</span>
         {/if}
         {#if installing}
           <div class="mp-progress">
             <div class="progress-head">
-              <span>{mpMessage || "Installing…"}</span>
+              <span>{mpMessage || t("browse.installing")}</span>
               {#if mpPct !== null}<span>{mpPct}%</span>{/if}
             </div>
             <div class="bar">
@@ -271,37 +270,35 @@
           </div>
         {/if}
       {:else if instances.length === 0}
-        <p class="muted">Create an instance first, then install content into it.</p>
+        <p class="muted">{t("browse.createInstanceFirst")}</p>
       {:else}
-        <span class="field-label">Install to</span>
+        <span class="field-label">{t("browse.installTo")}</span>
         <InstancePicker bind:value={selectedInstanceId} />
         <div class="version-line">
           {#if loadingVersions}
-            <span class="muted">Finding compatible version…</span>
+            <span class="muted">{t("browse.findingCompatibleVersion")}</span>
           {:else if versionError}
             <span class="warn">{versionError}</span>
           {:else if versions.length > 0}
             <span class="muted">
-              Latest match: <strong>{versions[0].versionNumber}</strong>
+              {t("browse.latestMatch")}<strong>{versions[0].versionNumber}</strong>
             </span>
             {#if isUpToDate}
-              <span class="pill ok">✓ Installed</span>
+              <span class="pill ok">✓ {t("browse.installed")}</span>
             {:else if isInstalled}
-              <span class="pill upd">Update available</span>
+              <span class="pill upd">{t("browse.updateAvailable")}</span>
             {/if}
           {/if}
         </div>
         {#if versions.length > 0 && !canDownload}
           <p class="cf-optout">
-            The author opted out of third-party downloads on CurseForge, so this
-            can't be auto-installed. Get it from the
-            <button
+            {t("browse.cfOptout")}<button
               class="linklike"
               onclick={() =>
                 openLink(
                   `https://www.curseforge.com/minecraft/search?search=${encodeURIComponent(hit.title)}`
                 )}
-            >CurseForge page</button>.
+            >{t("browse.curseforgePage")}</button>.
           </p>
         {/if}
       {/if}
@@ -311,17 +308,17 @@
   {/if}
 
   {#snippet footer()}
-    <button class="btn ghost" onclick={close} disabled={installing}>Close</button>
+    <button class="btn ghost" onclick={close} disabled={installing}>{t("common.close")}</button>
     {#if isModpack}
       <button
         class="btn primary"
         disabled={installing || loadingVersions || versions.length === 0}
         onclick={installModpack}
       >
-        {installing ? "Installing…" : "Install modpack"}
+        {installing ? t("browse.installing") : t("browse.installModpack")}
       </button>
     {:else if done}
-      <span class="ok-pill">✓ {isUpToDate ? "Installed" : "Done"}</span>
+      <span class="ok-pill">✓ {isUpToDate ? t("browse.installed") : t("common.done")}</span>
     {:else}
       <button
         class="btn primary"

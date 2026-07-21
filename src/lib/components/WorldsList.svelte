@@ -4,6 +4,7 @@
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
   import { timeAgo } from "$lib/time";
+  import { t } from "$lib/i18n";
   import type { WorldInfo } from "$lib/types";
 
   let { id, running = false }: { id: string; running?: boolean } = $props();
@@ -44,7 +45,7 @@
     busyFolder = world.folder;
     try {
       const path = await api.backupWorld(id, world.folder);
-      toast.success(`Backed up “${world.name}”.`);
+      toast.success(t("server.backedUp", { name: world.name }));
       try {
         await revealItemInDir(path);
       } catch {
@@ -61,7 +62,7 @@
     try {
       await api.deleteWorld(id, world.folder);
       confirmFolder = null;
-      toast.success(`Deleted “${world.name}”.`);
+      toast.success(t("server.deleted", { name: world.name }));
       await load();
     } catch (error) {
       toast.error(String(error));
@@ -83,18 +84,20 @@
 <div class="worlds">
   <div class="head">
     <span class="muted">
-      {worlds.length} world{worlds.length === 1 ? "" : "s"}
-      {#if running}· <strong>stop the server before deleting a world</strong>{/if}
+      {worlds.length === 1
+        ? t("server.worldCountOne", { count: worlds.length })
+        : t("server.worldCountMany", { count: worlds.length })}
+      {#if running}· <strong>{t("server.stopBeforeDelete")}</strong>{/if}
     </span>
-    <button class="btn ghost sm" onclick={load} disabled={loading}>Reload</button>
+    <button class="btn ghost sm" onclick={load} disabled={loading}>{t("server.reload")}</button>
   </div>
 
   {#if loading && worlds.length === 0}
-    <p class="muted">Loading…</p>
+    <p class="muted">{t("common.loading")}</p>
   {:else if worlds.length === 0}
     <div class="empty">
       <div class="mark"><Icon name="globe" size={30} /></div>
-      <p>No worlds yet. They appear here after the world is generated on first launch.</p>
+      <p>{t("server.noWorlds")}</p>
     </div>
   {:else}
     <ul class="list">
@@ -103,12 +106,12 @@
           <div class="info">
             <div class="name-row">
               <span class="name" title={world.folder}>{world.name}</span>
-              <span class="loc">{world.location === "server" ? "server" : "save"}</span>
+              <span class="loc">{world.location === "server" ? t("server.locServer") : t("server.locSave")}</span>
             </div>
-            <span class="sub">{fmtSize(world.sizeBytes)} · saved {timeAgo(world.lastModified)}</span>
+            <span class="sub">{t("server.worldMeta", { size: fmtSize(world.sizeBytes), ago: timeAgo(world.lastModified) })}</span>
           </div>
           <div class="acts">
-            <button class="btn ghost sm" title="Show in file manager" onclick={() => reveal(world)}>
+            <button class="btn ghost sm" title={t("server.showInFileManager")} onclick={() => reveal(world)}>
               <Icon name="folder" size={13} />
             </button>
             <button
@@ -116,7 +119,7 @@
               disabled={busyFolder === world.folder}
               onclick={() => backup(world)}
             >
-              {busyFolder === world.folder && confirmFolder !== world.folder ? "Zipping…" : "Backup"}
+              {busyFolder === world.folder && confirmFolder !== world.folder ? t("server.zipping") : t("server.backup")}
             </button>
             {#if confirmFolder === world.folder}
               <button
@@ -124,13 +127,13 @@
                 disabled={busyFolder === world.folder}
                 onclick={() => remove(world)}
               >
-                {busyFolder === world.folder ? "Deleting…" : "Confirm"}
+                {busyFolder === world.folder ? t("server.deleting") : t("server.confirm")}
               </button>
-              <button class="btn ghost sm" onclick={() => (confirmFolder = null)}>Cancel</button>
+              <button class="btn ghost sm" onclick={() => (confirmFolder = null)}>{t("common.cancel")}</button>
             {:else}
               <button
                 class="btn ghost sm danger-text"
-                title="Delete world"
+                title={t("server.deleteWorld")}
                 onclick={() => (confirmFolder = world.folder)}
               >
                 <Icon name="trash" size={13} />

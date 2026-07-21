@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n";
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
   import { DEFAULT_PORT, parseServerPort, formatAddress } from "$lib/serverAddress";
@@ -46,16 +47,16 @@
 </script>
 
 <div class="addr">
-  <span class="addr-label"><Icon name="globe" size={13} /> Server address</span>
-  <button class="chip" title="Copy" onclick={() => copy(localAddr)}>
+  <span class="addr-label"><Icon name="globe" size={13} /> {t("servers.serverAddress")}</span>
+  <button class="chip" title={t("servers.copy")} onclick={() => copy(localAddr)}>
     <span class="host">{localAddr}</span>
-    <span class="tag">this PC</span>
+    <span class="tag">{t("servers.thisPc")}</span>
     <Icon name={copied === localAddr ? "check" : "copy"} size={13} />
   </button>
   {#if lanAddr}
-    <button class="chip" title="Copy" onclick={() => copy(lanAddr)}>
+    <button class="chip" title={t("servers.copy")} onclick={() => copy(lanAddr)}>
       <span class="host">{lanAddr}</span>
-      <span class="tag">LAN</span>
+      <span class="tag">{t("servers.lan")}</span>
       <Icon name={copied === lanAddr ? "check" : "copy"} size={13} />
     </button>
   {/if}

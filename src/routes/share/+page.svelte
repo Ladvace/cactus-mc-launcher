@@ -11,6 +11,7 @@
   import { recordImport } from "$lib/importedFrom";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t } from "$lib/i18n";
   import type { BoardCard, ImportResult } from "$lib/types";
 
   const online = boardApi.configured();
@@ -109,18 +110,18 @@
 <div class="page">
   <header class="hero">
     <div>
-      <h1>Community</h1>
-      <p>Follow creators & servers, or share and import a setup.</p>
+      <h1>{t("nav.community")}</h1>
+      <p>{t("community.subtitle")}</p>
     </div>
     <button class="btn ghost" onclick={() => goto("/share/creator")}>
       <Icon name={hasBoard ? "edit" : "plus"} size={15} />
-      {hasBoard ? "Edit board" : "Create a board"}
+      {hasBoard ? t("community.editBoard") : t("community.createBoard")}
     </button>
   </header>
 
   <div class="tabbar">
     <button class="tab" class:on={active === "discover"} onclick={() => (active = "discover")}>
-      Discover
+      {t("community.discover")}
     </button>
     {#each tabs as handle (handle)}
       <button class="tab" class:on={active === handle} onclick={() => (active = handle)}>
@@ -132,7 +133,7 @@
       class:on={active === "play"}
       onclick={() => (active = "play")}
     >
-      <Icon name="users" size={14} /> Play together
+      <Icon name="users" size={14} /> {t("community.playTogether")}
     </button>
   </div>
 
@@ -145,7 +146,7 @@
     {#if online}
       <div class="search">
         <Icon name="search" size={16} />
-        <input placeholder="Search creators, servers…" bind:value={query} />
+        <input placeholder={t("community.searchPlaceholder")} bind:value={query} />
         {#if searching}<span class="mini-spin"></span>{/if}
       </div>
       {#if results.length}
@@ -164,30 +165,30 @@
         </ul>
       {/if}
     {:else}
-      <p class="offline"><Icon name="globe" size={13} /> Board discovery is offline in this build. You can still import a setup file below.</p>
+      <p class="offline"><Icon name="globe" size={13} /> {t("community.discoveryOffline")}</p>
     {/if}
 
     <section class="share-card">
-      <h3>Share an instance</h3>
+      <h3>{t("community.shareInstance")}</h3>
       {#if result}
         <div class="result">
-          <p><Icon name="check" size={15} /> Imported “{result.instance.name}” — {result.installed} items{result.skipped.length ? `, ${result.skipped.length} skipped` : ""}.</p>
+          <p><Icon name="check" size={15} /> {t("community.importedInstance", { name: result.instance.name, count: result.installed })}{result.skipped.length ? t("community.skippedSuffix", { count: result.skipped.length }) : ""}.</p>
           <div class="ractions">
-            <button class="btn primary sm" onclick={() => goto(`/instance/${result?.instance.id}`)}>Open</button>
-            <button class="btn ghost sm" onclick={() => (result = null)}>Import another</button>
+            <button class="btn primary sm" onclick={() => goto(`/instance/${result?.instance.id}`)}>{t("community.open")}</button>
+            <button class="btn ghost sm" onclick={() => (result = null)}>{t("community.importAnother")}</button>
           </div>
         </div>
       {:else if importing}
-        <p class="muted">Importing…</p>
+        <p class="muted">{t("common.importing")}</p>
       {:else}
         <div class="share-row">
           <button class="btn ghost" onclick={() => fileInput?.click()}>
-            <Icon name="download" size={15} /> Import a file (.cactuspack / .mrpack)
+            <Icon name="download" size={15} /> {t("community.importFileButton")}
           </button>
           {#if online}
             <div class="code">
-              <input placeholder="Paste a share code…" bind:value={code} onkeydown={(event) => event.key === "Enter" && importByCode()} />
-              <button class="btn primary sm" disabled={codeBusy || !code.trim()} onclick={importByCode}>Go</button>
+              <input placeholder={t("community.shareCodePlaceholder")} bind:value={code} onkeydown={(event) => event.key === "Enter" && importByCode()} />
+              <button class="btn primary sm" disabled={codeBusy || !code.trim()} onclick={importByCode}>{t("community.go")}</button>
             </div>
           {/if}
         </div>
@@ -195,7 +196,7 @@
       <input bind:this={fileInput} type="file" accept=".cactuspack,.drakepack,.mrpack,application/zip" style="display:none" onchange={onFile} />
     </section>
 
-    <p class="tip"><Icon name="share" size={13} /> Export a setup from any instance's right-click menu → <strong>Export setup…</strong></p>
+    <p class="tip"><Icon name="share" size={13} /> {t("community.exportTip")} <strong>{t("community.exportSetupAction")}</strong></p>
   {/if}
 </div>
 

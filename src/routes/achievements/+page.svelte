@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { api } from "$lib/api";
+  import { t } from "$lib/i18n";
   import { formatDate } from "$lib/time";
   import Icon from "$lib/components/Icon.svelte";
   import type { AchievementsPayload, AdvancementView } from "$lib/types";
@@ -12,14 +13,14 @@
   let categoryFilter = $state<string>("all");
   let showLocked = $state(true);
 
-  const CATEGORY_LABELS: Record<string, string> = {
-    story: "Story",
-    nether: "Nether",
-    end: "The End",
-    adventure: "Adventure",
-    husbandry: "Husbandry",
-    other: "Other",
-  };
+  const CATEGORY_LABELS = $derived<Record<string, string>>({
+    story: t("achievements.catStory"),
+    nether: t("achievements.catNether"),
+    end: t("achievements.catEnd"),
+    adventure: t("achievements.catAdventure"),
+    husbandry: t("achievements.catHusbandry"),
+    other: t("achievements.catOther"),
+  });
   const CATEGORY_ICON: Record<string, string> = {
     story: "book",
     nether: "fire",
@@ -58,9 +59,9 @@
     return !a.done && a.hidden ? "???" : a.name;
   }
   function displayDesc(a: AdvancementView): string {
-    if (a.done) return a.earnedIn ?? "Earned";
-    if (a.hidden) return "Hidden — unlock to reveal";
-    return "Locked";
+    if (a.done) return a.earnedIn ?? t("achievements.earned");
+    if (a.hidden) return t("achievements.hiddenUnlock");
+    return t("achievements.locked");
   }
 
   function fmtNumber(n: number): string {
@@ -86,47 +87,44 @@
 <div class="page">
   <header class="head">
     <div>
-      <h1>Achievements</h1>
+      <h1>{t("achievements.title")}</h1>
       <p class="sub">
         {#if data?.player.name}
-          Lifetime progress for <strong>{data.player.name}</strong> across all instances
+          {t("achievements.lifetimeProgressPrefix")}<strong>{data.player.name}</strong>{t("achievements.lifetimeProgressSuffix")}
         {:else}
-          Your lifetime Minecraft progress
+          {t("achievements.lifetimeMinecraftProgress")}
         {/if}
       </p>
     </div>
-    <button class="btn ghost" onclick={load} disabled={loading} aria-label="Refresh">
-      <Icon name="refresh" size={15} /> Refresh
+    <button class="btn ghost" onclick={load} disabled={loading} aria-label={t("achievements.refresh")}>
+      <Icon name="refresh" size={15} /> {t("achievements.refresh")}
     </button>
   </header>
 
   {#if loading}
-    <div class="state">Scanning your worlds…</div>
+    <div class="state">{t("achievements.scanning")}</div>
   {:else if error}
-    <div class="state err">Couldn’t load achievements: {error}</div>
+    <div class="state err">{t("achievements.loadError", { error })}</div>
   {:else if data && !data.hasData}
     <div class="state">
       <Icon name="trophy" size={28} />
-      <p>No world data found yet.</p>
-      <small
-        >Play a singleplayer or LAN world in one of your instances, then check back. Progress
-        on remote servers lives server-side and can’t be read locally.</small
-      >
+      <p>{t("achievements.noWorldData")}</p>
+      <small>{t("achievements.noWorldDataHelp")}</small>
     </div>
   {:else if data}
     <section class="hero">
       <div class="hero-ring" style="--pct:{data.completion.percent}">
         <span class="hero-pct">{data.completion.percent}%</span>
-        <span class="hero-cap">complete</span>
+        <span class="hero-cap">{t("achievements.complete")}</span>
       </div>
       <div class="hero-meta">
         <div class="hero-line">
-          <strong>{data.completion.earned}</strong> / {data.completion.total} advancements
+          <strong>{data.completion.earned}</strong> / {data.completion.total} {t("achievements.advancementsLabel")}
         </div>
         <div class="hero-line muted">
-          <strong>{earnedCustom}</strong> / {data.custom.length} challenges ·
+          <strong>{earnedCustom}</strong> / {data.custom.length} {t("achievements.challengesLabel")} ·
           <strong>{data.player.worldsScanned}</strong>
-          {data.player.worldsScanned === 1 ? "world" : "worlds"} scanned
+          {data.player.worldsScanned === 1 ? t("achievements.world") : t("achievements.worlds")} {t("achievements.scanned")}
         </div>
         <div class="cat-bars">
           {#each data.categories as cat (cat.key)}
@@ -144,13 +142,13 @@
     </section>
 
     <nav class="tabs">
-      <button class:active={tab === "achievements"} onclick={() => (tab = "achievements")}>Achievements</button>
-      <button class:active={tab === "stats"} onclick={() => (tab = "stats")}>Lifetime Stats</button>
+      <button class:active={tab === "achievements"} onclick={() => (tab = "achievements")}>{t("achievements.title")}</button>
+      <button class:active={tab === "stats"} onclick={() => (tab = "stats")}>{t("achievements.tabLifetimeStats")}</button>
     </nav>
 
     {#if tab === "achievements"}
       <section class="block">
-        <h2>Cactus Challenges <span class="badge">launcher-exclusive</span></h2>
+        <h2>{t("achievements.cactusChallenges")} <span class="badge">{t("achievements.launcherExclusive")}</span></h2>
         <div class="custom-grid">
           {#each data.custom as c (c.id)}
             <div class="custom-tile" class:locked={!c.earned}>
@@ -172,13 +170,13 @@
 
       <section class="block">
         <div class="block-head">
-          <h2>Advancements</h2>
+          <h2>{t("achievements.advancementsHeading")}</h2>
           <div class="filters">
             <label class="chk">
-              <input type="checkbox" bind:checked={showLocked} /> Show locked
+              <input type="checkbox" bind:checked={showLocked} /> {t("achievements.showLocked")}
             </label>
             <select bind:value={categoryFilter} class="select">
-              <option value="all">All categories</option>
+              <option value="all">{t("achievements.allCategories")}</option>
               {#each data.categories as cat (cat.key)}
                 <option value={cat.key}>{CATEGORY_LABELS[cat.key] ?? cat.key}</option>
               {/each}
@@ -201,26 +199,26 @@
           {/each}
         </div>
         {#if visibleAdvancements.length === 0}
-          <p class="empty">Nothing to show with these filters.</p>
+          <p class="empty">{t("achievements.noFilterResults")}</p>
         {/if}
       </section>
     {:else}
       <section class="block">
         <div class="stat-grid">
-          <div class="stat"><span class="v">{fmtHours(data.stats.playTimeTicks)}</span><span class="k">Playtime</span></div>
-          <div class="stat"><span class="v">{fmtNumber(data.stats.blocksMined)}</span><span class="k">Blocks mined</span></div>
-          <div class="stat"><span class="v">{fmtNumber(data.stats.mobsKilled)}</span><span class="k">Mobs killed</span></div>
-          <div class="stat"><span class="v">{fmtNumber(data.stats.deaths)}</span><span class="k">Deaths</span></div>
-          <div class="stat"><span class="v">{fmtDistance(data.stats.distanceCm)}</span><span class="k">Distance traveled</span></div>
-          <div class="stat"><span class="v">{fmtNumber(data.stats.jumps)}</span><span class="k">Jumps</span></div>
-          <div class="stat"><span class="v">{fmtNumber(data.stats.itemsPickedUp)}</span><span class="k">Items picked up</span></div>
-          <div class="stat"><span class="v">{fmtNumber(data.stats.timesSlept)}</span><span class="k">Nights slept</span></div>
+          <div class="stat"><span class="v">{fmtHours(data.stats.playTimeTicks)}</span><span class="k">{t("achievements.playtime")}</span></div>
+          <div class="stat"><span class="v">{fmtNumber(data.stats.blocksMined)}</span><span class="k">{t("achievements.blocksMined")}</span></div>
+          <div class="stat"><span class="v">{fmtNumber(data.stats.mobsKilled)}</span><span class="k">{t("achievements.mobsKilled")}</span></div>
+          <div class="stat"><span class="v">{fmtNumber(data.stats.deaths)}</span><span class="k">{t("achievements.deaths")}</span></div>
+          <div class="stat"><span class="v">{fmtDistance(data.stats.distanceCm)}</span><span class="k">{t("achievements.distanceTraveled")}</span></div>
+          <div class="stat"><span class="v">{fmtNumber(data.stats.jumps)}</span><span class="k">{t("achievements.jumps")}</span></div>
+          <div class="stat"><span class="v">{fmtNumber(data.stats.itemsPickedUp)}</span><span class="k">{t("achievements.itemsPickedUp")}</span></div>
+          <div class="stat"><span class="v">{fmtNumber(data.stats.timesSlept)}</span><span class="k">{t("achievements.nightsSlept")}</span></div>
         </div>
       </section>
 
       <div class="two-col">
         <section class="block">
-          <h2>Top mined blocks</h2>
+          <h2>{t("achievements.topMinedBlocks")}</h2>
           {#if data.stats.topMined.length}
             <ul class="bars">
               {#each data.stats.topMined as e (e.key)}
@@ -232,12 +230,12 @@
               {/each}
             </ul>
           {:else}
-            <p class="empty">No data.</p>
+            <p class="empty">{t("achievements.noData")}</p>
           {/if}
         </section>
 
         <section class="block">
-          <h2>Top mobs defeated</h2>
+          <h2>{t("achievements.topMobsDefeated")}</h2>
           {#if data.stats.topKilled.length}
             <ul class="bars">
               {#each data.stats.topKilled as e (e.key)}
@@ -249,16 +247,16 @@
               {/each}
             </ul>
           {:else}
-            <p class="empty">No data.</p>
+            <p class="empty">{t("achievements.noData")}</p>
           {/if}
         </section>
       </div>
 
       <section class="block">
-        <h2>By instance</h2>
+        <h2>{t("achievements.byInstance")}</h2>
         <div class="table">
           <div class="tr th">
-            <span>Instance</span><span>Worlds</span><span>Playtime</span><span>Mined</span><span>Killed</span><span>Deaths</span>
+            <span>{t("achievements.instance")}</span><span>{t("achievements.headerWorlds")}</span><span>{t("achievements.playtime")}</span><span>{t("achievements.headerMined")}</span><span>{t("achievements.headerKilled")}</span><span>{t("achievements.deaths")}</span>
           </div>
           {#each data.instances as inst (inst.id)}
             <div class="tr">

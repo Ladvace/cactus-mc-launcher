@@ -7,6 +7,7 @@
   import { installStore } from "$lib/stores/install.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { MOD_LOADERS, type Instance } from "$lib/types";
+  import { t } from "$lib/i18n";
 
   interface Props {
     instance: Instance;
@@ -51,8 +52,8 @@
     class:visible={busy || running}
     class:is-running={running}
     onclick={play}
-    aria-label={running ? "Stop" : "Play"}
-    title={running ? "Running" : busy ? "Preparing…" : "Play"}
+    aria-label={running ? t("card.stop") : t("card.play")}
+    title={running ? t("card.running") : busy ? t("card.preparing") : t("card.play")}
   >
     {#if busy}
       <span class="spinner"></span>
@@ -88,11 +89,11 @@
       {#if installPct !== null}
         <span class="dl-pct">{installPct}%</span>
       {/if}
-      <span class="dl-msg">{installMsg || "Downloading…"}</span>
+      <span class="dl-msg">{installMsg || t("card.downloading")}</span>
     </div>
   {/if}
   {#if instance.kind === "server"}
-    <span class="kind-badge" title="Dedicated server">SERVER</span>
+    <span class="kind-badge" title={t("card.serverTitle")}>{t("card.serverBadge")}</span>
   {/if}
   {#if cover}
     <img class="cover-img" src={instance.icon} alt={instance.name} />

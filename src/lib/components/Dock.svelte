@@ -12,6 +12,7 @@
   import { skinFace } from "$lib/skin";
   import { ui } from "$lib/stores/ui.svelte";
   import { DECOR_THEMES } from "$lib/themes";
+  import { t } from "$lib/i18n";
   import type { Instance } from "$lib/types";
 
   interface Props {
@@ -82,10 +83,10 @@
   );
 
   const items = $derived<Item[]>([
-    { kind: "nav", href: "/", icon: "home", label: "Home" },
-    { kind: "nav", href: "/browse", icon: "compass", label: "Browse" },
-    { kind: "nav", href: "/servers", icon: "globe", label: "Servers" },
-    { kind: "nav", href: "/share", icon: "users", label: "Community" },
+    { kind: "nav", href: "/", icon: "home", label: t("nav.home") },
+    { kind: "nav", href: "/browse", icon: "compass", label: t("nav.browse") },
+    { kind: "nav", href: "/servers", icon: "globe", label: t("nav.servers") },
+    { kind: "nav", href: "/share", icon: "users", label: t("nav.community") },
     { kind: "sep" },
     ...pinned.map(
       (instance): Item => ({ kind: "instance", instance: instance, label: instance.name })
@@ -95,7 +96,7 @@
           {
             kind: "overflow" as const,
             count: overflow,
-            label: `${overflow} more on Home`,
+            label: t("dock.moreOnHome", { count: overflow }),
           },
         ]
       : []),
@@ -109,9 +110,9 @@
           },
         ]
       : []),
-    { kind: "add", label: "New instance" },
+    { kind: "add", label: t("dock.newInstance") },
     { kind: "sep" },
-    { kind: "settings", href: "/settings", label: "Settings" },
+    { kind: "settings", href: "/settings", label: t("nav.settings") },
     { kind: "account", label: accountsStore.activeName },
   ]);
 
@@ -201,7 +202,7 @@
     bind:this={dockEl}
     role="toolbar"
     tabindex="-1"
-    aria-label="Navigation dock"
+    aria-label={t("dock.ariaNav")}
     onmouseenter={onEnter}
     onmousemove={onMove}
     onmouseleave={reset}
@@ -246,12 +247,12 @@
             {:else if item.kind === "instance"}
               <InstanceIcon instance={item.instance} size={44} />
               {#if item.instance.kind === "server"}
-                <span class="kind-badge" title="Dedicated server">S</span>
+                <span class="kind-badge" title={t("dock.dedicatedServer")}>S</span>
               {/if}
               {#if running}
-                <span class="run-dot" title="Running"></span>
+                <span class="run-dot" title={t("dock.running")}></span>
               {:else if preparing}
-                <span class="run-dot preparing" title="Preparing…"></span>
+                <span class="run-dot preparing" title={t("dock.preparing")}></span>
               {/if}
               {#if installStore.isInstalling(item.instance.id)}
                 <span class="dock-dl">
@@ -295,7 +296,7 @@
 />
 
 {#if overflowMenu}
-  <button class="ov-backdrop" aria-label="Close menu" onclick={() => (overflowMenu = null)}></button>
+  <button class="ov-backdrop" aria-label={t("dock.closeMenu")} onclick={() => (overflowMenu = null)}></button>
   <div class="ov-menu" style={overflowMenu}>
     {#each overflowList as inst (inst.id)}
       <button class="ov-item" onclick={() => openOverflowInstance(inst.id)}>

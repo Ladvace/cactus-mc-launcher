@@ -17,6 +17,7 @@
   import { toast } from "$lib/stores/toast.svelte";
   import { MOD_LOADERS, type Instance, type ModLoader } from "$lib/types";
   import { CMD_K } from "$lib/platform";
+  import { t } from "$lib/i18n";
 
   let query = $state("");
   let loaderFilter = $state<ModLoader | "all">("all");
@@ -56,18 +57,18 @@
     ...(hasPlayable
       ? [
           {
-            label: "Play a random instance",
+            label: t("home.playRandom"),
             icon: "shuffle",
             onSelect: playRandom,
           } as MenuItem,
           { separator: true } as MenuItem,
         ]
       : []),
-    { label: "New instance", icon: "plus", onSelect: () => ui.openCreateInstance() },
+    { label: t("home.newInstance"), icon: "plus", onSelect: () => ui.openCreateInstance() },
     { separator: true },
-    { label: "Import setup file…", icon: "download", onSelect: () => fileInput?.click() },
+    { label: t("home.importSetupFile"), icon: "download", onSelect: () => fileInput?.click() },
     ...(online
-      ? [{ label: "Import from a code…", icon: "share", onSelect: () => (codeOpen = true) }]
+      ? [{ label: t("home.importFromCode"), icon: "share", onSelect: () => (codeOpen = true) }]
       : []),
   ]);
 
@@ -145,20 +146,20 @@
 <div class="page" oncontextmenu={openMenu}>
   <header class="hero">
     <div>
-      <h1>Welcome back</h1>
-      <p>Arrange your instances into a home screen that's yours.</p>
+      <h1>{t("home.welcomeBack")}</h1>
+      <p>{t("home.subtitle")}</p>
     </div>
     <div class="hero-actions">
-      <button class="cmdk" title="Command palette" onclick={() => ui.toggleCommandPalette()}>
+      <button class="cmdk" title={t("home.commandPalette")} onclick={() => ui.toggleCommandPalette()}>
         <Icon name="search" size={14} />
-        <span class="cmdk-label">Search…</span>
+        <span class="cmdk-label">{t("home.search")}</span>
         <kbd>{CMD_K}</kbd>
       </button>
-      <button class="btn ghost" title="Import a shared setup" onclick={openMenu}>
-        <Icon name="download" size={15} /> Import
+      <button class="btn ghost" title={t("home.importShared")} onclick={openMenu}>
+        <Icon name="download" size={15} /> {t("common.import")}
       </button>
       <button class="btn primary" onclick={() => ui.openCreateInstance()}>
-        <Icon name="plus" size={16} /> New instance
+        <Icon name="plus" size={16} /> {t("home.newInstance")}
       </button>
     </div>
   </header>
@@ -171,12 +172,12 @@
         <Icon name="search" size={16} />
         <input
           class="search-input"
-          placeholder="Search instances…"
+          placeholder={t("home.searchInstances")}
           bind:value={query}
         />
       </div>
       <select class="select loader-filter" bind:value={loaderFilter}>
-        <option value="all">All loaders</option>
+        <option value="all">{t("home.allLoaders")}</option>
         {#each MOD_LOADERS as loader}
           <option value={loader.value}>{loader.label}</option>
         {/each}
@@ -186,23 +187,23 @@
         class:on={arranging}
         disabled={filtersActive}
         title={filtersActive
-          ? "Clear filters to rearrange"
-          : "Drag & resize tiles into a custom layout"}
+          ? t("home.clearFiltersToRearrange")
+          : t("home.dragResizeTiles")}
         onclick={() => (arranging = !arranging)}
       >
         <Icon name={arranging ? "check" : "expand"} size={15} />
-        {arranging ? "Done" : "Arrange"}
+        {arranging ? t("common.done") : t("home.arrange")}
       </button>
     </div>
 
     {#if arranging}
       <div class="arrange-hint">
         <span>
-          Drag a tile to reorder · drag its right edge, bottom edge, or
-          <Icon name="expand" size={12} /> corner to resize. Saved automatically.
+          {t("home.arrangeHint")}
+          <Icon name="expand" size={12} /> {t("home.arrangeHintResize")}
         </span>
         <button class="reset" onclick={() => instanceLayout.reset()}>
-          <Icon name="refresh" size={12} /> Reset layout
+          <Icon name="refresh" size={12} /> {t("home.resetLayout")}
         </button>
       </div>
     {/if}
@@ -217,14 +218,14 @@
   {:else if instancesStore.instances.length === 0}
     <div class="empty">
       <img class="empty-art" src="/empty-cactus.png" alt="" />
-      <h2>No instances yet</h2>
-      <p>Create your first instance to start playing Minecraft.</p>
+      <h2>{t("home.noInstancesYet")}</h2>
+      <p>{t("home.createFirst")}</p>
       <button class="btn primary" onclick={() => ui.openCreateInstance()}>
-        <Icon name="plus" size={16} /> Create instance
+        <Icon name="plus" size={16} /> {t("home.createInstance")}
       </button>
     </div>
   {:else if filtered.length === 0}
-    <p class="muted">No instances match your filters.</p>
+    <p class="muted">{t("home.noMatchFilters")}</p>
   {:else}
     <HomeGrid {entries} {arranging} onOpenFolder={(name) => (openFolder = name)} />
   {/if}
@@ -251,20 +252,20 @@
 {/if}
 
 {#if importing}
-  <div class="toast" role="status">Importing…</div>
+  <div class="toast" role="status">{t("common.importing")}</div>
 {/if}
 
-<Modal title="Import from a code" open={codeOpen} onClose={() => (codeOpen = false)} width={380}>
+<Modal title={t("home.importFromCodeTitle")} open={codeOpen} onClose={() => (codeOpen = false)} width={380}>
   <input
     class="input"
-    placeholder="Paste a share code…"
+    placeholder={t("home.pasteShareCode")}
     bind:value={code}
     onkeydown={(event) => event.key === "Enter" && importFromCode()}
   />
   {#snippet footer()}
-    <button class="btn ghost" onclick={() => (codeOpen = false)}>Cancel</button>
+    <button class="btn ghost" onclick={() => (codeOpen = false)}>{t("common.cancel")}</button>
     <button class="btn primary" disabled={importing || !code.trim()} onclick={importFromCode}>
-      {importing ? "Importing…" : "Import"}
+      {importing ? t("common.importing") : t("common.import")}
     </button>
   {/snippet}
 </Modal>

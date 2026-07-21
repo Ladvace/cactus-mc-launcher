@@ -9,6 +9,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { timeAgo } from "$lib/time";
+  import { t } from "$lib/i18n";
   import ServerWeather from "./ServerWeather.svelte";
   import type { Board } from "$lib/types";
 
@@ -27,7 +28,7 @@
   $effect(() => {
     const currentHandle = handle;
     if (!boardApi.configured()) {
-      error = "The boards service isn't configured.";
+      error = t("community.boardsServiceNotConfigured");
       loading = false;
       return;
     }
@@ -54,7 +55,7 @@
       });
       importedIds = [...importedIds, id];
       await instancesStore.refresh();
-      toast.success("Imported.");
+      toast.success(t("community.importedToast"));
     } catch (err) {
       toast.error(String(err));
     } finally {
@@ -67,7 +68,7 @@
     if (!token || !reportReason.trim() || !board) return;
     try {
       await boardApi.report(token, board.handle, reportReason.trim());
-      toast.success("Report submitted — thanks.");
+      toast.success(t("community.reportSubmitted"));
     } catch (err) {
       toast.error(String(err));
     }
@@ -77,7 +78,7 @@
 </script>
 
 {#if loading}
-  <p class="muted">Loading…</p>
+  <p class="muted">{t("common.loading")}</p>
 {:else if error}
   <p class="err">{error}</p>
 {:else if board}
@@ -96,15 +97,15 @@
             ? followedBoards.unfollow(board!.handle)
             : followedBoards.follow(board!.handle)}
       >
-        {following ? "Following ✓" : "+ Follow"}
+        {following ? t("community.following") : t("community.follow")}
       </button>
     </div>
   </header>
 
   {#if board.kind === "streamer" && board.streamUrl}
     <button class="banner stream" onclick={() => openUrl(board!.streamUrl!)}>
-      <Icon name="video" size={16} /> Watch the stream
-      <span class="ext">opens in browser ↗</span>
+      <Icon name="video" size={16} /> {t("community.watchStream")}
+      <span class="ext">{t("community.opensInBrowser")}</span>
     </button>
   {/if}
   {#if board.kind === "server" && board.serverAddress}
@@ -119,7 +120,7 @@
 
   {#if board.messages.length}
     <section class="messages">
-      <h3>Announcements</h3>
+      <h3>{t("community.announcements")}</h3>
       {#each board.messages as message (message.id)}
         <div class="msg">
           <p>{message.body}</p>
@@ -130,9 +131,9 @@
   {/if}
 
   <section class="insts">
-    <h3>Instances</h3>
+    <h3>{t("community.instances")}</h3>
     {#if board.instances.length === 0}
-      <p class="muted">No instances published yet.</p>
+      <p class="muted">{t("community.noInstancesPublished")}</p>
     {:else}
       <div class="grid">
         {#each board.instances as inst (inst.id)}
@@ -141,7 +142,7 @@
               <span class="name">{inst.name}</span>
               <span class="sub">{inst.modLoader ?? "vanilla"} · {inst.mcVersion ?? "?"}</span>
               {#if inst.changelog}<p class="cl">“{inst.changelog}”</p>{/if}
-              <span class="ago">updated {timeAgo(inst.createdAt)}</span>
+              <span class="ago">{t("community.updated")} {timeAgo(inst.createdAt)}</span>
             </div>
             <button
               class="btn primary sm"
@@ -149,11 +150,11 @@
               onclick={() => importInstance(inst.id)}
             >
               {#if importingId === inst.id}
-                Importing…
+                {t("common.importing")}
               {:else if importedIds.includes(inst.id)}
-                <Icon name="check" size={13} /> Imported
+                <Icon name="check" size={13} /> {t("community.importedLabel")}
               {:else}
-                <Icon name="download" size={13} /> Import
+                <Icon name="download" size={13} /> {t("common.import")}
               {/if}
             </button>
           </div>
@@ -164,13 +165,13 @@
 
   <div class="report">
     {#if reportOpen}
-      <textarea class="input" rows="2" placeholder="Why are you reporting this board?" bind:value={reportReason}></textarea>
+      <textarea class="input" rows="2" placeholder={t("community.reportPlaceholder")} bind:value={reportReason}></textarea>
       <div class="report-actions">
-        <button class="btn ghost" onclick={() => (reportOpen = false)}>Cancel</button>
-        <button class="btn danger" disabled={!reportReason.trim()} onclick={submitReport}>Submit report</button>
+        <button class="btn ghost" onclick={() => (reportOpen = false)}>{t("common.cancel")}</button>
+        <button class="btn danger" disabled={!reportReason.trim()} onclick={submitReport}>{t("community.submitReport")}</button>
       </div>
     {:else if boardAuth.signedIn}
-      <button class="flag" onclick={() => (reportOpen = true)}>Report this board</button>
+      <button class="flag" onclick={() => (reportOpen = true)}>{t("community.reportBoard")}</button>
     {/if}
   </div>
 {/if}

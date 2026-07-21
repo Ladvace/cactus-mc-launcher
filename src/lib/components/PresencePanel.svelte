@@ -8,6 +8,7 @@
   import { presence } from "$lib/stores/presence.svelte";
   import { toast } from "$lib/stores/toast.svelte";
   import { skinFace } from "$lib/skin";
+  import { t } from "$lib/i18n";
   import { MOD_LOADERS } from "$lib/types";
 
   const online = boardApi.configured();
@@ -81,7 +82,7 @@
   async function copyAddress(addr: string) {
     try {
       await navigator.clipboard.writeText(addr);
-      toast.success(`Copied ${addr}`);
+      toast.success(t("community.copied", { address: addr }));
     } catch (error) {
       toast.error(String(error));
     }
@@ -89,35 +90,35 @@
 
   function timeAgo(iso: string): string {
     const seconds = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
-    if (seconds < 30) return "now";
-    if (seconds < 90) return "just now";
-    return `${Math.round(seconds / 60)}m ago`;
+    if (seconds < 30) return t("community.now");
+    if (seconds < 90) return t("community.justNow");
+    return t("community.minutesAgo", { count: Math.round(seconds / 60) });
   }
 </script>
 
 {#if !online}
   <p class="offline">
-    <Icon name="globe" size={13} /> Play Together is offline in this build.
+    <Icon name="globe" size={13} /> {t("community.playTogetherOffline")}
   </p>
 {:else if !account}
   {#if accountsStore.accounts.length > 0}
     <p class="offline">
       <Icon name="user" size={13} />
-      You're in offline mode — switch to your Microsoft account to see who's online.
-      <button class="link" onclick={() => ui.openAccounts()}>Switch account</button>
+      {t("community.offlineModeSwitch")}
+      <button class="link" onclick={() => ui.openAccounts()}>{t("community.switchAccount")}</button>
     </p>
   {:else}
     <p class="offline">
-      <Icon name="user" size={13} /> Add a Microsoft account to see who's online.
+      <Icon name="user" size={13} /> {t("community.addAccountToSeeOnline")}
     </p>
   {/if}
 {:else if boardAuth.loggingIn && !boardAuth.signedIn}
-  <p class="offline"><span class="spin"></span> Connecting…</p>
+  <p class="offline"><span class="spin"></span> {t("community.connecting")}</p>
 {:else if !boardAuth.signedIn}
   <p class="offline">
     <Icon name="user" size={13} />
-    Couldn't connect{boardAuth.error ? `: ${boardAuth.error}` : ""}.
-    <button class="link" onclick={() => boardAuth.login()}>Retry</button>
+    {t("community.couldntConnect")}{boardAuth.error ? `: ${boardAuth.error}` : ""}.
+    <button class="link" onclick={() => boardAuth.login()}>{t("common.retry")}</button>
   </p>
 {:else}
   <section class="me">
@@ -129,18 +130,18 @@
       />
       <span class="track"><span class="thumb"></span></span>
       <span class="switch-label">
-        Appear online
-        <small>Let other players see you and, optionally, a server to join.</small>
+        {t("community.appearOnline")}
+        <small>{t("community.appearOnlineHint")}</small>
       </span>
     </label>
 
     {#if presence.enabled}
       <div class="fields">
         <label class="field">
-          <span>Status</span>
+          <span>{t("community.status")}</span>
           <input
             class="input"
-            placeholder="e.g. looking to play modded"
+            placeholder={t("community.statusPlaceholder")}
             maxlength="120"
             bind:value={status}
             onblur={saveFields}
@@ -148,7 +149,7 @@
           />
         </label>
         <label class="field short">
-          <span>MC version</span>
+          <span>{t("community.mcVersion")}</span>
           <input
             class="input"
             placeholder="1.20.1"
@@ -159,19 +160,19 @@
           />
         </label>
         <label class="field short">
-          <span>Loader</span>
+          <span>{t("community.loader")}</span>
           <select class="select" bind:value={loader} onchange={saveFields}>
-            <option value="">Any</option>
+            <option value="">{t("community.any")}</option>
             {#each MOD_LOADERS as loaderOption}
               <option value={loaderOption.value}>{loaderOption.label}</option>
             {/each}
           </select>
         </label>
         <label class="field">
-          <span>Server address (optional)</span>
+          <span>{t("community.serverAddressLabel")}</span>
           <input
             class="input"
-            placeholder="e.g. play.example.net"
+            placeholder={t("community.serverAddressExample")}
             maxlength="80"
             bind:value={address}
             onblur={saveFields}
@@ -180,30 +181,29 @@
         </label>
       </div>
       <p class="hint">
-        Others connect from a client instance: Multiplayer → Direct Connect.
-        You drop off the list a couple of minutes after leaving this page.
+        {t("community.connectHint")}
       </p>
     {/if}
   </section>
 
   <div class="list-head">
-    <h3>Online now</h3>
+    <h3>{t("community.onlineNow")}</h3>
     <span class="count">{others.length + (me ? 1 : 0)}</span>
     <div class="filters">
-      <select class="select mini" bind:value={filterLoader} aria-label="Filter by loader">
-        <option value="">Any loader</option>
+      <select class="select mini" bind:value={filterLoader} aria-label={t("community.filterByLoader")}>
+        <option value="">{t("community.anyLoader")}</option>
         {#each MOD_LOADERS as loaderOption}
           <option value={loaderOption.value}>{loaderOption.label}</option>
         {/each}
       </select>
-      <select class="select mini" bind:value={filterVersion} aria-label="Filter by version">
-        <option value="">Any version</option>
+      <select class="select mini" bind:value={filterVersion} aria-label={t("community.filterByVersion")}>
+        <option value="">{t("community.anyVersion")}</option>
         {#each versionsOnline as version}
           <option value={version}>{version}</option>
         {/each}
       </select>
       <button class="btn ghost sm" onclick={() => presence.poll()} disabled={presence.loading}>
-        Refresh
+        {t("community.refresh")}
       </button>
     </div>
   </div>
@@ -215,7 +215,7 @@
   {#if others.length === 0 && !me}
     <div class="empty">
       <div class="mark"><Icon name="users" size={30} /></div>
-      <p>No one online right now. Toggle “Appear online” so others can find you.</p>
+      <p>{t("community.noOneOnline")}</p>
     </div>
   {:else}
     <ul class="players">
@@ -233,15 +233,15 @@
   <li class="player" class:me-row={isMe}>
     <img class="face" src={skinFace(player.uuid, 32)} alt={player.name} />
     <div class="body">
-      <span class="name">{player.name}{#if isMe} <span class="you">you</span>{/if}</span>
-      <span class="status">{player.status || "online"}</span>
+      <span class="name">{player.name}{#if isMe} <span class="you">{t("community.you")}</span>{/if}</span>
+      <span class="status">{player.status || t("community.online")}</span>
     </div>
     {#if player.mcVersion || player.loader}
       <span class="tag">{loaderLabel(player.loader)}{player.mcVersion ? ` ${player.mcVersion}` : ""}</span>
     {/if}
     <span class="ago">{timeAgo(player.updatedAt)}</span>
     {#if player.serverAddress}
-      <button class="btn ghost sm" title="Copy server address" onclick={() => copyAddress(player.serverAddress!)}>
+      <button class="btn ghost sm" title={t("community.copyServerAddress")} onclick={() => copyAddress(player.serverAddress!)}>
         <Icon name="copy" size={13} /> {player.serverAddress}
       </button>
     {/if}

@@ -64,10 +64,17 @@ pub struct Settings {
     /// How dates are displayed: "system" | "iso" | "us" | "eu".
     #[serde(default = "default_date_format")]
     pub date_format: String,
+    /// UI language: "en" | "fr" | "es" | "de" | "pt" | "zh".
+    #[serde(default = "default_language")]
+    pub language: String,
 }
 
 fn default_date_format() -> String {
     "system".into()
+}
+
+fn default_language() -> String {
+    "en".into()
 }
 
 fn default_true() -> bool {
@@ -98,6 +105,7 @@ impl Default for Settings {
             show_news: true,
             news_single: false,
             date_format: default_date_format(),
+            language: default_language(),
         }
     }
 }

@@ -1,37 +1,38 @@
 <script lang="ts">
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t, type MessageKey } from "$lib/i18n";
 
   let { id, running = false }: { id: string; running?: boolean } = $props();
 
   type FieldType = "text" | "number" | "bool" | "select";
   interface Field {
     key: string;
-    label: string;
+    label: MessageKey;
     type: FieldType;
     def: string;
     options?: string[];
-    hint?: string;
+    hint?: MessageKey;
   }
 
   const FIELDS: Field[] = [
-    { key: "motd", label: "MOTD (server list message)", type: "text", def: "A Minecraft Server" },
-    { key: "max-players", label: "Max players", type: "number", def: "20" },
-    { key: "difficulty", label: "Difficulty", type: "select", def: "easy", options: ["peaceful", "easy", "normal", "hard"] },
-    { key: "gamemode", label: "Game mode", type: "select", def: "survival", options: ["survival", "creative", "adventure", "spectator"] },
-    { key: "hardcore", label: "Hardcore", type: "bool", def: "false" },
-    { key: "pvp", label: "PvP", type: "bool", def: "true" },
-    { key: "online-mode", label: "Online mode", type: "bool", def: "true", hint: "Off allows cracked/offline accounts to join." },
-    { key: "white-list", label: "Whitelist", type: "bool", def: "false" },
-    { key: "level-name", label: "World name", type: "text", def: "world" },
-    { key: "level-seed", label: "World seed", type: "text", def: "" },
-    { key: "server-port", label: "Server port", type: "number", def: "25565" },
-    { key: "view-distance", label: "View distance", type: "number", def: "10" },
-    { key: "simulation-distance", label: "Simulation distance", type: "number", def: "10" },
-    { key: "spawn-protection", label: "Spawn protection", type: "number", def: "16" },
-    { key: "allow-nether", label: "Allow Nether", type: "bool", def: "true" },
-    { key: "allow-flight", label: "Allow flight", type: "bool", def: "false" },
-    { key: "enable-command-block", label: "Command blocks", type: "bool", def: "false" },
+    { key: "motd", label: "server.fieldMotd", type: "text", def: "A Minecraft Server" },
+    { key: "max-players", label: "server.fieldMaxPlayers", type: "number", def: "20" },
+    { key: "difficulty", label: "server.fieldDifficulty", type: "select", def: "easy", options: ["peaceful", "easy", "normal", "hard"] },
+    { key: "gamemode", label: "server.fieldGamemode", type: "select", def: "survival", options: ["survival", "creative", "adventure", "spectator"] },
+    { key: "hardcore", label: "server.fieldHardcore", type: "bool", def: "false" },
+    { key: "pvp", label: "server.fieldPvp", type: "bool", def: "true" },
+    { key: "online-mode", label: "server.fieldOnlineMode", type: "bool", def: "true", hint: "server.fieldOnlineModeHint" },
+    { key: "white-list", label: "server.fieldWhitelist", type: "bool", def: "false" },
+    { key: "level-name", label: "server.fieldWorldName", type: "text", def: "world" },
+    { key: "level-seed", label: "server.fieldWorldSeed", type: "text", def: "" },
+    { key: "server-port", label: "server.fieldServerPort", type: "number", def: "25565" },
+    { key: "view-distance", label: "server.fieldViewDistance", type: "number", def: "10" },
+    { key: "simulation-distance", label: "server.fieldSimulationDistance", type: "number", def: "10" },
+    { key: "spawn-protection", label: "server.fieldSpawnProtection", type: "number", def: "16" },
+    { key: "allow-nether", label: "server.fieldAllowNether", type: "bool", def: "true" },
+    { key: "allow-flight", label: "server.fieldAllowFlight", type: "bool", def: "false" },
+    { key: "enable-command-block", label: "server.fieldCommandBlocks", type: "bool", def: "false" },
   ];
   const MANAGED = new Set(FIELDS.map((field) => field.key));
 
@@ -102,7 +103,7 @@
       if (!text.endsWith("\n")) text += "\n";
       await api.writeServerProperties(id, text);
       rawLines = parse(text);
-      toast.success("Server properties saved.");
+      toast.success(t("server.propsSaved"));
     } catch (error) {
       toast.error(String(error));
     } finally {
@@ -114,21 +115,21 @@
 <div class="props">
   <div class="props-head">
     <p class="muted">
-      Edit common <code>server.properties</code> settings.
+      {t("server.propsLeadPrefix")}<code>server.properties</code>{t("server.propsLeadSuffix")}
       {#if running}
-        <strong>Restart the server to apply changes.</strong>
+        <strong>{t("server.propsRestartHint")}</strong>
       {/if}
     </p>
     <div class="head-actions">
-      <button class="btn ghost sm" onclick={load} disabled={loading || saving}>Reload</button>
+      <button class="btn ghost sm" onclick={load} disabled={loading || saving}>{t("server.reload")}</button>
       <button class="btn primary sm" onclick={save} disabled={loading || saving || !loaded}>
-        {saving ? "Saving…" : "Save"}
+        {saving ? t("server.saving") : t("common.save")}
       </button>
     </div>
   </div>
 
   {#if loading && !loaded}
-    <p class="muted">Loading…</p>
+    <p class="muted">{t("common.loading")}</p>
   {:else}
     <div class="grid">
       {#each FIELDS as field (field.key)}
@@ -141,10 +142,10 @@
                 onchange={(event) =>
                   (values[field.key] = (event.currentTarget as HTMLInputElement).checked ? "true" : "false")}
               />
-              <span>{field.label}</span>
+              <span>{t(field.label)}</span>
             </label>
           {:else}
-            <label class="field-label" for={`p-${field.key}`}>{field.label}</label>
+            <label class="field-label" for={`p-${field.key}`}>{t(field.label)}</label>
             {#if field.type === "select"}
               <select id={`p-${field.key}`} class="select" bind:value={values[field.key]}>
                 {#each field.options ?? [] as option (option)}
@@ -160,7 +161,7 @@
               />
             {/if}
           {/if}
-          {#if field.hint}<span class="hint">{field.hint}</span>{/if}
+          {#if field.hint}<span class="hint">{t(field.hint)}</span>{/if}
         </div>
       {/each}
     </div>

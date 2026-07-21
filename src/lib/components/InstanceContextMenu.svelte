@@ -14,6 +14,7 @@
   import { localServerAddress } from "$lib/serverAddress";
   import { copyText } from "$lib/clipboard";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
+  import { t } from "$lib/i18n";
 
   const shareOnline = boardApi.configured();
 
@@ -43,18 +44,18 @@
     const busy = launchStore.isBusy(inst.id);
     return [
       {
-        label: running ? "Stop" : busy ? "Preparing…" : "Play",
+        label: running ? t("instanceMenu.stop") : busy ? t("instanceMenu.preparing") : t("instanceMenu.play"),
         icon: running ? "stop" : "play",
         disabled: busy && !running,
         onSelect: () =>
           running ? launchStore.stop(inst.id) : launchStore.launch(inst.id),
       },
-      { label: "Open", icon: "folder", onSelect: () => goto(`/instance/${inst.id}`) },
-      { label: "Open folder", icon: "archive", onSelect: () => openFolder(inst.id) },
+      { label: t("instanceMenu.open"), icon: "folder", onSelect: () => goto(`/instance/${inst.id}`) },
+      { label: t("instanceMenu.openFolder"), icon: "archive", onSelect: () => openFolder(inst.id) },
       ...(inst.kind !== "server"
         ? [
             {
-              label: "Create server",
+              label: t("instanceMenu.createServer"),
               icon: "globe",
               onSelect: () => createServer(inst.id),
             },
@@ -63,29 +64,29 @@
       ...(inst.kind === "server"
         ? [
             {
-              label: "Copy server address",
+              label: t("instanceMenu.copyServerAddress"),
               icon: "copy",
               onSelect: () => copyServerAddress(inst.id),
             },
           ]
         : []),
       {
-        label: inst.group ? `Group: ${inst.group}…` : "Move to group…",
+        label: inst.group ? t("instanceMenu.groupLabel", { group: inst.group }) : t("instanceMenu.moveToGroup"),
         icon: "folder",
         onSelect: () => ui.openGroupPicker(inst),
       },
       { separator: true },
-      { label: "Upload image…", icon: "edit", onSelect: () => pickFile(inst.id) },
+      { label: t("instanceMenu.uploadImage"), icon: "edit", onSelect: () => pickFile(inst.id) },
       {
-        label: "Stickers & emoji…",
+        label: t("instanceMenu.stickersEmoji"),
         icon: "sparkles",
         onSelect: () =>
-          ui.openStickerPicker(`Image for ${inst.name}`, (uri) =>
+          ui.openStickerPicker(t("instanceMenu.imageFor", { name: inst.name }), (uri) =>
             instancesStore.setIcon(inst.id, uri)
           ),
       },
       {
-        label: inst.coverImage ? "Shrink image to icon" : "Fill tile with image",
+        label: inst.coverImage ? t("instanceMenu.shrinkImage") : t("instanceMenu.fillTile"),
         icon: "expand",
         disabled: !inst.icon,
         onSelect: () =>
@@ -94,7 +95,7 @@
             .catch((e) => toast.error(String(e))),
       },
       {
-        label: "Reset image",
+        label: t("instanceMenu.resetImage"),
         icon: "refresh",
         disabled: !inst.icon,
         onSelect: () =>
@@ -106,8 +107,8 @@
             {
               label:
                 shareChecks[inst.id] && !shareChecks[inst.id].ok
-                  ? "Can't share (opt-out mods)"
-                  : "Share via code…",
+                  ? t("instanceMenu.cantShare")
+                  : t("instanceMenu.shareViaCode"),
               icon: "share",
               disabled: !!(shareChecks[inst.id] && !shareChecks[inst.id].ok),
               onSelect: () => shareViaCode(inst.id, inst.name),
@@ -115,12 +116,12 @@
           ]
         : []),
       {
-        label: "Export to file…",
+        label: t("instanceMenu.exportToFile"),
         icon: "download",
         onSelect: () => exportSetup(inst.id, "cactuspack"),
       },
       {
-        label: "Export as .mrpack…",
+        label: t("instanceMenu.exportMrpack"),
         icon: "upload",
         onSelect: () => exportSetup(inst.id, "mrpack"),
       },
@@ -129,11 +130,11 @@
 
   async function shareViaCode(id: string, name: string) {
     if (!shareOnline) {
-      toast.error("The boards service isn't set up in this build.");
+      toast.error(t("instanceMenu.boardsNotSetUp"));
       return;
     }
     if (!boardAuth.signedIn && !accountsStore.active) {
-      toast.error("Add a Microsoft account first.");
+      toast.error(t("instanceMenu.addAccountFirst"));
       return;
     }
     sharing = true;
@@ -141,13 +142,13 @@
       const check = await api.instanceShareCheck(id);
       shareChecks = { ...shareChecks, [id]: check };
       if (!check.ok) {
-        toast.error(`Can't share — these mods can't be re-downloaded: ${check.optOut.join(", ")}`);
+        toast.error(t("instanceMenu.cantShareMods", { mods: check.optOut.join(", ") }));
         return;
       }
       if (!boardAuth.signedIn) await boardAuth.login();
       const token = boardAuth.token;
       if (!token) {
-        toast.error(boardAuth.error ?? "Couldn't sign in.");
+        toast.error(boardAuth.error ?? t("instanceMenu.couldntSignIn"));
         return;
       }
       const snapshotId = await boardApi.publish(id, "cactuspack", token, { name });
@@ -161,14 +162,14 @@
   }
 
   function copyCode() {
-    if (sharedCode) copyText(sharedCode, "Copied!");
+    if (sharedCode) copyText(sharedCode, t("instanceMenu.copied"));
   }
 
   async function createServer(id: string) {
     try {
       const server = await api.createServerFrom(id);
       await instancesStore.refresh();
-      toast.success("Server instance created.");
+      toast.success(t("instanceMenu.serverCreated"));
       goto(`/instance/${server.id}`);
     } catch (error) {
       toast.error(String(error));
@@ -186,7 +187,7 @@
   async function copyServerAddress(id: string) {
     try {
       const addr = await localServerAddress(id);
-      await copyText(addr, `Copied ${addr}`);
+      await copyText(addr, t("instanceMenu.copiedAddr", { addr }));
     } catch (error) {
       toast.error(String(error));
     }
@@ -202,8 +203,8 @@
       const result = await api.exportSetup(id, format);
       toast.success(
         result.skipped.length
-          ? `Exported — ${result.skipped.length} non-Modrinth item(s) skipped.`
-          : "Setup exported."
+          ? t("instanceMenu.exportedSkipped", { count: result.skipped.length })
+          : t("instanceMenu.setupExported")
       );
       try {
         await revealItemInDir(result.path);
@@ -251,21 +252,21 @@
 {/if}
 
 {#if sharing}
-  <div class="toast ok" role="status">Creating a share code…</div>
+  <div class="toast ok" role="status">{t("instanceMenu.creatingShareCode")}</div>
 {/if}
 
 <Modal
-  title="Share this instance"
+  title={t("instanceMenu.shareTitle")}
   open={!!sharedCode}
   onClose={() => (sharedCode = null)}
   width={360}
 >
   <p class="share-hint">
-    Anyone can import it from <strong>Home → Import → “from a code”</strong>:
+    {t("instanceMenu.shareHintBefore")} <strong>{t("instanceMenu.shareHintLocation")}</strong>:
   </p>
   <div class="codebox">
     <span class="code">{sharedCode}</span>
-    <button class="btn ghost" onclick={copyCode}>Copy</button>
+    <button class="btn ghost" onclick={copyCode}>{t("instanceMenu.copy")}</button>
   </div>
 </Modal>
 

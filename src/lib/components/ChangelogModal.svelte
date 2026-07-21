@@ -1,5 +1,6 @@
 <script lang="ts">
   import { CHANGELOG, renderInline } from "$lib/changelog";
+  import { t } from "$lib/i18n";
   import Modal from "./Modal.svelte";
 
   interface Props {
@@ -9,7 +10,7 @@
   let { open, onClose }: Props = $props();
 </script>
 
-<Modal title="What's new" {open} {onClose} width={560}>
+<Modal title={t("changelog.title")} {open} {onClose} width={560}>
   <div class="log">
     {#each CHANGELOG as release (release.version)}
       <section class="release">

@@ -6,6 +6,7 @@
   import { copyText } from "$lib/clipboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { DEFAULT_PORT, parseServerPort } from "$lib/serverAddress";
+  import { t } from "$lib/i18n";
 
   let { id }: { id: string } = $props();
 
@@ -80,41 +81,41 @@
 </script>
 
 <div class="share">
-  <span class="label"><Icon name="globe" size={13} /> Share online</span>
+  <span class="label"><Icon name="globe" size={13} /> {t("server.shareOnline")}</span>
 
   {#if address}
-    <button class="chip" title="Copy" onclick={() => copyText(address)}>
+    <button class="chip" title={t("server.copy")} onclick={() => copyText(address)}>
       <span class="host">{address}</span>
-      <span class="tag">internet</span>
+      <span class="tag">{t("server.tagInternet")}</span>
       <Icon name="copy" size={13} />
     </button>
-    <button class="btn ghost sm" onclick={stop}>Stop</button>
-    <span class="warn">Anyone with this address can join — turn on the whitelist in Properties.</span>
+    <button class="btn ghost sm" onclick={stop}>{t("server.stop")}</button>
+    <span class="warn">{t("server.shareWarn")}</span>
   {:else if editingToken}
     <input
       class="input token"
       type="password"
-      placeholder="ngrok authtoken (saved to this server)"
+      placeholder={t("server.tokenPlaceholder")}
       bind:value={tokenDraft}
       onkeydown={(event) => event.key === "Enter" && saveToken()}
     />
     <button class="btn primary sm" disabled={!tokenDraft.trim()} onclick={saveToken}>
-      Save &amp; share
+      {t("server.saveAndShare")}
     </button>
-    <button class="linkish" onclick={() => openUrl(AUTHTOKEN_URL)}>get one ↗</button>
+    <button class="linkish" onclick={() => openUrl(AUTHTOKEN_URL)}>{t("server.getOne")}</button>
   {:else}
     <button class="btn primary sm" onclick={start} disabled={busy}>
-      {busy ? "Starting…" : "Share via ngrok"}
+      {busy ? t("server.starting") : t("server.shareViaNgrok")}
     </button>
     {#if effectiveToken}
       <span class="src">
-        key: {instanceToken ? "this server" : "Settings"}
+        {t("server.keyPrefix")} {instanceToken ? t("server.keyThisServer") : t("nav.settings")}
         {#if instanceToken}
-          <button class="linkish" onclick={clearInstanceToken}>use global</button>
+          <button class="linkish" onclick={clearInstanceToken}>{t("server.useGlobal")}</button>
         {/if}
       </span>
     {:else}
-      <span class="src muted">add an ngrok key (here or in Settings)</span>
+      <span class="src muted">{t("server.addKeyHint")}</span>
     {/if}
   {/if}
 

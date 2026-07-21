@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     title: string;
@@ -38,7 +39,7 @@
     >
       <header class="modal-head">
         <h3>{title}</h3>
-        <button class="close" onclick={onClose} aria-label="Close">✕</button>
+        <button class="close" onclick={onClose} aria-label={t("common.close")}>✕</button>
       </header>
       <div class="modal-body">
         {@render children()}

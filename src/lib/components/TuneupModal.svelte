@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api } from "$lib/api";
+  import { t } from "$lib/i18n";
   import { toast } from "$lib/stores/toast.svelte";
   import { sliderFill } from "$lib/slider";
   import type { TuneupPlan } from "$lib/types";
@@ -78,10 +79,10 @@
         jvmArgs: plan.jvmArgs,
       });
       const bits: string[] = [];
-      if (count > 0) bits.push(`${count} mod${count === 1 ? "" : "s"}`);
-      if (applyMemory) bits.push("memory");
-      if (applyFlags) bits.push("JVM flags");
-      toast.success(`Tuned up: applied ${bits.join(", ")}.`);
+      if (count > 0) bits.push(count === 1 ? t("tuneup.oneMod", { count }) : t("tuneup.manyMods", { count }));
+      if (applyMemory) bits.push(t("tuneup.memory"));
+      if (applyFlags) bits.push(t("tuneup.jvmFlags"));
+      toast.success(t("tuneup.applied", { items: bits.join(", ") }));
       onApplied?.();
       onClose();
     } catch (e) {
@@ -92,29 +93,28 @@
   }
 </script>
 
-<Modal title="Tune-up" {open} {onClose} width={560}>
+<Modal title={t("tuneup.title")} {open} {onClose} width={560}>
   {#if loading}
     <div class="loading">
       <span class="spinner" aria-hidden="true"></span>
-      <p class="loading-text">Inspecting your machine and finding compatible mods…</p>
-      <p class="loading-sub">This can take a few seconds.</p>
+      <p class="loading-text">{t("tuneup.loadingText")}</p>
+      <p class="loading-sub">{t("tuneup.loadingSub")}</p>
     </div>
   {:else if error}
     <p class="error">{error}</p>
   {:else if plan}
     <p class="lead">
-      Recommendations tailored to this machine and instance. Everything here is
-      optional — review and untick anything you don't want.
+      {t("tuneup.lead")}
     </p>
 
-    <div class="modes" role="tablist" aria-label="Tune-up mode">
+    <div class="modes" role="tablist" aria-label={t("tuneup.modeLabel")}>
       <button
         role="tab"
         aria-selected={mode === "performance"}
         class:active={mode === "performance"}
         onclick={() => (mode = "performance")}
       >
-        Performance
+        {t("tuneup.performance")}
       </button>
       <button
         role="tab"
@@ -122,26 +122,25 @@
         class:active={mode === "visuals"}
         onclick={() => (mode = "visuals")}
       >
-        Visuals
+        {t("tuneup.visuals")}
       </button>
     </div>
 
     <div class="specs">
-      <span><strong>{gb(plan.specs.totalRamMb)} GB</strong> RAM</span>
-      <span><strong>{plan.specs.cpuCores}</strong> cores</span>
+      <span><strong>{gb(plan.specs.totalRamMb)} GB</strong> {t("tuneup.ram")}</span>
+      <span><strong>{plan.specs.cpuCores}</strong> {t("tuneup.cores")}</span>
       <span>{plan.specs.os} · {plan.specs.arch}</span>
       <span>{plan.loader} {plan.mcVersion}</span>
     </div>
 
     {#if plan.loader === "vanilla"}
       <p class="muted">
-        This is a vanilla instance, so there are no mods to add. You can still
-        apply the memory and JVM tuning below.
+        {t("tuneup.vanillaNote")}
       </p>
     {:else if plan.mods.length}
-      <h4>Performance mods</h4>
+      <h4>{t("tuneup.performanceMods")}</h4>
       {#if allModsInstalled}
-        <p class="muted small">All recommended mods are already installed. 🎉</p>
+        <p class="muted small">{t("tuneup.allInstalled")}</p>
       {/if}
       <ul class="mods">
         {#each plan.mods as mod (mod.versionId)}
@@ -155,7 +154,7 @@
               />
               <span class="mod-name">
                 {mod.title}
-                {#if mod.installed}<span class="badge">Installed</span>{/if}
+                {#if mod.installed}<span class="badge">{t("tuneup.installed")}</span>{/if}
               </span>
               <span class="mod-reason">{mod.reason}</span>
             </label>
@@ -166,14 +165,14 @@
 
     {#if plan.unavailable.length}
       <p class="muted small">
-        No {plan.loader} {plan.mcVersion} build yet: {plan.unavailable.join(", ")}.
+        {t("tuneup.noBuild", { loader: plan.loader, mcVersion: plan.mcVersion, list: plan.unavailable.join(", ") })}
       </p>
     {/if}
 
-    <h4>Java tuning</h4>
+    <h4>{t("tuneup.javaTuning")}</h4>
     <label class="row">
       <input type="checkbox" bind:checked={applyMemory} />
-      <span>Set memory allocation</span>
+      <span>{t("tuneup.setMemory")}</span>
     </label>
     <div class="heap" class:disabled={!applyMemory}>
       <input
@@ -185,21 +184,21 @@
         style="--steps:{(Math.max(2048, plan.specs.totalRamMb) - 1024) / 1024}"
         bind:value={maxMem}
         disabled={!applyMemory}
-        aria-label="Maximum memory"
+        aria-label={t("tuneup.maxMemory")}
         use:sliderFill={maxMem}
       />
-      <span class="heap-val"><strong>{gb(maxMem)} GB</strong> max · {gb(minMem)} GB min</span>
+      <span class="heap-val"><strong>{gb(maxMem)} GB</strong> {t("tuneup.max")} · {gb(minMem)} GB {t("tuneup.min")}</span>
     </div>
     <label class="row">
       <input type="checkbox" bind:checked={applyFlags} />
-      <span>Apply tuned JVM flags{plan.jvmArgs.includes("MaxGCPauseMillis") ? " (Aikar's G1GC)" : ""}</span>
+      <span>{t("tuneup.applyJvmFlags")}{plan.jvmArgs.includes("MaxGCPauseMillis") ? " (Aikar's G1GC)" : ""}</span>
     </label>
   {/if}
 
   {#snippet footer()}
-    <button class="btn ghost" onclick={onClose}>Cancel</button>
+    <button class="btn ghost" onclick={onClose}>{t("common.cancel")}</button>
     <button class="btn primary" onclick={apply} disabled={!plan || applying || nothingToDo}>
-      {applying ? "Applying…" : "Apply tune-up"}
+      {applying ? t("tuneup.applying") : t("tuneup.apply")}
     </button>
   {/snippet}
 </Modal>

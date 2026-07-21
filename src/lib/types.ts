@@ -213,6 +213,8 @@ export interface Settings {
   newsSingle: boolean;
   /** How dates are shown: "system" | "iso" | "us" | "eu". */
   dateFormat: string;
+  /** UI language: "en" | "fr" | "es" | "de" | "pt" | "zh". */
+  language: string;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";

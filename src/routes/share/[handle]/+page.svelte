@@ -2,12 +2,13 @@
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
   import BoardView from "$lib/components/BoardView.svelte";
+  import { t } from "$lib/i18n";
 
   const handle = $derived($page.params.handle);
 </script>
 
 <div class="page">
-  <button class="back" onclick={() => goto("/share")}>← Community</button>
+  <button class="back" onclick={() => goto("/share")}>← {t("nav.community")}</button>
   {#if handle}
     <BoardView {handle} />
   {/if}

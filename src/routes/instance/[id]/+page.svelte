@@ -21,6 +21,21 @@
   import ProgressBar from "$lib/components/ProgressBar.svelte";
   import { pickFolder } from "$lib/dialog";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
+  import { t } from "$lib/i18n";
+
+  function tabLabel(tab: string): string {
+    const map: Record<string, string> = {
+      Content: t("instance.tabContent"),
+      Worlds: t("instance.tabWorlds"),
+      Console: t("instance.tabConsole"),
+      Players: t("instance.tabPlayers"),
+      Properties: t("instance.tabProperties"),
+      Settings: t("instance.tabSettings"),
+      Screenshots: t("instance.tabScreenshots"),
+      Logs: t("instance.tabLogs"),
+    };
+    return map[tab] ?? tab;
+  }
 
   const id = $derived($page.params.id ?? "");
   const instance = $derived(instancesStore.get(id));
@@ -59,13 +74,13 @@
   const launchBusy = $derived(launchStore.isBusy(id));
   const launchRunning = $derived(launchStore.isRunning(id));
 
-  const stageLabels: Record<string, string> = {
-    libraries: "Downloading libraries",
-    assets: "Downloading assets",
-    java: "Downloading Java runtime",
-  };
+  const stageLabels = $derived<Record<string, string>>({
+    libraries: t("instance.stageLibraries"),
+    assets: t("instance.stageAssets"),
+    java: t("instance.stageJava"),
+  });
   const progressLabel = $derived(
-    runtime.message ?? stageLabels[runtime.stage] ?? "Working…"
+    runtime.message ?? stageLabels[runtime.stage] ?? t("instance.working")
   );
   const progressPct = $derived(toPct(runtime.current, runtime.total));
 
@@ -206,7 +221,7 @@
     }
   }
 
-  const fmtDate = (iso: string | null) => (iso ? formatDate(iso) : "Never");
+  const fmtDate = (iso: string | null) => (iso ? formatDate(iso) : t("instance.never"));
 
   let gameFolder = $state("");
   let movingFolder = $state(false);
@@ -221,7 +236,7 @@
       await api.setInstanceGameDir(id, path);
       await instancesStore.refresh();
       gameFolder = await api.instanceFolder(id);
-      toast.success(path ? "Instance files moved." : "Moved back to the default folder.");
+      toast.success(path ? t("instance.filesMoved") : t("instance.movedToDefault"));
     } catch (err) {
       toast.error(String(err));
     } finally {
@@ -231,7 +246,7 @@
 
   async function changeGameFolder() {
     if (movingFolder || launchRunning) return;
-    const folder = await pickFolder("Move this instance's game data");
+    const folder = await pickFolder(t("instance.pickFolderTitle"));
     if (folder) moveGameFolder(folder);
   }
 
@@ -244,19 +259,21 @@
   }
 
   function fmtPlaytime(sec: number): string {
-    if (sec < 60) return "< 1 min";
+    if (sec < 60) return t("instance.playtimeLessThanMin");
     const hours = Math.floor(sec / 3600);
     const minutes = Math.floor((sec % 3600) / 60);
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    return hours > 0
+      ? t("instance.playtimeHoursMinutes", { hours, minutes })
+      : t("instance.playtimeMinutes", { minutes });
   }
 </script>
 
 {#if !instance}
   <div class="missing">
     {#if instancesStore.loaded}
-      <p>This instance no longer exists.</p>
+      <p>{t("instance.noLongerExists")}</p>
       <button class="btn ghost" onclick={() => goto("/")}>
-        Back to home
+        {t("instance.backToHome")}
       </button>
     {:else}
       <div class="loading-detail">
@@ -276,8 +293,8 @@
   <div class="detail">
     <div class="banner">
       <div class="col">
-      <button class="back" onclick={() => goto("/")} aria-label="Back">
-        ← Home
+      <button class="back" onclick={() => goto("/")} aria-label={t("common.back")}>
+        {t("instance.home")}
       </button>
       <div class="header">
         <InstanceIcon {instance} size={96} />
@@ -285,7 +302,7 @@
           <h1>{instance.name}</h1>
           <div class="badges">
             {#if isServer}
-              <span class="badge server-badge">Server</span>
+              <span class="badge server-badge">{t("instance.serverBadge")}</span>
             {/if}
             <span class="badge">{loaderLabel}</span>
             <span class="badge">{instance.mcVersion}</span>
@@ -294,14 +311,14 @@
             {/if}
           </div>
           <div class="stats">
-            <span><Icon name="clock" size={13} /> {fmtPlaytime(instance.totalPlaytimeSeconds)} played</span>
-            <span>Last played {fmtDate(instance.lastPlayed)}</span>
+            <span><Icon name="clock" size={13} /> {t("instance.played", { time: fmtPlaytime(instance.totalPlaytimeSeconds) })}</span>
+            <span>{t("instance.lastPlayed", { date: fmtDate(instance.lastPlayed) })}</span>
           </div>
         </div>
         <div class="actions">
           {#if launchRunning}
             <button class="btn danger big" onclick={() => launchStore.stop(id)}>
-              <Icon name="stop" size={16} /> Stop
+              <Icon name="stop" size={16} /> {t("instance.stop")}
             </button>
           {:else}
             <button
@@ -312,24 +329,24 @@
               <Icon name="play" size={16} />
               {launchBusy
                 ? isServer
-                  ? "Starting…"
-                  : "Preparing…"
+                  ? t("instance.starting")
+                  : t("instance.preparing")
                 : isServer
-                  ? "Start server"
-                  : "Play"}
+                  ? t("instance.startServer")
+                  : t("instance.play")}
             </button>
           {/if}
           {#if !isServer}
             <button
               class="btn ghost"
               onclick={() => (tuneupOpen = true)}
-              title="Tune-up: hardware-aware performance recommendations"
-              aria-label="Tune-up"
+              title={t("instance.tuneupTitle")}
+              aria-label={t("instance.tuneupLabel")}
             >
               <Icon name="sparkles" size={16} />
             </button>
           {/if}
-          <button class="btn ghost" onclick={openRename} aria-label="Rename">
+          <button class="btn ghost" onclick={openRename} aria-label={t("instance.rename")}>
             <Icon name="edit" size={16} />
           </button>
         </div>
@@ -341,7 +358,7 @@
         </div>
       {:else if runtime.state === "error"}
         <div class="launch-error">
-          <strong>Launch failed.</strong>
+          <strong>{t("instance.launchFailed")}</strong>
           {runtime.message}
         </div>
       {/if}
@@ -361,7 +378,7 @@
             class:active={activeTab === tab}
             onclick={() => (activeTab = tab)}
           >
-            {tab}
+            {tabLabel(tab)}
           </button>
         {/each}
       </div>
@@ -371,23 +388,23 @@
       {#if activeTab === "Settings"}
         <div class="settings-tab">
           <section class="card-block">
-            <h3>Instance</h3>
+            <h3>{t("instance.instanceHeading")}</h3>
             <div class="row">
-              <span>Name</span>
+              <span>{t("instance.name")}</span>
               <button class="btn ghost sm" onclick={openRename}>
-                <Icon name="edit" size={14} /> Rename
+                <Icon name="edit" size={14} /> {t("instance.rename")}
               </button>
             </div>
             <div class="row">
-              <span>Minecraft version</span>
+              <span>{t("instance.minecraftVersion")}</span>
               <strong>{instance.mcVersion}</strong>
             </div>
             <div class="row">
-              <span>Mod loader</span>
+              <span>{t("instance.modLoader")}</span>
               <strong>{loaderLabel}</strong>
             </div>
             <div class="row">
-              <span>Created</span>
+              <span>{t("instance.created")}</span>
               <strong>{fmtDate(instance.created)}</strong>
             </div>
           </section>
@@ -395,22 +412,22 @@
           <InstanceJavaSettings {instance} {isServer} />
 
           <section class="card-block">
-            <h3>Storage</h3>
+            <h3>{t("instance.storage")}</h3>
             <div class="row col">
-              <span>Game folder <small class="muted">— mods, saves, worlds</small></span>
+              <span>{t("instance.gameFolder")} <small class="muted">{t("instance.gameFolderHint")}</small></span>
               <code class="folder-path">{gameFolder || "…"}</code>
             </div>
             <div class="row">
-              <span>{instance.gameDir ? "Custom location" : "Default location"}</span>
+              <span>{instance.gameDir ? t("instance.customLocation") : t("instance.defaultLocation")}</span>
               <div class="folder-actions">
-                <button class="btn ghost sm" onclick={openGameFolder}>Open</button>
+                <button class="btn ghost sm" onclick={openGameFolder}>{t("instance.open")}</button>
                 {#if instance.gameDir}
                   <button
                     class="btn ghost sm"
                     onclick={() => moveGameFolder(null)}
                     disabled={movingFolder || launchRunning}
                   >
-                    Reset
+                    {t("instance.reset")}
                   </button>
                 {/if}
                 <button
@@ -418,21 +435,21 @@
                   onclick={changeGameFolder}
                   disabled={movingFolder || launchRunning}
                 >
-                  {movingFolder ? "Moving…" : "Change…"}
+                  {movingFolder ? t("instance.moving") : t("instance.change")}
                 </button>
               </div>
             </div>
             {#if launchRunning}
-              <p class="muted running-note">Stop the instance to move its files.</p>
+              <p class="muted running-note">{t("instance.stopToMove")}</p>
             {/if}
           </section>
 
           <section class="card-block danger-zone">
-            <h3>Danger zone</h3>
+            <h3>{t("instance.dangerZone")}</h3>
             <div class="row">
-              <span>Delete this instance and all its files.</span>
+              <span>{t("instance.deleteDescription")}</span>
               <button class="btn danger sm" onclick={() => (deleteOpen = true)}>
-                <Icon name="trash" size={14} /> Delete
+                <Icon name="trash" size={14} /> {t("instance.delete")}
               </button>
             </div>
           </section>
@@ -441,7 +458,9 @@
         <div class="content-tab">
           <div class="content-head">
             <span class="muted">
-              {content.length} item{content.length === 1 ? "" : "s"} installed
+              {content.length === 1
+                ? t("instance.itemInstalled", { count: content.length })
+                : t("instance.itemsInstalled", { count: content.length })}
             </span>
             <div class="content-head-actions">
               {#if content.length > 0}
@@ -450,11 +469,11 @@
                   onclick={checkUpdates}
                   disabled={checkingUpdates}
                 >
-                  {checkingUpdates ? "Checking…" : "Check for updates"}
+                  {checkingUpdates ? t("instance.checking") : t("instance.checkForUpdates")}
                 </button>
               {/if}
               <button class="btn ghost sm" onclick={() => goto("/browse")}>
-                <Icon name="compass" size={14} /> Browse Modrinth
+                <Icon name="compass" size={14} /> {t("instance.browseModrinth")}
               </button>
             </div>
           </div>
@@ -477,9 +496,9 @@
           {:else if content.length === 0}
             <div class="content-empty">
               <img class="empty-art" src="/empty-cactus.png" alt="" />
-              <p>No content installed yet.</p>
+              <p>{t("instance.noContent")}</p>
               <button class="btn primary" onclick={() => goto("/browse")}>
-                <Icon name="compass" size={15} /> Find mods on Modrinth
+                <Icon name="compass" size={15} /> {t("instance.findMods")}
               </button>
             </div>
           {:else}
@@ -500,22 +519,22 @@
                       class="btn primary sm"
                       onclick={() => updateItem(item)}
                       disabled={updatingId === item.versionId}
-                      title={`Update to ${updates[item.versionId].number}`}
+                      title={t("instance.updateTo", { version: updates[item.versionId].number })}
                     >
-                      {updatingId === item.versionId ? "Updating…" : "Update"}
+                      {updatingId === item.versionId ? t("instance.updating") : t("instance.update")}
                     </button>
                   {/if}
                   <button
                     class="btn ghost sm"
                     onclick={() => toggleContent(item)}
-                    title={item.enabled ? "Disable" : "Enable"}
+                    title={item.enabled ? t("instance.disable") : t("instance.enable")}
                   >
-                    {item.enabled ? "Enabled" : "Disabled"}
+                    {item.enabled ? t("instance.enabled") : t("instance.disabled")}
                   </button>
                   <button
                     class="icon-remove"
                     onclick={() => removeContentItem(item)}
-                    title="Remove"
+                    title={t("common.remove")}
                   >
                     <Icon name="trash" size={15} />
                   </button>
@@ -528,13 +547,13 @@
         <div class="logs">
           <div class="logs-head">
             <span class="state-pill state-{runtime.state}">{runtime.state}</span>
-            <span class="logs-count">{runtime.logs.length} lines</span>
+            <span class="logs-count">{t("instance.lines", { count: runtime.logs.length })}</span>
           </div>
           {#if runtime.logs.length === 0}
             <p class="muted logs-empty">
               {isServer
-                ? "No output yet. Start the server — console output streams here live."
-                : "No output yet. Press Play to launch — game logs stream here live."}
+                ? t("instance.noOutputServer")
+                : t("instance.noOutputGame")}
             </p>
           {:else}
             <pre class="log-view" bind:this={logEl}>{runtime.logs.join("\n")}</pre>
@@ -545,8 +564,8 @@
               <input
                 class="cmd"
                 placeholder={launchRunning
-                  ? "Type a command (e.g. say hello, op <player>, whitelist add <player>)…"
-                  : "Start the server to send commands"}
+                  ? t("instance.commandPlaceholder")
+                  : t("instance.commandPlaceholderStopped")}
                 bind:value={command}
                 disabled={!launchRunning}
                 onkeydown={(event) => event.key === "Enter" && sendCommand()}
@@ -556,7 +575,7 @@
                 disabled={!launchRunning || !command.trim()}
                 onclick={sendCommand}
               >
-                Send
+                {t("instance.send")}
               </button>
             </div>
           {/if}
@@ -570,7 +589,7 @@
       {:else}
         <div class="tab-placeholder">
           <div class="mark"><Icon name="package" size={34} /></div>
-          <p>{activeTab} management arrives in a later milestone.</p>
+          <p>{t("instance.tabPlaceholder", { tab: tabLabel(activeTab) })}</p>
         </div>
       {/if}
     </div>
@@ -584,8 +603,8 @@
   onApplied={loadContent}
 />
 
-<Modal title="Rename instance" open={renameOpen} onClose={() => (renameOpen = false)} width={420}>
-  <label class="field-label" for="rename-input">Name</label>
+<Modal title={t("instance.renameInstance")} open={renameOpen} onClose={() => (renameOpen = false)} width={420}>
+  <label class="field-label" for="rename-input">{t("instance.name")}</label>
   <input
     id="rename-input"
     class="input"
@@ -593,22 +612,21 @@
     onkeydown={(event) => event.key === "Enter" && confirmRename()}
   />
   {#snippet footer()}
-    <button class="btn ghost" onclick={() => (renameOpen = false)}>Cancel</button>
+    <button class="btn ghost" onclick={() => (renameOpen = false)}>{t("common.cancel")}</button>
     <button class="btn primary" disabled={busy || !renameValue.trim()} onclick={confirmRename}>
-      Save
+      {t("common.save")}
     </button>
   {/snippet}
 </Modal>
 
-<Modal title="Delete instance" open={deleteOpen} onClose={() => (deleteOpen = false)} width={420}>
+<Modal title={t("instance.deleteInstance")} open={deleteOpen} onClose={() => (deleteOpen = false)} width={420}>
   <p class="confirm-text">
-    Are you sure you want to delete <strong>{instance?.name}</strong>? This removes
-    all of its files and cannot be undone.
+    {t("instance.deleteConfirmPrefix")} <strong>{instance?.name}</strong>{t("instance.deleteConfirmSuffix")}
   </p>
   {#snippet footer()}
-    <button class="btn ghost" onclick={() => (deleteOpen = false)}>Cancel</button>
+    <button class="btn ghost" onclick={() => (deleteOpen = false)}>{t("common.cancel")}</button>
     <button class="btn danger" disabled={busy} onclick={confirmDelete}>
-      {busy ? "Deleting…" : "Delete"}
+      {busy ? t("instance.deleting") : t("instance.delete")}
     </button>
   {/snippet}
 </Modal>

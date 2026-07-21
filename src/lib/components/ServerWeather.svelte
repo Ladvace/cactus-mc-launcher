@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api } from "$lib/api";
+  import { t } from "$lib/i18n";
   import { boardApi } from "$lib/boardApi";
   import Sparkline from "./Sparkline.svelte";
   import type { ServerStatus, ServerSample } from "$lib/types";
@@ -49,11 +50,11 @@
 <div class="weather" title={status?.motd ?? ""}>
   {#if loading && !status}
     <span class="dot pending"></span>
-    <span class="label">Checking…</span>
+    <span class="label">{t("servers.checking")}</span>
   {:else if status}
     <span class="dot online"></span>
     <span class="count">{status.online}<span class="sep">/</span>{status.max}</span>
-    <span class="label">online</span>
+    <span class="label">{t("servers.onlineLabel")}</span>
     {#if status.players.length}
       <span class="sample" title={status.players.join(", ")}>
         · {status.players.slice(0, 3).join(", ")}{status.players.length > 3
@@ -61,12 +62,12 @@
           : ""}
       </span>
     {/if}
-    <span class="ping">{status.pingMs} ms</span>
+    <span class="ping">{t("servers.pingMs", { ms: status.pingMs })}</span>
   {:else if failed}
     <span class="dot off"></span>
-    <span class="label">Offline</span>
+    <span class="label">{t("servers.offline")}</span>
   {/if}
-  <button class="refresh" title="Refresh" onclick={refresh} disabled={loading}>
+  <button class="refresh" title={t("servers.refresh")} onclick={refresh} disabled={loading}>
     ↻
   </button>
 </div>
@@ -75,8 +76,8 @@
   <div class="history">
     <Sparkline values={history.map((sample) => sample.online)} />
     <div class="history-meta">
-      <span>last 24h</span>
-      <span>peak {peak}</span>
+      <span>{t("servers.last24h")}</span>
+      <span>{t("servers.peak", { peak })}</span>
     </div>
   </div>
 {/if}

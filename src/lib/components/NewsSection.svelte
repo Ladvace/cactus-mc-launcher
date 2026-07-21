@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { api } from "$lib/api";
+  import { t } from "$lib/i18n";
   import { formatDate } from "$lib/time";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import Icon from "./Icon.svelte";
@@ -68,27 +69,27 @@
 {#if settingsStore.settings.showNews && !failed && (loading || items.length > 0)}
   <section class="news">
     <div class="news-head">
-      <h2>Latest news</h2>
+      <h2>{t("news.title")}</h2>
       <div class="head-actions">
         {#if pages.length > 1}
-          <button class="nav" title="Previous" onclick={() => go(-1)}>
+          <button class="nav" title={t("news.previous")} onclick={() => go(-1)}>
             <Icon name="chevron-left" size={14} />
           </button>
-          <button class="nav" title="Next" onclick={() => go(1)}>
+          <button class="nav" title={t("news.next")} onclick={() => go(1)}>
             <Icon name="chevron-right" size={14} />
           </button>
         {/if}
         <button
           class="nav"
-          title={single ? "Layout: one per page" : "Layout: lead + two-up"}
+          title={single ? t("news.layoutSingle") : t("news.layoutMulti")}
           onclick={toggleLayout}
         >
           <Icon name={single ? "grid" : "expand"} size={14} />
         </button>
-        <button class="nav" title="Refresh news" onclick={() => load(true)} disabled={loading}>
+        <button class="nav" title={t("news.refresh")} onclick={() => load(true)} disabled={loading}>
           <Icon name="refresh" size={13} />
         </button>
-        <button class="nav" title="Hide news (re-enable in Settings)" onclick={hide}>
+        <button class="nav" title={t("news.hide")} onclick={hide}>
           <Icon name="close" size={14} />
         </button>
       </div>
@@ -122,7 +123,7 @@
               {#if featured.summary}<p class="feature-sum">{featured.summary}</p>{/if}
               <span class="feature-meta">
                 {fmtDate(featured.date)}
-                {#if featured.link}<span class="more">Read more →</span>{/if}
+                {#if featured.link}<span class="more">{t("news.readMore")}</span>{/if}
               </span>
             </div>
           </button>
@@ -141,7 +142,7 @@
                   <span class="mini-title">{item.title}</span>
                   <span class="mini-meta">
                     {fmtDate(item.date)}
-                    {#if item.link}<span class="more">Read →</span>{/if}
+                    {#if item.link}<span class="more">{t("news.read")}</span>{/if}
                   </span>
                 </div>
               </button>
@@ -152,14 +153,14 @@
       {/key}
 
       {#if pages.length > 1}
-        <div class="dots" role="tablist" aria-label="News pages">
+        <div class="dots" role="tablist" aria-label={t("news.pages")}>
           {#each pages as _, i (i)}
             <button
               class="dot"
               class:on={i === page}
               role="tab"
               aria-selected={i === page}
-              aria-label={`Page ${i + 1}`}
+              aria-label={t("news.pageN", { n: i + 1 })}
               onclick={() => (page = i)}
             ></button>
           {/each}

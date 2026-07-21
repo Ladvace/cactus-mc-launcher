@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t } from "$lib/i18n";
 
   let copied = $state<number | null>(null);
 
@@ -32,10 +33,10 @@
       <div class="actions">
         {#if notification.kind === "error"}
           <button class="act" onclick={() => copy(notification.id, notification.message)}>
-            {copied === notification.id ? "Copied" : "Copy"}
+            {copied === notification.id ? t("toaster.copied") : t("toaster.copy")}
           </button>
         {/if}
-        <button class="close" aria-label="Dismiss" onclick={() => toast.dismiss(notification.id)}>✕</button>
+        <button class="close" aria-label={t("toaster.dismiss")} onclick={() => toast.dismiss(notification.id)}>✕</button>
       </div>
     </div>
   {/each}

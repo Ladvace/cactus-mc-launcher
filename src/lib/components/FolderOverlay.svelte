@@ -7,6 +7,7 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { fileToIconDataUri } from "$lib/image";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     name: string | null;
@@ -57,7 +58,7 @@
   function pickCoverSticker() {
     if (!current) return;
     const name = current;
-    ui.openStickerPicker(`Cover for ${name}`, (uri) => groupCovers.set(name, uri));
+    ui.openStickerPicker(t("folder.coverFor", { name }), (uri) => groupCovers.set(name, uri));
   }
   function clearCover() {
     if (current) groupCovers.clear(current);
@@ -178,28 +179,28 @@
 
 <svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp} />
 
-<Modal title="Folder" open={!!name} {onClose} width={640}>
+<Modal title={t("folder.title")} open={!!name} {onClose} width={640}>
   <div class="folder-head">
     <input
       class="input name"
       bind:value={editName}
       onblur={rename}
       onkeydown={(event) => event.key === "Enter" && rename()}
-      aria-label="Folder name"
+      aria-label={t("folder.nameLabel")}
     />
-    <button class="btn danger sm" onclick={ungroupAll}>Ungroup all</button>
+    <button class="btn danger sm" onclick={ungroupAll}>{t("folder.ungroupAll")}</button>
   </div>
 
   <div class="cover-controls">
-    <span class="cover-label">Cover</span>
+    <span class="cover-label">{t("folder.cover")}</span>
     <button class="btn ghost sm" onclick={() => coverInput?.click()}>
-      <Icon name="edit" size={13} /> Upload…
+      <Icon name="edit" size={13} /> {t("folder.upload")}
     </button>
     <button class="btn ghost sm" onclick={pickCoverSticker}>
-      <Icon name="sparkles" size={13} /> Stickers…
+      <Icon name="sparkles" size={13} /> {t("folder.stickers")}
     </button>
     {#if cover}
-      <button class="btn ghost sm" onclick={clearCover}>Remove</button>
+      <button class="btn ghost sm" onclick={clearCover}>{t("common.remove")}</button>
     {/if}
     <input
       bind:this={coverInput}
@@ -211,7 +212,7 @@
   </div>
 
   {#if instances.length === 0}
-    <p class="empty">This folder is empty.</p>
+    <p class="empty">{t("folder.empty")}</p>
   {:else}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="grid" data-folder-grid onclickcapture={onGridClickCapture}>
@@ -229,10 +230,10 @@
 
     <div class="remove-zone" class:over={overRemove} class:armed={!!draggingId}>
       <Icon name="trash" size={14} />
-      {overRemove ? "Release to remove from the folder" : "Drag a tile out here to remove it"}
+      {overRemove ? t("folder.releaseToRemove") : t("folder.dragOutToRemove")}
     </div>
   {/if}
-  <p class="hint">Drag an instance out of the folder to ungroup it. Right-click for more.</p>
+  <p class="hint">{t("folder.hint")}</p>
 </Modal>
 
 <style>

@@ -14,6 +14,7 @@
   import { groupCovers } from "$lib/stores/groupCovers.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { toast } from "$lib/stores/toast.svelte";
+  import { t } from "$lib/i18n";
 
   interface Props {
     entries: Entry[];
@@ -159,9 +160,9 @@
     const existing = new Set(
       instancesStore.instances.map((instance) => instance.group).filter(Boolean)
     );
-    let name = "New folder";
+    let name = t("grid.newFolder");
     let suffix = 2;
-    while (existing.has(name)) name = `New folder ${suffix++}`;
+    while (existing.has(name)) name = t("grid.newFolderNumbered", { n: suffix++ });
     return name;
   }
 

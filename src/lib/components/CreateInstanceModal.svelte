@@ -3,6 +3,7 @@
   import LoaderIcon from "./LoaderIcon.svelte";
   import Icon from "./Icon.svelte";
   import { randomInstanceName } from "$lib/funnyNames";
+  import { t } from "$lib/i18n";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
@@ -84,7 +85,7 @@
     try {
       loaderVersions = await api.getLoaderVersions(loaderName, mcVersion);
       if (loaderVersions.length === 0) {
-        loaderVersionError = `No ${loaderName} builds for Minecraft ${mcVersion}.`;
+        loaderVersionError = t("create.noBuilds", { loader: loaderName, version: mcVersion });
       }
     } catch (error) {
       loaderVersions = [];
@@ -148,9 +149,9 @@
   }
 </script>
 
-<Modal title="Create instance" {open} onClose={close}>
+<Modal title={t("create.title")} {open} onClose={close}>
   <div class="form">
-    <div class="kind-toggle" role="tablist" aria-label="Instance type">
+    <div class="kind-toggle" role="tablist" aria-label={t("create.instanceType")}>
       <button
         type="button"
         role="tab"
@@ -159,7 +160,7 @@
         class:active={kind === "client"}
         onclick={() => (kind = "client")}
       >
-        <Icon name="cube" size={16} /> Client
+        <Icon name="cube" size={16} /> {t("create.client")}
       </button>
       <button
         type="button"
@@ -169,24 +170,24 @@
         class:active={kind === "server"}
         onclick={() => (kind = "server")}
       >
-        <Icon name="globe" size={16} /> Server
+        <Icon name="globe" size={16} /> {t("create.server")}
       </button>
     </div>
 
     <div>
-      <label class="field-label" for="ci-name">Name</label>
+      <label class="field-label" for="ci-name">{t("create.name")}</label>
       <div class="name-row">
         <input
           id="ci-name"
           class="input"
-          placeholder="My awesome instance"
+          placeholder={t("create.namePlaceholder")}
           bind:value={name}
           autocomplete="off"
         />
         <button
           type="button"
           class="dice"
-          title="Roll a random name"
+          title={t("create.rollRandomName")}
           onclick={() => (name = randomInstanceName())}
         >
           <Icon name="shuffle" size={16} />
@@ -195,7 +196,7 @@
     </div>
 
     <div>
-      <label class="field-label" for="ci-loader">Mod loader</label>
+      <label class="field-label" for="ci-loader">{t("create.modLoader")}</label>
       <div class="loader-grid">
         {#each MOD_LOADERS as loaderOption}
           <button
@@ -211,9 +212,9 @@
       </div>
       {#if needsLoaderVersion}
         <div class="loader-version">
-          <label class="field-label" for="ci-loader-version">Loader version</label>
+          <label class="field-label" for="ci-loader-version">{t("create.loaderVersion")}</label>
           {#if loaderVersionsLoading}
-            <div class="status">Loading loader builds…</div>
+            <div class="status">{t("create.loadingLoaderBuilds")}</div>
           {:else if loaderVersionError}
             <div class="status error">{loaderVersionError}</div>
           {:else}
@@ -222,7 +223,7 @@
               class="select"
               bind:value={selectedLoaderVersion}
             >
-              <option value="">Latest stable</option>
+              <option value="">{t("create.latestStable")}</option>
               {#each loaderVersions as loaderVersion (loaderVersion.version)}
                 <option value={loaderVersion.version}>
                   {loaderVersion.version}{loaderVersion.stable ? "" : " (beta)"}
@@ -232,32 +233,33 @@
           {/if}
           {#if loader === "forge" || loader === "neoforge"}
             <p class="hint">
-              First launch runs the official installer, which can take a minute.
+              {t("create.installerNote")}
             </p>
           {/if}
         </div>
       {:else if loader !== "vanilla"}
         <p class="hint warn">
-          {MOD_LOADERS.find((option) => option.value === loader)?.label} support is coming
-          soon. Pick Vanilla, Fabric, or Quilt for now.
+          {t("create.loaderComingSoon", {
+            loader: MOD_LOADERS.find((option) => option.value === loader)?.label ?? loader,
+          })}
         </p>
       {/if}
     </div>
 
     <div>
       <div class="version-head">
-        <label class="field-label" for="ci-version">Minecraft version</label>
+        <label class="field-label" for="ci-version">{t("create.minecraftVersion")}</label>
         <label class="snap-toggle">
           <input type="checkbox" bind:checked={showSnapshots} />
-          Show snapshots
+          {t("create.showSnapshots")}
         </label>
       </div>
 
       {#if versionsLoading}
-        <div class="status">Loading versions…</div>
+        <div class="status">{t("create.loadingVersions")}</div>
       {:else if versionError}
         <div class="status error">{versionError}</div>
-        <button class="btn ghost" onclick={loadVersions}>Retry</button>
+        <button class="btn ghost" onclick={loadVersions}>{t("common.retry")}</button>
       {:else}
         <select id="ci-version" class="select" bind:value={selectedVersion}>
           {#each visibleVersions as version (version.id)}
@@ -274,27 +276,26 @@
         <label class="eula-check">
           <input type="checkbox" bind:checked={eulaAccepted} />
           <span>
-            I agree to the
+            {t("create.eulaAgree")}
             <button
               type="button"
               class="link"
               onclick={() => openUrl("https://www.minecraft.net/eula")}
-              >Minecraft EULA</button
+              >{t("create.minecraftEula")}</button
             >.
           </span>
         </label>
         <p class="hint">
-          Servers run headless — start, stop and type console commands from the
-          instance's <strong>Console</strong> tab.
+          {t("create.serverHeadless")}
         </p>
       </div>
     {/if}
   </div>
 
   {#snippet footer()}
-    <button class="btn ghost" onclick={close}>Cancel</button>
+    <button class="btn ghost" onclick={close}>{t("common.cancel")}</button>
     <button class="btn primary" disabled={!canCreate} onclick={create}>
-      {creating ? "Creating…" : "Create"}
+      {creating ? t("common.creating") : t("common.create")}
     </button>
   {/snippet}
 </Modal>

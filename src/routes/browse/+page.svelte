@@ -3,22 +3,23 @@
   import ProjectModal from "$lib/components/ProjectModal.svelte";
   import { api } from "$lib/api";
   import { formatCount } from "$lib/format";
+  import { t, type MessageKey } from "$lib/i18n";
   import { SOURCES, type ProjectType, type SearchHit, type Source } from "$lib/types";
 
-  const tabs: { label: string; type: ProjectType }[] = [
-    { label: "Modpacks", type: "modpack" },
-    { label: "Mods", type: "mod" },
-    { label: "Resource Packs", type: "resourcepack" },
-    { label: "Shaders", type: "shader" },
-    { label: "Datapacks", type: "datapack" },
+  const tabs: { labelKey: MessageKey; type: ProjectType }[] = [
+    { labelKey: "browse.tabModpacks", type: "modpack" },
+    { labelKey: "browse.tabMods", type: "mod" },
+    { labelKey: "browse.tabResourcePacks", type: "resourcepack" },
+    { labelKey: "browse.tabShaders", type: "shader" },
+    { labelKey: "browse.tabDatapacks", type: "datapack" },
   ];
 
-  const sorts = [
-    { value: "relevance", label: "Relevance" },
-    { value: "downloads", label: "Downloads" },
-    { value: "follows", label: "Follows" },
-    { value: "newest", label: "Newest" },
-    { value: "updated", label: "Updated" },
+  const sorts: { value: string; labelKey: MessageKey }[] = [
+    { value: "relevance", labelKey: "browse.sortRelevance" },
+    { value: "downloads", labelKey: "browse.sortDownloads" },
+    { value: "follows", labelKey: "browse.sortFollows" },
+    { value: "newest", labelKey: "browse.sortNewest" },
+    { value: "updated", labelKey: "browse.sortUpdated" },
   ];
 
   const loaders = ["", "fabric", "quilt", "forge", "neoforge"];
@@ -49,7 +50,7 @@
   const LIMIT = 20;
   const showLoader = $derived(activeType === "mod" || activeType === "modpack");
   const sourceLabel = $derived(
-    SOURCES.find((option) => option.value === source)?.label ?? "the content source"
+    SOURCES.find((option) => option.value === source)?.label ?? t("browse.contentSourceFallback")
   );
 
   $effect(() => {
@@ -138,7 +139,7 @@
 
 <div class="page">
   <header class="head">
-    <h1>Browse</h1>
+    <h1>{t("nav.browse")}</h1>
   </header>
 
   <div class="tabs">
@@ -148,25 +149,25 @@
         class:active={activeType === tab.type}
         onclick={() => (activeType = tab.type)}
       >
-        {tab.label}
+        {t(tab.labelKey)}
       </button>
     {/each}
   </div>
 
   <div class="toolbar">
-    <select class="select filter" bind:value={source} title="Content source">
+    <select class="select filter" bind:value={source} title={t("browse.contentSource")}>
       {#each SOURCES as sourceOption}
         <option value={sourceOption.value} disabled={!sourceEnabled[sourceOption.value]}>
-          {sourceOption.label}{sourceEnabled[sourceOption.value] ? "" : " (unavailable)"}
+          {sourceOption.label}{sourceEnabled[sourceOption.value] ? "" : t("browse.unavailableSuffix")}
         </option>
       {/each}
     </select>
     <div class="search">
       <Icon name="search" size={16} />
-      <input class="search-input" placeholder="Search…" bind:value={query} />
+      <input class="search-input" placeholder={t("browse.searchPlaceholder")} bind:value={query} />
     </div>
     <select class="select filter" bind:value={gameVersion}>
-      <option value="">Any version</option>
+      <option value="">{t("browse.anyVersion")}</option>
       {#each gameVersions as version}
         <option value={version}>{version}</option>
       {/each}
@@ -174,22 +175,22 @@
     {#if showLoader}
       <select class="select filter" bind:value={loader}>
         {#each loaders as loaderOption}
-          <option value={loaderOption}>{loaderOption === "" ? "Any loader" : loaderOption}</option>
+          <option value={loaderOption}>{loaderOption === "" ? t("browse.anyLoader") : loaderOption}</option>
         {/each}
       </select>
     {/if}
     <select class="select filter" bind:value={sort}>
       {#each sorts as sortOption}
-        <option value={sortOption.value}>{sortOption.label}</option>
+        <option value={sortOption.value}>{t(sortOption.labelKey)}</option>
       {/each}
     </select>
   </div>
 
   {#if error}
     <div class="status error">
-      <p>Couldn't reach {sourceLabel}.</p>
+      <p>{t("browse.cantReach", { source: sourceLabel })}</p>
       <p class="err-detail">{error}</p>
-      <button class="btn ghost" onclick={search}>Retry</button>
+      <button class="btn ghost" onclick={search}>{t("common.retry")}</button>
     </div>
   {:else if loading}
     <div class="results">
@@ -206,7 +207,7 @@
       {/each}
     </div>
   {:else if hits.length === 0}
-    <div class="status">No results.</div>
+    <div class="status">{t("browse.noResults")}</div>
   {:else}
     <div class="results">
       {#each hits as hit (hit.projectId)}
@@ -219,7 +220,7 @@
           <div class="card-body">
             <div class="card-top">
               <span class="card-title">{hit.title}</span>
-              <span class="card-author">by {hit.author}</span>
+              <span class="card-author">{t("browse.byAuthor", { author: hit.author })}</span>
             </div>
             <p class="card-desc">{hit.description}</p>
             <div class="card-stats">
@@ -233,7 +234,7 @@
     {#if hits.length < totalHits}
       <div class="more">
         <button class="btn ghost" onclick={loadMore} disabled={loadingMore}>
-          {loadingMore ? "Loading…" : "Load more"}
+          {loadingMore ? t("common.loading") : t("browse.loadMore")}
         </button>
       </div>
     {/if}
