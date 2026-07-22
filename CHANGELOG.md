@@ -4,26 +4,38 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [1.5.0] — 2026-07-21
+## [1.5.0] — 2026-07-22
 
 ### Added
-- **Languages** — Cactus now speaks **English, French, Spanish, German,
-  Portuguese, and Chinese**.
+- **12 languages** — Cactus now speaks **English, French, Spanish, German,
+  Portuguese, Polish, Russian, Turkish, Arabic, Japanese, Korean, and Chinese**.
   Pick your language from Settings → Interface or straight from the onboarding
-  screen, through a custom dropdown with pixel-art flags that matches the app's
-  style. The whole interface switches live — no restart. Dynamic content (mod,
-  world, and achievement names, and raw error text) stays as its source provides
-  it, falling back to English where a translation isn't available.
+  screen, through a custom dropdown with pixel-art flags. The whole interface
+  switches live — no restart — and **Arabic renders right-to-left**. Dynamic
+  content (mod, world, and achievement names, and raw error text) falls back to
+  English where a translation isn't available.
+- **Accessibility & customization settings** — a new Accessibility section
+  (interface zoom, reduce motion, readable font, high contrast, reduce
+  transparency, always-show focus outlines), an **accent colour** picker
+  (Gold / Emerald / Diamond / Redstone / Lapis / Amethyst), a **sound-volume**
+  slider, and a **default mod loader** for new instances.
+- **Discover servers** — a new "Discover" tab in Servers to browse a public
+  server directory: search, sort by players/votes/rating, live player counts,
+  and one-click add.
+- **Advanced content filters** — filter Browse by category, environment
+  (client/server), and open-source, on top of version and loader.
 - **Skin editor** — draw your own skin on an unwrapped 2D canvas (opened from the
   account modal). Pencil, eraser, fill, and eyedropper tools, a colour palette,
-  undo/redo, part guides for head/body/arms/legs, and a live preview. Applies
-  straight to your Minecraft account.
+  undo/redo, part guides, and a **live front + back preview**. Applies straight
+  to your Minecraft account.
 - **Reset skin** — a one-click button to revert your skin to the default
   Steve/Alex.
 
 ### Changed
 - Custom dropdowns everywhere — every menu now uses one consistent, themed,
   keyboard-navigable picker instead of the OS-native one.
+- The account modal now shows skeletons while your skin, capes, and accounts
+  load, so the layout no longer jumps.
 
 ### Fixed
 - Uploading or changing a skin now updates the face and preview **instantly**
@@ -31,6 +43,7 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
   also survives closing the modal.
 - Changing a skin no longer fails with a 401 when your session has been open a
   while — the Minecraft token is refreshed automatically.
+- Buttons no longer show a stray gold line under them on hover.
 
 ## [1.4.0] — 2026-07-20
 
