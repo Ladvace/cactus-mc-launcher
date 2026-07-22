@@ -24,6 +24,15 @@ const DEFAULTS: Settings = {
   newsSingle: false,
   dateFormat: "system",
   language: "en",
+  accent: "",
+  uiScale: 100,
+  soundVolume: 100,
+  defaultLoader: "vanilla",
+  reduceMotion: false,
+  readableFont: false,
+  highContrast: false,
+  reduceTransparency: false,
+  alwaysShowFocus: false,
 };
 
 class SettingsStore {

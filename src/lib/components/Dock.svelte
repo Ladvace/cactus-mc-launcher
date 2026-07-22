@@ -22,7 +22,9 @@
 
   const pos = $derived(settingsStore.settings.dockPosition ?? "bottom");
   const horizontal = $derived(pos === "top" || pos === "bottom");
-  const magnify = $derived(settingsStore.settings.dockMagnify ?? true);
+  const magnify = $derived(
+    (settingsStore.settings.dockMagnify ?? true) && !settingsStore.settings.reduceMotion
+  );
   const peek = $derived(
     DECOR_THEMES.find((decorTheme) => decorTheme.id === (settingsStore.settings.decorTheme ?? ""))?.peek
   );

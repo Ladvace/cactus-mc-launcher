@@ -510,6 +510,11 @@ pub async fn search_content(source: Source, params: SearchParams) -> Result<Sear
 }
 
 #[tauri::command]
+pub async fn get_content_categories() -> Result<Vec<crate::modrinth::Category>> {
+    crate::modrinth::get_categories().await
+}
+
+#[tauri::command]
 pub async fn content_versions(
     source: Source,
     project_id: String,

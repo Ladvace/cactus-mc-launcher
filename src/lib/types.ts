@@ -213,8 +213,26 @@ export interface Settings {
   newsSingle: boolean;
   /** How dates are shown: "system" | "iso" | "us" | "eu". */
   dateFormat: string;
-  /** UI language: "en" | "fr" | "es" | "de" | "pt" | "zh". */
+  /** UI language code (see the i18n LOCALES list, e.g. "en", "fr", "ar", "ja"). */
   language: string;
+  /** Accent colour preset ("" = default gold; e.g. "emerald", "lapis"). */
+  accent: string;
+  /** Whole-UI zoom, in percent (100 = default). */
+  uiScale: number;
+  /** Volume of UI click sounds, 0–100. */
+  soundVolume: number;
+  /** Loader pre-selected in the new-instance dialog. */
+  defaultLoader: string;
+  /** Minimise animations and motion effects. */
+  reduceMotion: boolean;
+  /** Use a plain readable font instead of the pixel display font. */
+  readableFont: boolean;
+  /** Higher-contrast colours for readability. */
+  highContrast: boolean;
+  /** Remove blur/translucency for legibility. */
+  reduceTransparency: boolean;
+  /** Always show keyboard focus outlines. */
+  alwaysShowFocus: boolean;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";
@@ -309,8 +327,44 @@ export interface SearchParams {
   gameVersion?: string | null;
   loader?: string | null;
   sort?: string | null;
+  categories?: string[];
+  environment?: string | null;
+  openSource?: boolean;
   offset?: number;
   limit?: number;
+}
+
+export interface ContentCategory {
+  name: string;
+  projectType: string;
+  header: string;
+  icon: string;
+}
+
+export interface BrowseServer {
+  name: string;
+  address: string;
+  online: boolean;
+  players: number;
+  maxPlayers: number;
+  version: string;
+  description: string;
+  votes: number;
+  rating: number;
+  country: string;
+  favicon: string | null;
+}
+
+export interface BrowseServersResult {
+  servers: BrowseServer[];
+  page: number;
+  hasMore: boolean;
+}
+
+export interface BrowseServersParams {
+  query?: string;
+  sort?: string | null;
+  page?: number;
 }
 
 export interface ModrinthVersionFile {

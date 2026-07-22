@@ -48,6 +48,7 @@
     "chevron-right": "angle-right",
     "chevron-down": "angle-down",
     "chevron-up": "angle-up",
+    filter: "filter",
     close: "times",
   };
 

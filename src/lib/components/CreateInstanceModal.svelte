@@ -5,6 +5,7 @@
   import Select from "$lib/components/Select.svelte";
   import { randomInstanceName } from "$lib/funnyNames";
   import { t } from "$lib/i18n";
+  import { settingsStore } from "$lib/stores/settings.svelte";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
@@ -24,10 +25,15 @@
   }
   let { open, onClose }: Props = $props();
 
+  const initialLoader = (): ModLoader => {
+    const pref = settingsStore.settings.defaultLoader as ModLoader;
+    return MOD_LOADERS.some((option) => option.value === pref) ? pref : "vanilla";
+  };
+
   let name = $state("");
   let kind = $state<InstanceKind>("client");
   let eulaAccepted = $state(false);
-  let loader = $state<ModLoader>("vanilla");
+  let loader = $state<ModLoader>(initialLoader());
   let selectedVersion = $state("");
   let showSnapshots = $state(false);
 
@@ -152,7 +158,7 @@
     name = "";
     kind = "client";
     eulaAccepted = false;
-    loader = "vanilla";
+    loader = initialLoader();
     showSnapshots = false;
     loaderVersions = [];
     selectedLoaderVersion = "";

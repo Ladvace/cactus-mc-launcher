@@ -64,9 +64,43 @@ pub struct Settings {
     /// How dates are displayed: "system" | "iso" | "us" | "eu".
     #[serde(default = "default_date_format")]
     pub date_format: String,
-    /// UI language: "en" | "fr" | "es" | "de" | "pt" | "zh".
+    /// UI language code (see the i18n LOCALES list, e.g. "en", "fr", "ar", "ja").
     #[serde(default = "default_language")]
     pub language: String,
+    /// Accent colour preset ("" = default gold).
+    #[serde(default)]
+    pub accent: String,
+    /// Whole-UI zoom in percent (100 = default).
+    #[serde(default = "default_ui_scale")]
+    pub ui_scale: u32,
+    /// UI click-sound volume, 0–100.
+    #[serde(default = "default_volume")]
+    pub sound_volume: u32,
+    /// Loader pre-selected in the new-instance dialog.
+    #[serde(default = "default_loader")]
+    pub default_loader: String,
+    #[serde(default)]
+    pub reduce_motion: bool,
+    #[serde(default)]
+    pub readable_font: bool,
+    #[serde(default)]
+    pub high_contrast: bool,
+    #[serde(default)]
+    pub reduce_transparency: bool,
+    #[serde(default)]
+    pub always_show_focus: bool,
+}
+
+fn default_ui_scale() -> u32 {
+    100
+}
+
+fn default_volume() -> u32 {
+    100
+}
+
+fn default_loader() -> String {
+    "vanilla".into()
 }
 
 fn default_date_format() -> String {
@@ -106,6 +140,15 @@ impl Default for Settings {
             news_single: false,
             date_format: default_date_format(),
             language: default_language(),
+            accent: String::new(),
+            ui_scale: default_ui_scale(),
+            sound_volume: default_volume(),
+            default_loader: default_loader(),
+            reduce_motion: false,
+            readable_font: false,
+            high_contrast: false,
+            reduce_transparency: false,
+            always_show_focus: false,
         }
     }
 }

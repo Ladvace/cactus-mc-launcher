@@ -299,6 +299,9 @@ button {
 }
 .btn:hover {
   --edge: var(--accent);
+  /* Tint the 3D base too, so the gold edge and the depth read as one raised
+     edge instead of a thin gold line floating above a black base. */
+  --depth: #6b4e10;
 }
 /* Scale in on click — a tactile squish, no vertical shift. */
 .btn:active {
@@ -448,4 +451,96 @@ button {
     0 var(--p),
     var(--p) var(--p)
   );
+}
+
+/* ============================================================
+   Accessibility & customization — driven by data-* attributes
+   set on <html> from the settings store (see +layout.svelte).
+   ============================================================ */
+
+/* Whole-UI zoom */
+:root {
+  --ui-scale: 1;
+}
+body {
+  zoom: var(--ui-scale);
+}
+
+/* Reduce motion — near-instant animations/transitions everywhere */
+[data-reduce-motion="true"] *,
+[data-reduce-motion="true"] *::before,
+[data-reduce-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Readable font — swap the pixel display font for a clean sans */
+[data-readable-font="true"] {
+  --font-pixel: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Reduce transparency — drop blur, and solidify the translucent dock */
+[data-reduce-transparency="true"] *,
+[data-reduce-transparency="true"] *::before,
+[data-reduce-transparency="true"] *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+[data-reduce-transparency="true"] .dock {
+  background: var(--bg-raised) !important;
+}
+
+/* Always-visible keyboard focus outlines */
+[data-focus="true"] :focus {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* Higher-contrast palette */
+[data-high-contrast="true"] {
+  --bg-app: #000000;
+  --bg-raised: #0c0c0c;
+  --bg-card: #151515;
+  --bg-hover: #2a2a2a;
+  --bg-input: #050505;
+  --border: #6f6f6f;
+  --border-subtle: #4c4c4c;
+  --text: #ffffff;
+  --text-secondary: #ececec;
+  --text-muted: #c4c4c4;
+  --accent-soft: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Accent colour presets (gold is the default with no attribute) */
+[data-accent="emerald"] {
+  --accent: #3fbf5f;
+  --accent-hover: #58d878;
+  --accent-contrast: #05230f;
+  --accent-soft: rgba(63, 191, 95, 0.16);
+}
+[data-accent="diamond"] {
+  --accent: #4fd6d6;
+  --accent-hover: #6fe9e9;
+  --accent-contrast: #032321;
+  --accent-soft: rgba(79, 214, 214, 0.16);
+}
+[data-accent="redstone"] {
+  --accent: #e5484d;
+  --accent-hover: #f26a6f;
+  --accent-contrast: #2a0708;
+  --accent-soft: rgba(229, 72, 77, 0.16);
+}
+[data-accent="lapis"] {
+  --accent: #4f86e0;
+  --accent-hover: #6d9ff0;
+  --accent-contrast: #04122b;
+  --accent-soft: rgba(79, 134, 224, 0.16);
+}
+[data-accent="amethyst"] {
+  --accent: #9b6dff;
+  --accent-hover: #b389ff;
+  --accent-contrast: #170a2e;
+  --accent-soft: rgba(155, 109, 255, 0.16);
 }

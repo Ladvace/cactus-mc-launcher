@@ -63,6 +63,15 @@ pub struct SearchParams {
     /// "relevance" | "downloads" | "follows" | "newest" | "updated"
     #[serde(default)]
     pub sort: Option<String>,
+    /// Content categories/tags to narrow by (ANDed together).
+    #[serde(default)]
+    pub categories: Vec<String>,
+    /// "client" | "server" — filter by supported environment.
+    #[serde(default)]
+    pub environment: Option<String>,
+    /// Only open-source projects when true.
+    #[serde(default)]
+    pub open_source: bool,
     #[serde(default)]
     pub offset: u64,
     #[serde(default)]
@@ -76,6 +85,23 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
     }
     if let Some(loader) = params.loader.as_deref().filter(|value| !value.is_empty()) {
         facets.push(vec![format!("categories:{loader}")]);
+    }
+    for category in params.categories.iter().filter(|value| !value.is_empty()) {
+        facets.push(vec![format!("categories:{category}")]);
+    }
+    match params.environment.as_deref() {
+        Some("client") => facets.push(vec![
+            "client_side:required".into(),
+            "client_side:optional".into(),
+        ]),
+        Some("server") => facets.push(vec![
+            "server_side:required".into(),
+            "server_side:optional".into(),
+        ]),
+        _ => {}
+    }
+    if params.open_source {
+        facets.push(vec!["open_source:true".into()]);
     }
 
     let facets_json = serde_json::to_string(&facets)?;
@@ -103,6 +129,27 @@ pub async fn search(params: SearchParams) -> Result<SearchResults> {
     }
 
     Ok(resp.error_for_status()?.json().await?)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all(serialize = "camelCase", deserialize = "snake_case"))]
+pub struct Category {
+    pub name: String,
+    pub project_type: String,
+    pub header: String,
+    #[serde(default)]
+    pub icon: String,
+}
+
+/// The full Modrinth category/tag list (grouped by `project_type` + `header`).
+pub async fn get_categories() -> Result<Vec<Category>> {
+    Ok(client()?
+        .get(format!("{API_BASE}/tag/category"))
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?)
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

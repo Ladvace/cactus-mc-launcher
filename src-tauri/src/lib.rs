@@ -15,6 +15,7 @@ mod paths;
 mod board_auth;
 mod settings;
 mod players;
+mod server_browse;
 mod server_ping;
 mod servers_dat;
 mod snapshot;
@@ -100,6 +101,7 @@ pub fn run() {
             commands::remove_account,
             commands::list_sources,
             commands::search_content,
+            commands::get_content_categories,
             commands::content_versions,
             commands::install_content,
             commands::list_content,
@@ -125,6 +127,7 @@ pub fn run() {
             commands::get_capes,
             commands::set_cape,
             server_ping::ping_server,
+            server_browse::browse_servers,
             tunnel::tunnel_start,
             tunnel::tunnel_stop,
             tunnel::tunnel_status,

@@ -3,12 +3,14 @@
   import { t } from "$lib/i18n";
   import { api } from "$lib/api";
   import { copyText } from "$lib/clipboard";
+  import { formatCount } from "$lib/format";
   import { serversStore } from "$lib/stores/servers.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { toast } from "$lib/stores/toast.svelte";
-  import type { ServerStatus } from "$lib/types";
+  import type { ServerStatus, BrowseServer } from "$lib/types";
   import type { FeaturedServer } from "$lib/servers";
   import Icon from "$lib/components/Icon.svelte";
+  import Select from "$lib/components/Select.svelte";
   import ContextMenu, { type MenuItem } from "$lib/components/ContextMenu.svelte";
 
   type Ping = { state: "loading" | "online" | "offline"; status?: ServerStatus };
@@ -17,6 +19,86 @@
   let showAdd = $state(false);
   let newName = $state("");
   let newAddress = $state("");
+
+  // Discover: browse a public directory (minecraft-list.info) to find servers.
+  let view = $state<"mine" | "discover">("mine");
+  let dQuery = $state("");
+  let dDebounced = $state("");
+  let dSort = $state("players");
+  let dHits = $state<BrowseServer[]>([]);
+  let dPage = $state(1);
+  let dHasMore = $state(false);
+  let dLoading = $state(false);
+  let dLoadingMore = $state(false);
+  let dError = $state<string | null>(null);
+
+  const dSortOptions = $derived([
+    { value: "players", label: t("servers.sortPlayers") },
+    { value: "votes", label: t("servers.sortVotes") },
+    { value: "rating", label: t("servers.sortRating") },
+  ]);
+
+  // Strip Minecraft §-formatting codes from directory-provided text.
+  const clean = (value: string) => value.replace(/§./g, "").trim();
+
+  $effect(() => {
+    const value = dQuery;
+    const timer = setTimeout(() => (dDebounced = value), 350);
+    return () => clearTimeout(timer);
+  });
+
+  $effect(() => {
+    if (view !== "discover") return;
+    void [dDebounced, dSort];
+    discoverSearch();
+  });
+
+  async function discoverSearch() {
+    dLoading = true;
+    dError = null;
+    dPage = 1;
+    try {
+      const res = await api.browseServers({ query: dDebounced, sort: dSort, page: 1 });
+      dHits = res.servers;
+      dHasMore = res.hasMore;
+    } catch (err) {
+      dError = String(err);
+      dHits = [];
+    } finally {
+      dLoading = false;
+    }
+  }
+
+  async function discoverMore() {
+    dLoadingMore = true;
+    try {
+      const next = dPage + 1;
+      const res = await api.browseServers({ query: dDebounced, sort: dSort, page: next });
+      dHits = [...dHits, ...res.servers];
+      dPage = next;
+      dHasMore = res.hasMore;
+    } catch (err) {
+      toast.error(String(err));
+    } finally {
+      dLoadingMore = false;
+    }
+  }
+
+  function addFromDiscover(server: BrowseServer) {
+    const name = clean(server.name) || server.address;
+    const added = serversStore.add({
+      name,
+      address: server.address,
+      description: clean(server.description),
+      tags: server.country ? [server.country] : [],
+    });
+    if (added) {
+      toast.success(t("servers.addedToMine", { name }));
+      pingOne(server.address);
+    } else {
+      toast.error(t("servers.alreadyInList"));
+    }
+  }
 
   let addMenu = $state<{ x: number; y: number; server: FeaturedServer } | null>(null);
   const clientInstances = $derived(
@@ -104,17 +186,29 @@
       <h1>{t("nav.servers")}</h1>
       <p class="sub">{t("servers.subtitle")}</p>
     </div>
-    <div class="head-actions">
-      <button class="btn ghost sm" onclick={() => serversStore.reset()} title={t("servers.restoreDefaultList")}>{t("servers.reset")}</button>
-      <button class="btn ghost sm" onclick={refresh} title={t("servers.refreshStatus")}>
-        <Icon name="refresh" size={15} /> {t("servers.refresh")}
-      </button>
-      <button class="btn primary sm" onclick={() => (showAdd = !showAdd)}>
-        <Icon name="plus" size={15} /> {t("servers.addServer")}
-      </button>
-    </div>
+    {#if view === "mine"}
+      <div class="head-actions">
+        <button class="btn ghost sm" onclick={() => serversStore.reset()} title={t("servers.restoreDefaultList")}>{t("servers.reset")}</button>
+        <button class="btn ghost sm" onclick={refresh} title={t("servers.refreshStatus")}>
+          <Icon name="refresh" size={15} /> {t("servers.refresh")}
+        </button>
+        <button class="btn primary sm" onclick={() => (showAdd = !showAdd)}>
+          <Icon name="plus" size={15} /> {t("servers.addServer")}
+        </button>
+      </div>
+    {/if}
   </header>
 
+  <div class="seg">
+    <button class="seg-btn" class:on={view === "mine"} onclick={() => (view = "mine")}>
+      {t("servers.myServers")}
+    </button>
+    <button class="seg-btn" class:on={view === "discover"} onclick={() => (view = "discover")}>
+      <Icon name="compass" size={14} /> {t("servers.discover")}
+    </button>
+  </div>
+
+  {#if view === "mine"}
   {#if showAdd}
     <form class="add-form" onsubmit={addServer}>
       <input class="in" placeholder={t("servers.namePlaceholder")} bind:value={newName} maxlength="40" />
@@ -188,6 +282,94 @@
       </div>
     {/each}
   </div>
+  {:else}
+    <div class="discover-toolbar">
+      <div class="search">
+        <Icon name="search" size={16} />
+        <input class="search-input" placeholder={t("servers.discoverSearch")} bind:value={dQuery} />
+      </div>
+      <Select bind:value={dSort} options={dSortOptions} width="180px" />
+    </div>
+
+    {#if dError}
+      <div class="d-status error">
+        <p>{t("servers.discoverError")}</p>
+        <button class="btn ghost sm" onclick={discoverSearch}>{t("common.retry")}</button>
+      </div>
+    {:else if dLoading}
+      <div class="grid">
+        {#each Array(8) as _, index (index)}
+          <div class="card"><span class="skeleton" style="width:100%;height:96px"></span></div>
+        {/each}
+      </div>
+    {:else if dHits.length === 0}
+      <p class="d-status">{t("servers.discoverEmpty")}</p>
+    {:else}
+      <div class="grid">
+        {#each dHits as srv (srv.address)}
+          <div class="card">
+            <div class="card-head">
+              <div class="icon">
+                {#if srv.favicon}
+                  <img src={srv.favicon} alt="" />
+                {:else}
+                  <Icon name="globe" size={18} />
+                {/if}
+              </div>
+              <h2>{clean(srv.name) || srv.address}</h2>
+              <span class="status" class:online={srv.online} class:offline={!srv.online}>
+                {#if srv.online}
+                  ● {t("servers.countOnline", { count: srv.players.toLocaleString() })}
+                {:else}
+                  ● {t("servers.offline")}
+                {/if}
+              </span>
+            </div>
+
+            {#if clean(srv.description)}
+              <p class="desc">{clean(srv.description)}</p>
+            {/if}
+
+            <div class="tags">
+              {#if srv.version}<span class="tag ver">{clean(srv.version)}</span>{/if}
+              {#if srv.country}<span class="tag">{srv.country}</span>{/if}
+              {#if srv.votes > 0}
+                <span class="tag"><Icon name="heart" size={10} /> {formatCount(srv.votes)}</span>
+              {/if}
+            </div>
+
+            <div class="addr-row">
+              <code class="addr">{srv.address}</code>
+              <div class="actions">
+                <button class="btn sm" onclick={() => copyText(srv.address, t("servers.copiedAddress", { address: srv.address }))} title={t("servers.copyAddress")}>
+                  <Icon name="copy" size={13} />
+                </button>
+                <button class="btn ghost sm" onclick={(e) => onAddToClick(e, { name: clean(srv.name) || srv.address, address: srv.address, description: "", tags: [] })} title={t("servers.addToInstanceList")}>
+                  <Icon name="cube" size={13} />
+                </button>
+                <button class="btn primary sm" onclick={() => addFromDiscover(srv)} title={t("servers.addToMine")}>
+                  <Icon name="plus" size={13} /> {t("common.add")}
+                </button>
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
+
+      {#if dHasMore}
+        <div class="more">
+          <button class="btn ghost" onclick={discoverMore} disabled={dLoadingMore}>
+            {dLoadingMore ? t("common.loading") : t("servers.loadMore")}
+          </button>
+        </div>
+      {/if}
+    {/if}
+
+    <p class="powered">
+      {t("servers.poweredBy")}
+      <button class="link" onclick={() => openUrl("https://minecraft-list.info")}>minecraft-list.info</button>
+    </p>
+  {/if}
 
   {#if addMenu}
     <ContextMenu x={addMenu.x} y={addMenu.y} items={addMenuItems} onClose={() => (addMenu = null)} />
@@ -215,6 +397,103 @@
     display: flex;
     gap: 0.4rem;
     flex-shrink: 0;
+  }
+  .seg {
+    display: inline-flex;
+    gap: 2px;
+    margin-bottom: 1.1rem;
+    padding: 3px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+  }
+  .seg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s;
+  }
+  .seg-btn:hover {
+    color: var(--text);
+  }
+  .seg-btn.on {
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+  .discover-toolbar {
+    display: flex;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+  .discover-toolbar .search {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  .discover-toolbar .search :global(.hn) {
+    position: absolute;
+    left: 12px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.28);
+  }
+  .search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .d-status {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+  .d-status.error {
+    color: var(--danger);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .tag.ver {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tag :global(.hn) {
+    vertical-align: -1px;
+  }
+  .more {
+    display: flex;
+    justify-content: center;
+    margin: 1.5rem 0 0;
+  }
+  .powered {
+    margin: 1.5rem 0 0;
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+  .powered .link {
+    color: var(--text-secondary);
+  }
+  .powered .link:hover {
+    color: var(--accent);
   }
   h1 {
     margin: 0;
@@ -349,6 +628,11 @@
     color: var(--text-secondary, var(--text-muted));
     line-height: 1.45;
     flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .tags {
     display: flex;

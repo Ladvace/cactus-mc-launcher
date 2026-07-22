@@ -5,7 +5,13 @@
   import { api } from "$lib/api";
   import { formatCount } from "$lib/format";
   import { t, type MessageKey } from "$lib/i18n";
-  import { SOURCES, type ProjectType, type SearchHit, type Source } from "$lib/types";
+  import {
+    SOURCES,
+    type ContentCategory,
+    type ProjectType,
+    type SearchHit,
+    type Source,
+  } from "$lib/types";
 
   const tabs: { labelKey: MessageKey; type: ProjectType }[] = [
     { labelKey: "browse.tabModpacks", type: "modpack" },
@@ -32,6 +38,12 @@
   let gameVersion = $state("");
   let loader = $state("");
   let sort = $state("relevance");
+
+  let showFilters = $state(false);
+  let allCategories = $state<ContentCategory[]>([]);
+  let selectedCategories = $state<string[]>([]);
+  let environment = $state("");
+  let openSource = $state(false);
 
   let sourceEnabled = $state<Record<string, boolean>>({
     modrinth: true,
@@ -75,6 +87,45 @@
     sorts.map((sortOption) => ({ value: sortOption.value, label: t(sortOption.labelKey) }))
   );
 
+  // Advanced filters are Modrinth facets; CurseForge doesn't support them here.
+  const advancedAvailable = $derived(source === "modrinth");
+  const envOptions = $derived([
+    { value: "", label: t("browse.envAny") },
+    { value: "client", label: t("browse.envClient") },
+    { value: "server", label: t("browse.envServer") },
+  ]);
+  const categoryGroups = $derived.by(() => {
+    const groups = new Map<string, ContentCategory[]>();
+    for (const category of allCategories) {
+      if (category.projectType !== activeType) continue;
+      const list = groups.get(category.header) ?? [];
+      list.push(category);
+      groups.set(category.header, list);
+    }
+    return [...groups.entries()].map(([header, items]) => ({ header, items }));
+  });
+  const activeFilterCount = $derived(
+    selectedCategories.length + (environment ? 1 : 0) + (openSource ? 1 : 0)
+  );
+  const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
+  function toggleCategory(name: string) {
+    selectedCategories = selectedCategories.includes(name)
+      ? selectedCategories.filter((entry) => entry !== name)
+      : [...selectedCategories, name];
+  }
+  function clearFilters() {
+    selectedCategories = [];
+    environment = "";
+    openSource = false;
+  }
+
+  $effect(() => {
+    if (allCategories.length === 0) {
+      api.getContentCategories().then((list) => (allCategories = list)).catch(() => {});
+    }
+  });
+
   $effect(() => {
     const currentQuery = query;
     const timer = setTimeout(() => (debounced = currentQuery), 350);
@@ -107,17 +158,21 @@
 
   $effect(() => {
     // Track dependencies:
-    void [source, activeType, debounced, gameVersion, loader, sort];
+    void [source, activeType, debounced, gameVersion, loader, sort, selectedCategories, environment, openSource];
     search();
   });
 
   function searchParams(from: number) {
+    const modrinth = source === "modrinth";
     return {
       query: debounced,
       projectType: activeType,
       gameVersion: gameVersion || null,
       loader: showLoader ? loader || null : null,
       sort,
+      categories: modrinth ? selectedCategories : [],
+      environment: modrinth && showLoader ? environment || null : null,
+      openSource: modrinth ? openSource : false,
       offset: from,
       limit: LIMIT,
     };
@@ -169,7 +224,10 @@
       <button
         class="tab"
         class:active={activeType === tab.type}
-        onclick={() => (activeType = tab.type)}
+        onclick={() => {
+          activeType = tab.type;
+          clearFilters();
+        }}
       >
         {t(tab.labelKey)}
       </button>
@@ -192,7 +250,64 @@
       <Select bind:value={loader} options={loaderOptions} width="160px" />
     {/if}
     <Select bind:value={sort} options={sortOptions} width="160px" />
+    {#if advancedAvailable}
+      <button
+        class="filters-btn"
+        class:on={showFilters || activeFilterCount > 0}
+        onclick={() => (showFilters = !showFilters)}
+      >
+        <Icon name="filter" size={14} />
+        {t("browse.filters")}
+        {#if activeFilterCount > 0}<span class="count">{activeFilterCount}</span>{/if}
+      </button>
+    {/if}
   </div>
+
+  {#if advancedAvailable && showFilters}
+    <div class="filters-panel">
+      {#if showLoader}
+        <div class="fgroup">
+          <span class="fg-title">{t("browse.environment")}</span>
+          <div class="chips">
+            {#each envOptions as opt (opt.value)}
+              <button
+                class="chip"
+                class:on={environment === opt.value}
+                onclick={() => (environment = opt.value)}
+              >
+                {opt.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+      {#each categoryGroups as group (group.header)}
+        <div class="fgroup">
+          <span class="fg-title">{capitalize(group.header)}</span>
+          <div class="chips">
+            {#each group.items as category (category.name)}
+              <button
+                class="chip"
+                class:on={selectedCategories.includes(category.name)}
+                onclick={() => toggleCategory(category.name)}
+              >
+                {capitalize(category.name)}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/each}
+      <div class="fgroup fg-footer">
+        <label class="os-check">
+          <input type="checkbox" bind:checked={openSource} />
+          {t("browse.openSourceOnly")}
+        </label>
+        {#if activeFilterCount > 0}
+          <button class="clear-btn" onclick={clearFilters}>{t("browse.clearFilters")}</button>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
   {#if error}
     <div class="status error">
@@ -290,6 +405,108 @@
     display: flex;
     gap: 10px;
     margin-bottom: 22px;
+  }
+  .filters-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 14px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.28);
+    transition: border-color 0.12s, color 0.12s;
+  }
+  .filters-btn:hover,
+  .filters-btn.on {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .filters-btn .count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .filters-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: -8px 0 22px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+  }
+  .fgroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .fg-title {
+    font-family: var(--font-pixel);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .chip {
+    padding: 5px 11px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+  }
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .chip.on {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .fg-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 14px;
+  }
+  .os-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .clear-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .clear-btn:hover {
+    color: var(--danger);
   }
   .search {
     position: relative;

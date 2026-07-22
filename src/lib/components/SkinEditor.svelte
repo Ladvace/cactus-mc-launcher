@@ -37,6 +37,15 @@
     [4, 20, 4, 12, 4, 20], [4, 36, 4, 12, 4, 20],
     [20, 52, 4, 12, 8, 20], [4, 52, 4, 12, 8, 20],
   ];
+  // Back faces (arms/legs mirrored horizontally since we view from behind).
+  const BACK: [number, number, number, number, number, number][] = [
+    [24, 8, 8, 8, 4, 0], [56, 8, 8, 8, 4, 0],
+    [32, 20, 8, 12, 4, 8], [32, 36, 8, 12, 4, 8],
+    [52, 20, 4, 12, 12, 8], [52, 36, 4, 12, 12, 8],
+    [44, 52, 4, 12, 0, 8], [60, 52, 4, 12, 0, 8],
+    [12, 20, 4, 12, 8, 20], [12, 36, 4, 12, 8, 20],
+    [28, 52, 4, 12, 4, 20], [12, 52, 4, 12, 4, 20],
+  ];
 
   const PALETTE = [
     "#000000", "#3d3a34", "#7f7970", "#c9c4ba", "#ffffff",
@@ -61,6 +70,7 @@
   let editCanvas: HTMLCanvasElement;
   let viewCanvas = $state<HTMLCanvasElement>();
   let previewCanvas = $state<HTMLCanvasElement>();
+  let previewBackCanvas = $state<HTMLCanvasElement>();
   let ectx: CanvasRenderingContext2D;
 
   let undoStack: ImageData[] = [];
@@ -148,11 +158,19 @@
   }
 
   function renderPreview() {
-    const ctx = previewCanvas?.getContext("2d");
+    drawFaces(previewCanvas, FRONT);
+    drawFaces(previewBackCanvas, BACK);
+  }
+
+  function drawFaces(
+    canvas: HTMLCanvasElement | undefined,
+    faces: [number, number, number, number, number, number][]
+  ) {
+    const ctx = canvas?.getContext("2d");
     if (!ctx || !editCanvas) return;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, 16, 32);
-    for (const [sx, sy, w, h, dx, dy] of FRONT) {
+    for (const [sx, sy, w, h, dx, dy] of faces) {
       ctx.drawImage(editCanvas, sx, sy, w, h, dx, dy, w, h);
     }
   }
@@ -326,7 +344,16 @@
     <div class="side">
       <div class="preview-box">
         <span class="side-label">{t("skinEditor.preview")}</span>
-        <canvas bind:this={previewCanvas} class="preview" width={16} height={32}></canvas>
+        <div class="previews">
+          <div class="pv">
+            <canvas bind:this={previewCanvas} class="preview" width={16} height={32}></canvas>
+            <span class="pv-label">{t("skinEditor.front")}</span>
+          </div>
+          <div class="pv">
+            <canvas bind:this={previewBackCanvas} class="preview" width={16} height={32}></canvas>
+            <span class="pv-label">{t("skinEditor.back")}</span>
+          </div>
+        </div>
       </div>
 
       <div class="tools">
@@ -431,9 +458,24 @@
   .preview-box {
     text-align: center;
   }
+  .previews {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+  .pv {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .pv-label {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
   .preview {
-    width: 96px;
-    height: 192px;
+    width: 74px;
+    height: 148px;
     image-rendering: pixelated;
     background: var(--bg-app);
     border: 2px solid var(--border);

@@ -20,7 +20,7 @@
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { initBoardApi } from "$lib/boardApi";
   import { ui } from "$lib/stores/ui.svelte";
-  import { currentLocale } from "$lib/i18n";
+  import { currentLocale, RTL_LOCALES } from "$lib/i18n";
   import { backgroundCss } from "$lib/background";
   import { readJson } from "$lib/storage";
   import { playClick } from "$lib/sound";
@@ -50,9 +50,25 @@
     initBoardApi();
   });
 
-  // Keep the document language in sync with the chosen UI locale.
+  // Keep the document language + direction in sync with the chosen UI locale.
   $effect(() => {
-    document.documentElement.lang = currentLocale();
+    const locale = currentLocale();
+    document.documentElement.lang = locale;
+    document.documentElement.dir = RTL_LOCALES.includes(locale) ? "rtl" : "ltr";
+  });
+
+  // Apply the accessibility / customization settings to the document root; the
+  // matching CSS lives in app.css.
+  $effect(() => {
+    const s = settingsStore.settings;
+    const root = document.documentElement;
+    root.dataset.reduceMotion = String(!!s.reduceMotion);
+    root.dataset.readableFont = String(!!s.readableFont);
+    root.dataset.highContrast = String(!!s.highContrast);
+    root.dataset.reduceTransparency = String(!!s.reduceTransparency);
+    root.dataset.focus = String(!!s.alwaysShowFocus);
+    root.dataset.accent = s.accent || "";
+    root.style.setProperty("--ui-scale", String((s.uiScale ?? 100) / 100));
   });
 
   function onContextMenu(event: MouseEvent) {

@@ -4,9 +4,27 @@ import { fr } from "./locales/fr";
 import { es } from "./locales/es";
 import { de } from "./locales/de";
 import { pt } from "./locales/pt";
+import { pl } from "./locales/pl";
+import { ru } from "./locales/ru";
+import { tr } from "./locales/tr";
+import { ar } from "./locales/ar";
+import { ja } from "./locales/ja";
+import { ko } from "./locales/ko";
 import { zh } from "./locales/zh";
 
-export type LocaleCode = "en" | "fr" | "es" | "de" | "pt" | "zh";
+export type LocaleCode =
+  | "en"
+  | "fr"
+  | "es"
+  | "de"
+  | "pt"
+  | "pl"
+  | "ru"
+  | "tr"
+  | "ar"
+  | "ja"
+  | "ko"
+  | "zh";
 
 /** The English catalogue is the source of truth; other locales mirror its keys. */
 export type MessageKey = keyof typeof en;
@@ -17,8 +35,17 @@ const CATALOGUES: Record<LocaleCode, Partial<Record<MessageKey, string>>> = {
   es,
   de,
   pt,
+  pl,
+  ru,
+  tr,
+  ar,
+  ja,
+  ko,
   zh,
 };
+
+/** Right-to-left locales — the document direction flips for these. */
+export const RTL_LOCALES: LocaleCode[] = ["ar"];
 
 /** Selectable languages, in the order shown in Settings. */
 export const LOCALES: { code: LocaleCode; label: string }[] = [
@@ -27,6 +54,12 @@ export const LOCALES: { code: LocaleCode; label: string }[] = [
   { code: "es", label: "Español" },
   { code: "de", label: "Deutsch" },
   { code: "pt", label: "Português" },
+  { code: "pl", label: "Polski" },
+  { code: "ru", label: "Русский" },
+  { code: "tr", label: "Türkçe" },
+  { code: "ar", label: "العربية" },
+  { code: "ja", label: "日本語" },
+  { code: "ko", label: "한국어" },
   { code: "zh", label: "中文" },
 ];
 

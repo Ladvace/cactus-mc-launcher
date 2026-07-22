@@ -15,6 +15,9 @@ import type {
   PlayerEntry,
   SearchParams,
   SearchResults,
+  ContentCategory,
+  BrowseServersParams,
+  BrowseServersResult,
   ServerStatus,
   Settings,
   Source,
@@ -135,6 +138,9 @@ export const api = {
   searchContent: (source: Source, params: SearchParams) =>
     invoke<SearchResults>("search_content", { source, params }),
 
+  getContentCategories: () =>
+    invoke<ContentCategory[]>("get_content_categories"),
+
   contentVersions: (
     source: Source,
     projectId: string,
@@ -232,6 +238,9 @@ export const api = {
 
   pingServer: (address: string) =>
     invoke<ServerStatus>("ping_server", { address }),
+
+  browseServers: (params: BrowseServersParams) =>
+    invoke<BrowseServersResult>("browse_servers", { params }),
 
   tunnelStart: (authtoken: string, port = 25565) =>
     invoke<string>("tunnel_start", { authtoken, port }),

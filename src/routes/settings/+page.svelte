@@ -33,6 +33,7 @@
   import { THEME_PRESETS, DECOR_THEMES } from "$lib/themes";
   import { LINKS } from "$lib/links";
   import { playClick } from "$lib/sound";
+  import { MOD_LOADERS } from "$lib/types";
   import type { CacheStats, DockPosition, Settings } from "$lib/types";
 
   const DOCK_POSITIONS: { value: DockPosition; labelKey: MessageKey }[] = [
@@ -41,6 +42,38 @@
     { value: "left", labelKey: "settings.dockLeft" },
     { value: "right", labelKey: "settings.dockRight" },
   ];
+
+  const LOADER_OPTIONS = MOD_LOADERS.map((loader) => ({
+    value: loader.value as string,
+    label: loader.label,
+  }));
+
+  const ACCENTS: { value: string; color: string; labelKey: MessageKey }[] = [
+    { value: "", color: "#e8b23a", labelKey: "settings.accentGold" },
+    { value: "emerald", color: "#3fbf5f", labelKey: "settings.accentEmerald" },
+    { value: "diamond", color: "#4fd6d6", labelKey: "settings.accentDiamond" },
+    { value: "redstone", color: "#e5484d", labelKey: "settings.accentRedstone" },
+    { value: "lapis", color: "#4f86e0", labelKey: "settings.accentLapis" },
+    { value: "amethyst", color: "#9b6dff", labelKey: "settings.accentAmethyst" },
+  ];
+
+  type A11yKey =
+    | "reduceMotion"
+    | "readableFont"
+    | "highContrast"
+    | "reduceTransparency"
+    | "alwaysShowFocus";
+  const A11Y_TOGGLES: { key: A11yKey; labelKey: MessageKey; descKey: MessageKey }[] = [
+    { key: "reduceMotion", labelKey: "settings.reduceMotion", descKey: "settings.reduceMotionDesc" },
+    { key: "readableFont", labelKey: "settings.readableFont", descKey: "settings.readableFontDesc" },
+    { key: "highContrast", labelKey: "settings.highContrast", descKey: "settings.highContrastDesc" },
+    { key: "reduceTransparency", labelKey: "settings.reduceTransparency", descKey: "settings.reduceTransparencyDesc" },
+    { key: "alwaysShowFocus", labelKey: "settings.alwaysShowFocus", descKey: "settings.alwaysShowFocusDesc" },
+  ];
+
+  function saveOne<K extends keyof Settings>(key: K, value: Settings[K]) {
+    settingsStore.save({ ...settingsStore.settings, [key]: value });
+  }
 
   let draft = $state<Settings>({ ...settingsStore.settings });
   let saved = $state(false);
@@ -399,6 +432,40 @@
 
     <div class="setting">
       <div class="label">
+        <span>{t("settings.soundVolume")}</span>
+        <small>{draft.soundVolume}%</small>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        step="5"
+        class="range"
+        disabled={!draft.uiSounds}
+        bind:value={draft.soundVolume}
+        use:sliderFill={draft.soundVolume}
+        onchange={() => {
+          saveOne("soundVolume", draft.soundVolume);
+          if (draft.uiSounds) playClick();
+        }}
+      />
+    </div>
+
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.defaultLoader")}</span>
+        <small>{t("settings.defaultLoaderDesc")}</small>
+      </div>
+      <Select
+        bind:value={draft.defaultLoader}
+        options={LOADER_OPTIONS}
+        onchange={() => saveOne("defaultLoader", draft.defaultLoader)}
+        ariaLabel={t("settings.defaultLoader")}
+      />
+    </div>
+
+    <div class="setting">
+      <div class="label">
         <span>{t("settings.newsOnHome")}</span>
         <small>{t("settings.newsOnHomeDesc")}</small>
       </div>
@@ -496,7 +563,69 @@
   </section>
 
   <section class="card-block">
+    <h3>{t("settings.accessibility")}</h3>
+
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.uiScale")}</span>
+        <small>{draft.uiScale}%</small>
+      </div>
+      <input
+        type="range"
+        min="80"
+        max="140"
+        step="5"
+        class="range"
+        bind:value={draft.uiScale}
+        use:sliderFill={draft.uiScale}
+        oninput={() =>
+          document.documentElement.style.setProperty("--ui-scale", String(draft.uiScale / 100))}
+        onchange={() => saveOne("uiScale", draft.uiScale)}
+      />
+    </div>
+
+    {#each A11Y_TOGGLES as tog (tog.key)}
+      <div class="setting">
+        <div class="label">
+          <span>{t(tog.labelKey)}</span>
+          <small>{t(tog.descKey)}</small>
+        </div>
+        <label class="switch">
+          <input
+            type="checkbox"
+            bind:checked={draft[tog.key]}
+            onchange={() => saveOne(tog.key, draft[tog.key])}
+          />
+          <span class="track"><span class="thumb"></span></span>
+        </label>
+      </div>
+    {/each}
+  </section>
+
+  <section class="card-block">
     <h3>{t("settings.appearance")}</h3>
+
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.accent")}</span>
+        <small>{t("settings.accentDesc")}</small>
+      </div>
+      <div class="accents">
+        {#each ACCENTS as accent (accent.value)}
+          <button
+            class="accent-dot"
+            class:on={(draft.accent || "") === accent.value}
+            style="--dot:{accent.color}"
+            title={t(accent.labelKey)}
+            aria-label={t(accent.labelKey)}
+            onclick={() => {
+              draft.accent = accent.value;
+              saveOne("accent", accent.value);
+            }}
+          ></button>
+        {/each}
+      </div>
+    </div>
 
     <div class="label themes-label">
       <span>{t("settings.themePresets")}</span>
@@ -1307,6 +1436,27 @@
   }
   .range {
     width: 240px;
+  }
+  .accents {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .accent-dot {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: var(--dot);
+    border: 2px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.12s;
+  }
+  .accent-dot:hover {
+    transform: translateY(-2px);
+  }
+  .accent-dot.on {
+    border-color: var(--text);
+    box-shadow: 0 0 0 2px var(--dot);
   }
   .mem {
     width: 240px;
