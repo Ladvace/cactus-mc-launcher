@@ -4,6 +4,19 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.5.1] — 2026-07-22
+
+### Added
+- Notifications now **stack** — collapsed cards that fan out into a readable
+  list on hover, with their auto-dismiss paused while you're reading them.
+
+### Fixed
+- **Right-to-left (Arabic)** — toggles and sliders no longer break; their thumb
+  and fill render correctly while the surrounding labels flow right-to-left.
+- **Interface size** now works. It previously used CSS zoom, which broke
+  fixed-position elements like the dock; it now applies through the real webview
+  zoom. The slider also gained min / 100% / max tick marks.
+
 ## [1.5.0] — 2026-07-22
 
 ### Added
@@ -165,6 +178,7 @@ Early builds establishing the foundation:
 - Adaptive **Tune-up** (hardware-aware performance recommendations), themes,
   a customizable dock, and click sounds.
 
+[1.5.1]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Ladvace/cactus-mc-launcher/compare/v1.3.0...v1.3.1
