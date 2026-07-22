@@ -544,3 +544,12 @@ body {
   --accent-contrast: #170a2e;
   --accent-soft: rgba(155, 109, 255, 0.16);
 }
+
+/* RTL: these custom controls are built with direction-agnostic internal
+   positioning (a toggle thumb, a slider fill/thumb), so keep them LTR under
+   right-to-left locales — otherwise the thumb escapes the track and the slider
+   fill inverts. Their surrounding labels still flow RTL. */
+[dir="rtl"] input[type="range"],
+[dir="rtl"] .switch .track {
+  direction: ltr;
+}
