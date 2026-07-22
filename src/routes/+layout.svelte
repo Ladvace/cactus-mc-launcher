@@ -21,6 +21,7 @@
   import { initBoardApi } from "$lib/boardApi";
   import { ui } from "$lib/stores/ui.svelte";
   import { currentLocale, RTL_LOCALES } from "$lib/i18n";
+  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { backgroundCss } from "$lib/background";
   import { readJson } from "$lib/storage";
   import { playClick } from "$lib/sound";
@@ -68,7 +69,12 @@
     root.dataset.reduceTransparency = String(!!s.reduceTransparency);
     root.dataset.focus = String(!!s.alwaysShowFocus);
     root.dataset.accent = s.accent || "";
-    root.style.setProperty("--ui-scale", String((s.uiScale ?? 100) / 100));
+  });
+
+  // Whole-UI zoom via the real webview zoom (handles fixed layout correctly).
+  $effect(() => {
+    const scale = (settingsStore.settings.uiScale ?? 100) / 100;
+    getCurrentWebview().setZoom(scale).catch(() => {});
   });
 
   function onContextMenu(event: MouseEvent) {

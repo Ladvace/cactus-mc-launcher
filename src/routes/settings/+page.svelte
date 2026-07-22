@@ -9,6 +9,7 @@
   import { api } from "$lib/api";
   import { listen } from "@tauri-apps/api/event";
   import { getVersion } from "@tauri-apps/api/app";
+  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "$lib/components/Icon.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
@@ -95,6 +96,14 @@
   const memTicks = [1, 4, 8, 12, 16].map((gb, i, arr) => ({
     gb,
     pct: ((gb * 1024 - MEM_MIN) / (MEM_MAX - MEM_MIN)) * 100,
+    align: i === 0 ? "start" : i === arr.length - 1 ? "end" : "mid",
+  }));
+
+  const SCALE_MIN = 70;
+  const SCALE_MAX = 130;
+  const scaleTicks = [SCALE_MIN, 100, SCALE_MAX].map((v, i, arr) => ({
+    v,
+    pct: ((v - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100,
     align: i === 0 ? "start" : i === arr.length - 1 ? "end" : "mid",
   }));
 
@@ -570,18 +579,24 @@
         <span>{t("settings.uiScale")}</span>
         <small>{draft.uiScale}%</small>
       </div>
-      <input
-        type="range"
-        min="80"
-        max="140"
-        step="5"
-        class="range"
-        bind:value={draft.uiScale}
-        use:sliderFill={draft.uiScale}
-        oninput={() =>
-          document.documentElement.style.setProperty("--ui-scale", String(draft.uiScale / 100))}
-        onchange={() => saveOne("uiScale", draft.uiScale)}
-      />
+      <div class="mem">
+        <input
+          type="range"
+          min={SCALE_MIN}
+          max={SCALE_MAX}
+          step="5"
+          class="range"
+          bind:value={draft.uiScale}
+          use:sliderFill={draft.uiScale}
+          oninput={() => getCurrentWebview().setZoom(draft.uiScale / 100).catch(() => {})}
+          onchange={() => saveOne("uiScale", draft.uiScale)}
+        />
+        <div class="mem-ticks">
+          {#each scaleTicks as tick}
+            <span class="tick {tick.align}" style="left:{tick.pct}%">{tick.v}%</span>
+          {/each}
+        </div>
+      </div>
     </div>
 
     {#each A11Y_TOGGLES as tog (tog.key)}

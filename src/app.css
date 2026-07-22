@@ -458,13 +458,8 @@ button {
    set on <html> from the settings store (see +layout.svelte).
    ============================================================ */
 
-/* Whole-UI zoom */
-:root {
-  --ui-scale: 1;
-}
-body {
-  zoom: var(--ui-scale);
-}
+/* Whole-UI zoom is applied via the Tauri webview (setZoom), not CSS, so
+   fixed-position elements (dock, overlays) scale correctly. */
 
 /* Reduce motion — near-instant animations/transitions everywhere */
 [data-reduce-motion="true"] *,
