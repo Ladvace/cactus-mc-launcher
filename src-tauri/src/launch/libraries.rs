@@ -5,7 +5,7 @@ use tauri::AppHandle;
 
 use super::download::DownloadTask;
 use super::rules::{os_name, rules_allow};
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use crate::minecraft::version::{Artifact, Library};
 use crate::paths;
 
@@ -100,8 +100,16 @@ pub fn resolve(app: &AppHandle, libraries: &[Library]) -> Result<ResolvedLibrari
 
         let Some(dl) = &lib.downloads else {
             // Maven-style library (Fabric/Quilt/Forge): resolve from name + url.
+            // These go straight onto the classpath, so require HTTPS — a plaintext
+            // mirror could otherwise serve a swapped jar that runs in the JVM.
             if let Some(rel) = maven_to_path(&lib.name) {
                 let base_url = lib.url.as_deref().unwrap_or(MAVEN_CENTRAL);
+                if !base_url.starts_with("https://") {
+                    return Err(AppError::Other(format!(
+                        "refusing insecure (non-HTTPS) library source for {}: {base_url}",
+                        lib.name
+                    )));
+                }
                 let dest = base.join(&rel);
                 downloads.push(DownloadTask {
                     url: join_url(base_url, &rel),

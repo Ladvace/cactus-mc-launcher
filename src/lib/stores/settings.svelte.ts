@@ -33,6 +33,7 @@ const DEFAULTS: Settings = {
   highContrast: false,
   reduceTransparency: false,
   alwaysShowFocus: false,
+  menuBranding: true,
 };
 
 class SettingsStore {

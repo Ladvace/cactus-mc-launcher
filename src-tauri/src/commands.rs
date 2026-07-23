@@ -19,6 +19,13 @@ pub fn list_instances(store: State<'_, InstanceStore>) -> Vec<Instance> {
     store.list()
 }
 
+/// True when running inside a Flatpak sandbox (Flathub sets `FLATPAK_ID`). Used
+/// to disable the built-in self-updater — Flatpak apps update through the store.
+#[tauri::command]
+pub fn is_flatpak() -> bool {
+    std::env::var_os("FLATPAK_ID").is_some()
+}
+
 #[tauri::command]
 pub fn get_instance(store: State<'_, InstanceStore>, id: String) -> Result<Instance> {
     store.get(&id).ok_or(AppError::InstanceNotFound(id))
@@ -474,6 +481,12 @@ pub fn resolved_java_paths(app: AppHandle) -> std::collections::HashMap<u32, Str
 #[tauri::command]
 pub async fn login_microsoft(app: AppHandle) -> Result<AccountInfo> {
     auth::login(&app).await
+}
+
+/// Cancel an in-progress Microsoft device-code sign-in.
+#[tauri::command]
+pub fn cancel_login() {
+    auth::cancel_login();
 }
 
 #[tauri::command]

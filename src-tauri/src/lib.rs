@@ -58,6 +58,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::list_instances,
+            commands::is_flatpak,
             commands::get_instance,
             commands::create_instance,
             commands::update_instance,
@@ -96,6 +97,7 @@ pub fn run() {
             commands::setup_java,
             commands::resolved_java_paths,
             commands::login_microsoft,
+            commands::cancel_login,
             commands::get_accounts,
             commands::set_active_account,
             commands::remove_account,

@@ -38,12 +38,17 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-async function authed<T>(
-  path: string,
-  token: string,
-  init: RequestInit = {}
-): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+// The board session token expires server-side. When a call is rejected for that
+// reason we silently re-mint a fresh session (board_login uses the Minecraft
+// access token, so no user interaction) and retry once. The store registers
+// this to keep its reactive session in sync.
+let onSessionRefresh: ((session: BoardSession) => void) | null = null;
+export function onBoardSessionRefresh(cb: (session: BoardSession) => void): void {
+  onSessionRefresh = cb;
+}
+
+function doAuthedFetch(path: string, token: string, init: RequestInit): Promise<Response> {
+  return fetch(`${BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -51,6 +56,29 @@ async function authed<T>(
       Authorization: `Bearer ${token}`,
     },
   });
+}
+
+async function looksExpired(res: Response): Promise<boolean> {
+  if (res.status === 401 || res.status === 403) return true;
+  const body = await res.clone().json().catch(() => ({}));
+  return /expired|invalid.*session/i.test((body as any)?.error ?? "");
+}
+
+async function authed<T>(
+  path: string,
+  token: string,
+  init: RequestInit = {}
+): Promise<T> {
+  let res = await doAuthedFetch(path, token, init);
+  if (!res.ok && (await looksExpired(res))) {
+    try {
+      const fresh = await invoke<BoardSession>("board_login", { apiBase: BASE });
+      onSessionRefresh?.(fresh);
+      res = await doAuthedFetch(path, fresh.token, init);
+    } catch {
+      // Re-login failed (e.g. signed-out MC account) — surface the original error.
+    }
+  }
   await ensureOk(res);
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -131,12 +159,6 @@ export const boardApi = {
     authed<{ code: string }>(`/v1/codes`, token, {
       method: "POST",
       body: JSON.stringify({ snapshotId }),
-    }),
-
-  report: (token: string, targetHandle: string, reason: string) =>
-    authed<void>(`/v1/reports`, token, {
-      method: "POST",
-      body: JSON.stringify({ targetHandle, reason }),
     }),
 
   listPresence: (token: string) =>

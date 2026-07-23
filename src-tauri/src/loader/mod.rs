@@ -44,7 +44,9 @@ pub async fn list_versions(loader: ModLoader, mc_version: &str) -> Result<Vec<Lo
     let base = meta_base(loader)
         .ok_or_else(|| AppError::Other(format!("{loader:?} is not supported yet")))?;
     let url = format!("{base}/versions/loader/{mc_version}");
-    let entries: Vec<LoaderEntry> = reqwest::get(url)
+    let entries: Vec<LoaderEntry> = crate::http::client()?
+        .get(url)
+        .send()
         .await?
         .error_for_status()?
         .json()
@@ -98,7 +100,7 @@ async fn fetch_profile(
     let base = meta_base(loader)
         .ok_or_else(|| AppError::Other(format!("{loader:?} is not supported yet")))?;
     let url = format!("{base}/versions/loader/{mc_version}/{loader_version}/profile/json");
-    Ok(reqwest::get(url).await?.error_for_status()?.json().await?)
+    Ok(crate::http::client()?.get(url).send().await?.error_for_status()?.json().await?)
 }
 
 async fn resolve_version(

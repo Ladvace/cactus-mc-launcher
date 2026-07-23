@@ -1,5 +1,6 @@
 pub mod args;
 pub mod assets;
+pub mod branding;
 pub mod download;
 pub mod java;
 pub mod libraries;
@@ -172,7 +173,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
             AppError::Other(format!("Minecraft version '{}' not found", instance.mc_version))
         })?;
 
-    let mut detail = version::fetch_detail(app, &entry.id, &entry.url).await?;
+    let mut detail = version::fetch_detail(app, &entry.id, &entry.url, &entry.sha1).await?;
 
     // --- Ensure Java early (Forge/NeoForge need it to run their installer) ---
     emit_status(app, id, "preparing", Some("Preparing Java runtime…".into()));
@@ -270,6 +271,12 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         libraries::extract_natives(jar, &natives_dir, exclude)?;
     }
 
+    // Menu branding (Cactus wordmark + splashes) — one resource pack for every
+    // instance, vanilla or modded. Non-fatal: never block launch.
+    if let Err(error) = branding::apply(&game_dir, &instance.mc_version, settings.menu_branding) {
+        eprintln!("[branding] skipped for instance {id}: {error}");
+    }
+
     let (player_name, uuid, access_token) =
         match crate::auth::active_valid_account(app, &client).await? {
             Some(acc) => (acc.username, acc.uuid, acc.mc_access_token),
@@ -318,16 +325,26 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
 }
 
 /// On Apple Silicon, decide whether this version must run under x86_64/Rosetta.
-/// True when the version's LWJGL is older than 3.3.1 (the first release with
-/// arm64 macOS natives).
+/// True when the version's LWJGL has no arm64 macOS natives.
 fn macos_needs_rosetta(detail: &version::VersionDetail) -> bool {
     if !(cfg!(target_os = "macos") && std::env::consts::ARCH == "aarch64") {
         return false;
     }
-    for lib in &detail.libraries {
-        if let Some(version) = lib.name.strip_prefix("org.lwjgl:lwjgl:") {
-            return lwjgl_below_331(version);
-        }
+    detail
+        .libraries
+        .iter()
+        .any(|lib| lib_lacks_arm64_natives(&lib.name))
+}
+
+/// True if this library is an LWJGL build with no arm64 macOS natives. LWJGL 2
+/// (Maven group `org.lwjgl.lwjgl`, used by MC ≤1.12.2) never shipped any, and
+/// LWJGL 3 (group `org.lwjgl`) only gained them in 3.3.1.
+fn lib_lacks_arm64_natives(name: &str) -> bool {
+    if name.starts_with("org.lwjgl.lwjgl:lwjgl:") {
+        return true;
+    }
+    if let Some(version) = name.strip_prefix("org.lwjgl:lwjgl:") {
+        return lwjgl_below_331(version);
     }
     false
 }
@@ -346,7 +363,7 @@ fn lwjgl_below_331(version: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::lwjgl_below_331;
+    use super::{lib_lacks_arm64_natives, lwjgl_below_331};
 
     #[test]
     fn lwjgl_version_threshold() {
@@ -355,5 +372,18 @@ mod tests {
         assert!(!lwjgl_below_331("3.3.1"));
         assert!(!lwjgl_below_331("3.3.2"));
         assert!(!lwjgl_below_331("3.4.0"));
+    }
+
+    #[test]
+    fn arm64_native_detection() {
+        // LWJGL 2 (group org.lwjgl.lwjgl) never had arm64 macOS natives.
+        assert!(lib_lacks_arm64_natives(
+            "org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209"
+        ));
+        // LWJGL 3 gained them in 3.3.1.
+        assert!(lib_lacks_arm64_natives("org.lwjgl:lwjgl:3.2.2"));
+        assert!(!lib_lacks_arm64_natives("org.lwjgl:lwjgl:3.3.1"));
+        // Unrelated libraries never force Rosetta.
+        assert!(!lib_lacks_arm64_natives("com.mojang:authlib:1.5.25"));
     }
 }

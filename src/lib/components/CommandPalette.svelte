@@ -39,6 +39,7 @@
     { id: "act-accounts", label: t("palette.accounts"), hint: t("palette.hintAction"), icon: "user", run: () => ui.openAccounts() },
     { id: "act-update", label: t("palette.checkUpdates"), hint: t("palette.hintAction"), icon: "refresh", run: () => updater.check(true) },
     { id: "act-changelog", label: t("palette.whatsNew"), hint: t("palette.hintAction"), icon: "clock", run: () => ui.openChangelog() },
+    { id: "act-crafting", label: t("palette.crafting"), hint: t("palette.hintAction"), icon: "grid", run: () => ui.openCrafting() },
   ]);
 
   const instanceCmds = $derived<Cmd[]>(

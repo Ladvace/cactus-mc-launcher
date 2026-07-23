@@ -110,6 +110,11 @@
                 ? t("onboarding.signingIn")
                 : t("onboarding.waitingAuth")}
             </p>
+            {#if accountsStore.deviceCode.status !== "authorizing"}
+              <button class="btn ghost sm" onclick={() => accountsStore.cancelLogin()}>
+                {t("common.cancel")}
+              </button>
+            {/if}
           {:else}
             {#if accountsStore.microsoftConfigured}
               <p class="lead">{t("onboarding.msLead")}</p>

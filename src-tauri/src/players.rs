@@ -86,7 +86,7 @@ async fn resolve_player(app: &AppHandle, id: &str, name: &str) -> Result<(String
             name: String,
         }
         let url = format!("https://api.mojang.com/users/profiles/minecraft/{name}");
-        let resp = reqwest::get(&url).await?;
+        let resp = crate::http::client()?.get(&url).send().await?;
         if resp.status() == reqwest::StatusCode::NOT_FOUND {
             return Err(AppError::Other(format!("No Minecraft account named '{name}'.")));
         }

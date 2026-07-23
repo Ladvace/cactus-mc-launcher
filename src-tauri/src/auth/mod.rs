@@ -1,6 +1,7 @@
 pub mod microsoft;
 pub mod xbox;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -10,6 +11,16 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::error::{AppError, Result};
 use crate::paths;
+
+/// Set while a device-code login is polling; `cancel_login` flips it so the
+/// poll loop can bail out (e.g. the user started the flow by mistake). Only one
+/// login runs at a time, so a single flag is enough.
+static LOGIN_CANCEL: AtomicBool = AtomicBool::new(false);
+
+/// Signal the in-progress device-code login (if any) to stop polling.
+pub fn cancel_login() {
+    LOGIN_CANCEL.store(true, Ordering::SeqCst);
+}
 
 // Azure application client ID.
 //
@@ -110,8 +121,8 @@ impl AccountStore {
 
     fn persist(&self, app: &AppHandle, data: &AccountData) -> Result<()> {
         let file = paths::data_dir(app)?.join("accounts.json");
-        std::fs::write(&file, serde_json::to_string_pretty(data)?)?;
-        Ok(())
+        // Contains the long-lived Microsoft refresh token — keep it owner-only.
+        paths::write_private(&file, serde_json::to_string_pretty(data)?.as_bytes())
     }
 
     pub fn state(&self) -> AccountsState {
@@ -177,6 +188,7 @@ pub async fn login(app: &AppHandle) -> Result<AccountInfo> {
     let client_id = ensure_client_id()?;
     let http = http_client()?;
 
+    LOGIN_CANCEL.store(false, Ordering::SeqCst);
     let device_code = microsoft::request_device_code(&http, client_id).await?;
     let _ = app.emit(
         "auth-device-code",
@@ -195,7 +207,13 @@ pub async fn login(app: &AppHandle) -> Result<AccountInfo> {
         if Utc::now().timestamp() > deadline {
             return Err(AppError::Other("Login timed out. Please try again.".into()));
         }
-        tokio::time::sleep(Duration::from_secs(interval)).await;
+        // Sleep the poll interval in 1s slices so a cancel is picked up quickly.
+        for _ in 0..interval {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            if LOGIN_CANCEL.load(Ordering::SeqCst) {
+                return Err(AppError::Other("Sign-in cancelled.".into()));
+            }
+        }
         match microsoft::poll_token(&http, client_id, &device_code.device_code).await? {
             microsoft::PollOutcome::Pending => continue,
             microsoft::PollOutcome::SlowDown => {

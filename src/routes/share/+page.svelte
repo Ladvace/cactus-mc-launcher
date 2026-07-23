@@ -196,7 +196,7 @@
       <input bind:this={fileInput} type="file" accept=".cactuspack,.drakepack,.mrpack,application/zip" style="display:none" onchange={onFile} />
     </section>
 
-    <p class="tip"><Icon name="share" size={13} /> {t("community.exportTip")} <strong>{t("community.exportSetupAction")}</strong></p>
+    <p class="tip"><Icon name="share" size={13} /> {t("community.exportTip")} <strong>{t("instanceMenu.exportToFile")}</strong></p>
   {/if}
 </div>
 

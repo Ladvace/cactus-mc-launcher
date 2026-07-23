@@ -1,4 +1,5 @@
 import { browser } from "$app/environment";
+import { invoke } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { toast } from "$lib/stores/toast.svelte";
@@ -13,6 +14,9 @@ class Updater {
   downloaded = $state(0);
   total = $state(0);
   checking = $state(false);
+  // null = unknown; true when the build updates through a store (Flatpak), so
+  // Tauri's self-updater stays out of the way.
+  private managed: boolean | null = null;
 
   get pct(): number | null {
     return this.total > 0 ? Math.round((this.downloaded / this.total) * 100) : null;
@@ -20,6 +24,17 @@ class Updater {
 
   async check(manual = false) {
     if (!inTauri || this.checking || this.phase === "downloading" || this.phase === "installing") {
+      return;
+    }
+    if (this.managed === null) {
+      try {
+        this.managed = await invoke<boolean>("is_flatpak");
+      } catch {
+        this.managed = false;
+      }
+    }
+    if (this.managed) {
+      if (manual) toast.success("Updates are managed by your software centre (Flathub).");
       return;
     }
     this.checking = true;

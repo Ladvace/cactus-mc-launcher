@@ -7,11 +7,13 @@
   import InstanceContextMenu from "$lib/components/InstanceContextMenu.svelte";
   import StickerPicker from "$lib/components/StickerPicker.svelte";
   import GroupPicker from "$lib/components/GroupPicker.svelte";
+  import FolderOverlay from "$lib/components/FolderOverlay.svelte";
   import DecorLayer from "$lib/components/DecorLayer.svelte";
   import Toaster from "$lib/components/Toaster.svelte";
   import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
   import ChangelogModal from "$lib/components/ChangelogModal.svelte";
+  import CraftingTable from "$lib/components/CraftingTable.svelte";
   import Onboarding from "$lib/components/Onboarding.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
@@ -124,10 +126,12 @@
 <InstanceContextMenu />
 <StickerPicker />
 <GroupPicker />
+<FolderOverlay name={ui.folderOpen} onClose={() => ui.closeFolder()} />
 <Toaster />
 <UpdatePrompt />
 <CommandPalette />
 <ChangelogModal open={ui.changelogOpen} onClose={() => ui.closeChangelog()} />
+<CraftingTable open={ui.craftingOpen} onClose={() => ui.closeCrafting()} />
 
 {#if !onboarded && settingsStore.loaded}
   <Onboarding onDone={() => (onboarded = true)} />

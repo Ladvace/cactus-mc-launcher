@@ -3,7 +3,6 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import Icon from "./Icon.svelte";
   import { boardApi } from "$lib/boardApi";
-  import { boardAuth } from "$lib/stores/boardAuth.svelte";
   import { followedBoards } from "$lib/stores/followedBoards.svelte";
   import { recordImport } from "$lib/importedFrom";
   import { instancesStore } from "$lib/stores/instances.svelte";
@@ -20,8 +19,6 @@
   let error = $state<string | null>(null);
   let importingId = $state<string | null>(null);
   let importedIds = $state<string[]>([]);
-  let reportOpen = $state(false);
-  let reportReason = $state("");
 
   const following = $derived(board ? followedBoards.isFollowing(board.handle) : false);
 
@@ -63,18 +60,6 @@
     }
   }
 
-  async function submitReport() {
-    const token = boardAuth.token;
-    if (!token || !reportReason.trim() || !board) return;
-    try {
-      await boardApi.report(token, board.handle, reportReason.trim());
-      toast.success(t("community.reportSubmitted"));
-    } catch (err) {
-      toast.error(String(err));
-    }
-    reportOpen = false;
-    reportReason = "";
-  }
 </script>
 
 {#if loading}
@@ -162,18 +147,6 @@
       </div>
     {/if}
   </section>
-
-  <div class="report">
-    {#if reportOpen}
-      <textarea class="input" rows="2" placeholder={t("community.reportPlaceholder")} bind:value={reportReason}></textarea>
-      <div class="report-actions">
-        <button class="btn ghost" onclick={() => (reportOpen = false)}>{t("common.cancel")}</button>
-        <button class="btn danger" disabled={!reportReason.trim()} onclick={submitReport}>{t("community.submitReport")}</button>
-      </div>
-    {:else if boardAuth.signedIn}
-      <button class="flag" onclick={() => (reportOpen = true)}>{t("community.reportBoard")}</button>
-    {/if}
-  </div>
 {/if}
 
 <style>
@@ -314,24 +287,5 @@
   }
   .btn.sm {
     align-self: flex-start;
-  }
-  .report {
-    margin-top: 18px;
-    text-align: center;
-  }
-  .flag {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    font-size: 12px;
-  }
-  .flag:hover {
-    color: var(--danger);
-  }
-  .report-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 8px;
   }
 </style>

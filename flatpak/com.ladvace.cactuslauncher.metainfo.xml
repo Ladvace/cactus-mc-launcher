@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metainfo for Flathub. Validate before submitting:
+    flatpak run org.freedesktop.appstream-glib validate com.ladvace.cactuslauncher.metainfo.xml
+  TODO before submission:
+    - Replace the <screenshot> image URLs with real, reachable PNG/JPG URLs
+      (Flathub fetches and validates them). Host them anywhere public.
+    - Keep the <releases> list in sync with each tagged release.
+-->
+<component type="desktop-application">
+  <id>com.ladvace.cactuslauncher</id>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+
+  <name>Cactus Launcher</name>
+  <summary>Arrange instances, install mods, and play Minecraft</summary>
+
+  <developer id="com.gianmarcocavallo">
+    <name>Gianmarco Cavallo</name>
+  </developer>
+
+  <description>
+    <p>
+      Cactus is a small, open-source Minecraft launcher. Arrange your instances,
+      install mods and modpacks, run servers, and play together — with no ads,
+      no tracking, and no bloat.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Organize instances into folders with a tidy, rearrangeable home grid</li>
+      <li>Browse and install mods, modpacks, resource packs, shaders and datapacks from Modrinth and CurseForge</li>
+      <li>Fabric, Quilt, Forge and NeoForge support, with managed Java runtimes</li>
+      <li>Run and share dedicated servers</li>
+      <li>Skins, capes, and a built-in skin editor</li>
+      <li>Multiple languages and accessibility options</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.ladvace.cactuslauncher.desktop</launchable>
+
+  <categories>
+    <category>Game</category>
+  </categories>
+
+  <keywords>
+    <keyword>Minecraft</keyword>
+    <keyword>launcher</keyword>
+    <keyword>mods</keyword>
+    <keyword>modpack</keyword>
+    <keyword>Fabric</keyword>
+    <keyword>Forge</keyword>
+  </keywords>
+
+  <url type="homepage">https://cactus.gianmarcocavallo.com</url>
+  <url type="bugtracker">https://github.com/Ladvace/cactus-mc-launcher/issues</url>
+  <url type="vcs-browser">https://github.com/Ladvace/cactus-mc-launcher</url>
+
+  <!-- TODO: replace with real, reachable screenshot URLs before submission. -->
+  <screenshots>
+    <screenshot type="default">
+      <image>https://cactus.gianmarcocavallo.com/screenshots/home.png</image>
+      <caption>The home screen with your instances</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://cactus.gianmarcocavallo.com/screenshots/browse.png</image>
+      <caption>Browsing and installing mods</caption>
+    </screenshot>
+  </screenshots>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#f0b429</color>
+    <color type="primary" scheme_preference="dark">#3a2f12</color>
+  </branding>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="1.5.1" date="2026-07-23"/>
+  </releases>
+</component>

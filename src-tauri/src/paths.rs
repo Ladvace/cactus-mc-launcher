@@ -1,8 +1,21 @@
 use crate::error::Result;
 use crate::instance::store::InstanceStore;
 use crate::settings::SettingsStore;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
+
+/// Write a file containing secrets (tokens, API keys) and restrict it to the
+/// owner (`0600` on Unix). On Windows the per-user profile ACL already keeps it
+/// private, so the mode is a no-op there.
+pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
+    std::fs::write(path, contents)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+    }
+    Ok(())
+}
 
 /// The OS default app data dir (e.g. `~/Library/Application Support/<id>`). The
 /// data-location pointer always lives here, even when data is redirected.

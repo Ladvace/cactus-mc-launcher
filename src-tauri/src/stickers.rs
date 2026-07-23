@@ -101,7 +101,10 @@ pub async fn search(api_key: &str, query: &str, offset: u32) -> Result<Vec<Stick
 }
 
 pub async fn download_data_uri(url: &str) -> Result<String> {
-    let resp = reqwest::get(url).await?.error_for_status()?;
+    // The URL comes from the webview (Giphy/skin/cape images) — refuse anything
+    // that resolves to a private/loopback address so this can't be an SSRF probe.
+    crate::http::ensure_public_url(url).await?;
+    let resp = crate::http::client()?.get(url).send().await?.error_for_status()?;
     let content_type = resp
         .headers()
         .get(reqwest::header::CONTENT_TYPE)

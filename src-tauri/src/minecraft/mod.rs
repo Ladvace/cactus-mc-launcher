@@ -17,6 +17,10 @@ pub struct MinecraftVersion {
     pub kind: String,
     pub url: String,
     pub release_time: String,
+    /// sha1 of the per-version JSON at `url` (from `version_manifest_v2`), used
+    /// to verify the detail JSON before it's trusted/cached.
+    #[serde(default)]
+    pub sha1: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,7 +44,9 @@ pub struct VersionList {
 }
 
 pub async fn fetch_versions() -> Result<VersionList> {
-    let manifest: VersionManifest = reqwest::get(VERSION_MANIFEST_URL)
+    let manifest: VersionManifest = crate::http::client()?
+        .get(VERSION_MANIFEST_URL)
+        .send()
         .await?
         .error_for_status()?
         .json()

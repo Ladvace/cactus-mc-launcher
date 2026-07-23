@@ -18,6 +18,7 @@ class AccountsStore {
   loggingIn = $state(false);
 
   #started = false;
+  #cancelling = false;
 
   async init() {
     if (this.#started) return;
@@ -53,15 +54,28 @@ class AccountsStore {
     this.loggingIn = true;
     this.loginError = null;
     this.deviceCode = null;
+    this.#cancelling = false;
     try {
       await api.loginMicrosoft();
       await this.refresh();
     } catch (error) {
-      this.loginError = String(error);
+      // A user-initiated cancel isn't an error worth showing.
+      if (!this.#cancelling) this.loginError = String(error);
     } finally {
       this.loggingIn = false;
       this.deviceCode = null;
+      this.#cancelling = false;
     }
+  }
+
+  /// Stop an in-progress sign-in. Clears the UI immediately; the backend poll
+  /// loop bails within ~1s and its "cancelled" error is then swallowed.
+  cancelLogin() {
+    if (!this.loggingIn) return;
+    this.#cancelling = true;
+    this.deviceCode = null;
+    this.loginError = null;
+    api.cancelLogin().catch(() => {});
   }
 
   async setActive(id: string | null) {

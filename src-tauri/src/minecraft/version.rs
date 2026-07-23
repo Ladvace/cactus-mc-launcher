@@ -1,10 +1,17 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use sha1::{Digest, Sha1};
 use tauri::AppHandle;
 
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use crate::paths;
+
+fn sha1_matches(bytes: &[u8], expected: &str) -> bool {
+    let mut hasher = Sha1::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize()).eq_ignore_ascii_case(expected)
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Artifact {
@@ -156,18 +163,41 @@ pub struct VersionDetail {
     pub minecraft_arguments: Option<String>,
 }
 
-pub async fn fetch_detail(app: &AppHandle, id: &str, url: &str) -> Result<VersionDetail> {
+/// Fetch a version's detail JSON. `sha1` is the hash from the version manifest;
+/// the JSON (whose `arguments.jvm` become real launch flags) is verified against
+/// it before being trusted — both when read from cache and when freshly
+/// downloaded — so a poisoned cache or a compromised meta transport can't inject
+/// JVM arguments. An empty `sha1` (unknown) skips verification for compatibility.
+pub async fn fetch_detail(
+    app: &AppHandle,
+    id: &str,
+    url: &str,
+    sha1: &str,
+) -> Result<VersionDetail> {
     let cache = paths::version_dir(app, id)?.join(format!("{id}.json"));
     if cache.exists() {
-        if let Ok(text) = std::fs::read_to_string(&cache) {
-            if let Ok(detail) = serde_json::from_str::<VersionDetail>(&text) {
-                return Ok(detail);
+        if let Ok(bytes) = std::fs::read(&cache) {
+            if sha1.is_empty() || sha1_matches(&bytes, sha1) {
+                if let Ok(detail) = serde_json::from_slice::<VersionDetail>(&bytes) {
+                    return Ok(detail);
+                }
             }
         }
     }
-    let text = reqwest::get(url).await?.error_for_status()?.text().await?;
-    let detail: VersionDetail = serde_json::from_str(&text)?;
-    std::fs::write(&cache, &text)?;
+    let bytes = crate::http::client()?
+        .get(url)
+        .send()
+        .await?
+        .error_for_status()?
+        .bytes()
+        .await?;
+    if !sha1.is_empty() && !sha1_matches(&bytes, sha1) {
+        return Err(AppError::Other(format!(
+            "version JSON for {id} failed hash verification"
+        )));
+    }
+    let detail: VersionDetail = serde_json::from_slice(&bytes)?;
+    std::fs::write(&cache, &bytes)?;
     Ok(detail)
 }
 

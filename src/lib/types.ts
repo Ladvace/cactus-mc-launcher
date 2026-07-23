@@ -233,6 +233,8 @@ export interface Settings {
   reduceTransparency: boolean;
   /** Always show keyboard focus outlines. */
   alwaysShowFocus: boolean;
+  /** Show Cactus branding (wordmark + splashes) on the in-game title screen. */
+  menuBranding: boolean;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";

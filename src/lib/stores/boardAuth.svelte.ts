@@ -1,4 +1,4 @@
-import { boardApi } from "$lib/boardApi";
+import { boardApi, onBoardSessionRefresh } from "$lib/boardApi";
 import { readJson, removeJson, writeJson } from "$lib/storage";
 import type { BoardSession } from "$lib/types";
 
@@ -12,6 +12,14 @@ class BoardAuth {
   session = $state<BoardSession | null>(load());
   loggingIn = $state(false);
   error = $state<string | null>(null);
+
+  constructor() {
+    // Adopt any session the API layer silently re-mints on token expiry.
+    onBoardSessionRefresh((session) => {
+      this.session = session;
+      writeJson(KEY, session);
+    });
+  }
 
   get token(): string | null {
     return this.session?.token ?? null;

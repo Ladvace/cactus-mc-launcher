@@ -22,6 +22,13 @@ fn concise_args(args: &[String]) -> String {
             out.push("-cp".to_string());
             out.push(format!("<{count} jars>"));
             index += 2;
+        } else if matches!(args[index].as_str(), "--accessToken" | "--session") && index + 1 < args.len()
+        {
+            // Never log the live Minecraft session token, even though it must be
+            // passed to the game itself.
+            out.push(args[index].clone());
+            out.push("<redacted>".to_string());
+            index += 2;
         } else {
             out.push(args[index].clone());
             index += 1;

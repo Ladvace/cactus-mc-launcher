@@ -38,7 +38,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         .ok_or_else(|| {
             AppError::Other(format!("Minecraft version '{}' not found", instance.mc_version))
         })?;
-    let detail = version::fetch_detail(app, &entry.id, &entry.url).await?;
+    let detail = version::fetch_detail(app, &entry.id, &entry.url, &entry.sha1).await?;
 
     // Java (servers don't use LWJGL, so no Rosetta special-casing).
     super::emit_status(app, id, "preparing", Some("Preparing Java runtime…".into()));

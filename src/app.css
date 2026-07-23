@@ -539,6 +539,13 @@ button {
   --accent-contrast: #170a2e;
   --accent-soft: rgba(155, 109, 255, 0.16);
 }
+/* Secret accent — unlocked by crafting a Torch. */
+[data-accent="amber"] {
+  --accent: #ff8c3b;
+  --accent-hover: #ffa155;
+  --accent-contrast: #2a1405;
+  --accent-soft: rgba(255, 140, 59, 0.16);
+}
 
 /* RTL: these custom controls are built with direction-agnostic internal
    positioning (a toggle thumb, a slider fill/thumb), so keep them LTR under

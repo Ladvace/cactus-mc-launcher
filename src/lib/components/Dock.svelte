@@ -9,6 +9,7 @@
   import { launchStore } from "$lib/stores/launch.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
+  import { groupCovers } from "$lib/stores/groupCovers.svelte";
   import { skinFace } from "$lib/skin";
   import { ui } from "$lib/stores/ui.svelte";
   import { DECOR_THEMES } from "$lib/themes";
@@ -33,18 +34,40 @@
 
   let winH = $state(browser ? window.innerHeight : 900);
 
+  // Ungrouped instances plus one tile per folder — mirrors the home grid so the
+  // dock and home stay in sync.
+  type Entry =
+    | { kind: "instance"; instance: Instance }
+    | { kind: "folder"; name: string; instances: Instance[] };
+
+  const dockEntries = $derived.by<Entry[]>(() => {
+    const groups = new Map<string, Instance[]>();
+    const list: Entry[] = [];
+    for (const instance of instancesStore.instances) {
+      if (instance.group) {
+        (groups.get(instance.group) ?? groups.set(instance.group, []).get(instance.group)!).push(instance);
+      } else {
+        list.push({ kind: "instance", instance });
+      }
+    }
+    for (const [name, instances] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      list.push({ kind: "folder", name, instances });
+    }
+    return list;
+  });
+
   const cap = $derived.by(() => {
     if (horizontal) return 7;
     const chrome = 52; // dock padding + border + a little breathing room
     const perTile = 56; // ITEM (48) + GAP (8)
     const fixed = 6 * perTile + 2 * 14; // 6 fixed tiles + 2 separators
     const slots = Math.max(1, Math.min(7, Math.floor((winH - chrome - fixed) / perTile)));
-    const total = instancesStore.instances.length;
+    const total = dockEntries.length;
     return total <= slots ? slots : Math.max(1, slots - 1);
   });
-  const pinned = $derived(instancesStore.instances.slice(0, cap));
-  const overflow = $derived(Math.max(0, instancesStore.instances.length - cap));
-  const overflowList = $derived(instancesStore.instances.slice(cap));
+  const pinned = $derived(dockEntries.slice(0, cap));
+  const overflow = $derived(Math.max(0, dockEntries.length - cap));
+  const overflowList = $derived(dockEntries.slice(cap));
 
   let overflowMenu = $state<string | null>(null);
   $effect(() => {
@@ -73,6 +96,7 @@
     | { kind: "nav"; href: string; icon: string; label: string }
     | { kind: "sep" }
     | { kind: "instance"; instance: Instance; label: string }
+    | { kind: "folder"; name: string; instances: Instance[]; label: string }
     | { kind: "overflow"; count: number; label: string }
     | { kind: "downloads"; pct: number | null; targetId: string | null; label: string }
     | { kind: "add"; label: string }
@@ -80,9 +104,13 @@
     | { kind: "account"; label: string };
 
   const dlId = $derived(installStore.primaryInstanceId());
-  const showDownloads = $derived(
-    installStore.anyActive() && !(dlId && pinned.some((instance) => instance.id === dlId))
-  );
+  const pinnedHasId = (id: string) =>
+    pinned.some(
+      (entry) =>
+        (entry.kind === "instance" && entry.instance.id === id) ||
+        (entry.kind === "folder" && entry.instances.some((inst) => inst.id === id))
+    );
+  const showDownloads = $derived(installStore.anyActive() && !(dlId && pinnedHasId(dlId)));
 
   const items = $derived<Item[]>([
     { kind: "nav", href: "/", icon: "home", label: t("nav.home") },
@@ -90,8 +118,10 @@
     { kind: "nav", href: "/servers", icon: "globe", label: t("nav.servers") },
     { kind: "nav", href: "/share", icon: "users", label: t("nav.community") },
     { kind: "sep" },
-    ...pinned.map(
-      (instance): Item => ({ kind: "instance", instance: instance, label: instance.name })
+    ...pinned.map((entry): Item =>
+      entry.kind === "folder"
+        ? { kind: "folder", name: entry.name, instances: entry.instances, label: entry.name }
+        : { kind: "instance", instance: entry.instance, label: entry.instance.name }
     ),
     ...(overflow > 0
       ? [
@@ -185,6 +215,7 @@
   function activate(item: Item, event: MouseEvent) {
     if (item.kind === "nav" || item.kind === "settings") goto(item.href);
     else if (item.kind === "instance") goto(`/instance/${item.instance.id}`);
+    else if (item.kind === "folder") ui.openFolder(item.name);
     else if (item.kind === "overflow") toggleOverflow(event);
     else if (item.kind === "downloads") {
       if (item.targetId) goto(`/instance/${item.targetId}`);
@@ -195,6 +226,10 @@
   function openOverflowInstance(id: string) {
     overflowMenu = null;
     goto(`/instance/${id}`);
+  }
+  function openOverflowFolder(name: string) {
+    overflowMenu = null;
+    ui.openFolder(name);
   }
 </script>
 
@@ -246,6 +281,14 @@
               </span>
             {:else if item.kind === "add"}
               <Icon name="plus" size={24} />
+            {:else if item.kind === "folder"}
+              {@const cover = groupCovers.get(item.name)}
+              {#if cover}
+                <img class="folder-cover" src={cover} alt="" />
+              {:else}
+                <Icon name="folder" size={24} />
+              {/if}
+              <span class="kind-badge folder-count">{item.instances.length}</span>
             {:else if item.kind === "instance"}
               <InstanceIcon instance={item.instance} size={44} />
               {#if item.instance.kind === "server"}
@@ -300,11 +343,19 @@
 {#if overflowMenu}
   <button class="ov-backdrop" aria-label={t("dock.closeMenu")} onclick={() => (overflowMenu = null)}></button>
   <div class="ov-menu" style={overflowMenu}>
-    {#each overflowList as inst (inst.id)}
-      <button class="ov-item" onclick={() => openOverflowInstance(inst.id)}>
-        <InstanceIcon instance={inst} size={24} />
-        <span class="ov-name">{inst.name}</span>
-      </button>
+    {#each overflowList as entry (entry.kind === "folder" ? `folder:${entry.name}` : entry.instance.id)}
+      {#if entry.kind === "folder"}
+        <button class="ov-item" onclick={() => openOverflowFolder(entry.name)}>
+          <span class="ov-folder"><Icon name="folder" size={18} /></span>
+          <span class="ov-name">{entry.name}</span>
+          <span class="ov-count">{entry.instances.length}</span>
+        </button>
+      {:else}
+        <button class="ov-item" onclick={() => openOverflowInstance(entry.instance.id)}>
+          <InstanceIcon instance={entry.instance} size={24} />
+          <span class="ov-name">{entry.instance.name}</span>
+        </button>
+      {/if}
     {/each}
   </div>
 {/if}
@@ -502,6 +553,18 @@
     background: var(--accent);
     pointer-events: none;
   }
+  .folder-count {
+    top: auto;
+    left: auto;
+    bottom: 2px;
+    right: 2px;
+  }
+  .folder-cover {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    image-rendering: pixelated;
+  }
   /* "beta" tag on the Community dock tile. */
   .beta-badge {
     position: absolute;
@@ -569,6 +632,20 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .ov-folder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--text-muted);
+  }
+  .ov-count {
+    margin-left: auto;
+    padding-left: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
   }
   .dock-dl {
     position: absolute;

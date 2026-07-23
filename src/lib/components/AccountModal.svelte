@@ -127,6 +127,11 @@
             ? t("account.signingIn")
             : t("account.waitingAuthorize")}
         </p>
+        {#if deviceCode.status !== "authorizing"}
+          <button class="btn ghost sm dc-cancel" onclick={() => accountsStore.cancelLogin()}>
+            {t("common.cancel")}
+          </button>
+        {/if}
       </div>
     {:else}
       <button

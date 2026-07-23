@@ -4,6 +4,7 @@
   import Select from "$lib/components/Select.svelte";
   import { api } from "$lib/api";
   import { formatCount } from "$lib/format";
+  import { readJson, writeJson } from "$lib/storage";
   import { t, type MessageKey } from "$lib/i18n";
   import {
     SOURCES,
@@ -59,6 +60,9 @@
 
   let selectedHit = $state<SearchHit | null>(null);
   let modalOpen = $state(false);
+
+  let view = $state<"grid" | "list">(readJson<"grid" | "list">("cactus:browseView", "grid"));
+  $effect(() => writeJson("cactus:browseView", view));
 
   const LIMIT = 20;
   const showLoader = $derived(activeType === "mod" || activeType === "modpack");
@@ -261,6 +265,28 @@
         {#if activeFilterCount > 0}<span class="count">{activeFilterCount}</span>{/if}
       </button>
     {/if}
+    <div class="view-toggle" role="group" aria-label={t("browse.viewLabel")}>
+      <button
+        class="vt"
+        class:on={view === "grid"}
+        onclick={() => (view = "grid")}
+        title={t("browse.viewGrid")}
+        aria-label={t("browse.viewGrid")}
+        aria-pressed={view === "grid"}
+      >
+        <Icon name="grid" size={14} />
+      </button>
+      <button
+        class="vt"
+        class:on={view === "list"}
+        onclick={() => (view = "list")}
+        title={t("browse.viewList")}
+        aria-label={t("browse.viewList")}
+        aria-pressed={view === "list"}
+      >
+        <Icon name="list" size={14} />
+      </button>
+    </div>
   </div>
 
   {#if advancedAvailable && showFilters}
@@ -316,7 +342,7 @@
       <button class="btn ghost" onclick={search}>{t("common.retry")}</button>
     </div>
   {:else if loading}
-    <div class="results">
+    <div class="results" class:list={view === "list"}>
       {#each Array(8) as _, index (index)}
         <div class="card skel">
           <span class="skeleton" style="width:56px;height:56px"></span>
@@ -332,7 +358,7 @@
   {:else if hits.length === 0}
     <div class="status">{t("browse.noResults")}</div>
   {:else}
-    <div class="results">
+    <div class="results" class:list={view === "list"}>
       {#each hits as hit (hit.projectId)}
         <button class="card" onclick={() => openProject(hit)}>
           {#if hit.iconUrl}
@@ -425,6 +451,33 @@
   .filters-btn.on {
     border-color: var(--accent);
     color: var(--text);
+  }
+  .view-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    border: 2px solid var(--border);
+    box-shadow: inset 2px 2px 0 rgba(0, 0, 0, 0.28);
+  }
+  .vt {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    background: var(--bg-input);
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s;
+  }
+  .vt + .vt {
+    border-left: 2px solid var(--border);
+  }
+  .vt:hover {
+    color: var(--text);
+  }
+  .vt.on {
+    background: var(--accent);
+    color: var(--accent-contrast);
   }
   .filters-btn .count {
     display: inline-flex;
@@ -558,6 +611,13 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 14px;
+  }
+  .results.list {
+    grid-template-columns: 1fr;
+  }
+  .results.list .card-desc {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
   }
   .card {
     display: flex;

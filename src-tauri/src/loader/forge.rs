@@ -60,7 +60,9 @@ fn match_version(loader: ModLoader, mc: &str, raw: &str) -> Option<String> {
 
 /// List Forge/NeoForge builds for a Minecraft version (newest first).
 pub async fn list_versions(loader: ModLoader, mc: &str) -> Result<Vec<LoaderVersion>> {
-    let xml = reqwest::get(metadata_url(loader))
+    let xml = crate::http::client()?
+        .get(metadata_url(loader))
+        .send()
         .await?
         .error_for_status()?
         .text()

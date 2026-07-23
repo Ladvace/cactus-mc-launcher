@@ -89,6 +89,9 @@ pub struct Settings {
     pub reduce_transparency: bool,
     #[serde(default)]
     pub always_show_focus: bool,
+    /// Show Cactus branding (wordmark + splashes) on the in-game title screen.
+    #[serde(default = "default_true")]
+    pub menu_branding: bool,
 }
 
 fn default_ui_scale() -> u32 {
@@ -149,6 +152,7 @@ impl Default for Settings {
             high_contrast: false,
             reduce_transparency: false,
             always_show_focus: false,
+            menu_branding: true,
         }
     }
 }
@@ -176,7 +180,8 @@ impl SettingsStore {
 
     pub fn save(&self, app: &AppHandle, settings: Settings) -> Result<()> {
         let file = paths::settings_file(app)?;
-        std::fs::write(&file, serde_json::to_string_pretty(&settings)?)?;
+        // Holds the ngrok authtoken + Giphy key — keep it owner-only.
+        paths::write_private(&file, serde_json::to_string_pretty(&settings)?.as_bytes())?;
         *self.inner.lock().unwrap() = settings;
         Ok(())
     }

@@ -5,7 +5,6 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { instanceLayout } from "$lib/stores/instanceLayout.svelte";
   import HomeGrid, { type Entry } from "$lib/components/HomeGrid.svelte";
-  import FolderOverlay from "$lib/components/FolderOverlay.svelte";
   import GroupContextMenu from "$lib/components/GroupContextMenu.svelte";
   import InstanceCardSkeleton from "$lib/components/InstanceCardSkeleton.svelte";
   import NewsSection from "$lib/components/NewsSection.svelte";
@@ -28,7 +27,6 @@
     ...MOD_LOADERS.map((loader) => ({ value: loader.value, label: loader.label })),
   ]);
   let arranging = $state(false);
-  let openFolder = $state<string | null>(null);
 
   const entries = $derived.by<Entry[]>(() => {
     const map = new Map<string, Instance[]>();
@@ -233,12 +231,11 @@
   {:else if filtered.length === 0}
     <p class="muted">{t("home.noMatchFilters")}</p>
   {:else}
-    <HomeGrid {entries} {arranging} onOpenFolder={(name) => (openFolder = name)} />
+    <HomeGrid {entries} {arranging} onOpenFolder={(name) => ui.openFolder(name)} />
   {/if}
 </div>
 
-<FolderOverlay name={openFolder} onClose={() => (openFolder = null)} />
-<GroupContextMenu onOpenFolder={(name) => (openFolder = name)} />
+<GroupContextMenu onOpenFolder={(name) => ui.openFolder(name)} />
 
 <input
   bind:this={fileInput}

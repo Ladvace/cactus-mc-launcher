@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import { flip } from "svelte/animate";
+  import { quintOut } from "svelte/easing";
   import InstanceCard from "./InstanceCard.svelte";
   import InstanceIcon from "./InstanceIcon.svelte";
   import { instanceLayout } from "$lib/stores/instanceLayout.svelte";
@@ -109,8 +110,8 @@
       zIndex: "500",
       pointerEvents: "none",
       opacity: "1",
-      transform: "scale(1.05)",
-      transition: "transform 0.12s ease",
+      transform: "scale(1.06) rotate(2.5deg)",
+      transition: "transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1)",
     });
     document.body.appendChild(cloneEl);
     return cloneEl;
@@ -306,7 +307,7 @@
       data-entry-id={entry.id}
       style="grid-column: span {cell.w}; grid-row: span {cell.h};"
       onpointerdown={(event) => onTilePointerDown(event, entry)}
-      animate:flip={{ duration: 180 }}
+      animate:flip={{ duration: 260, easing: quintOut }}
     >
       {#if entry.kind === "instance"}
         <InstanceCard instance={entry.instance} iconSize={iconFor(cell.w, cell.h)} fill />
@@ -372,47 +373,72 @@
     transition: transform 0.12s;
   }
   .grid.arranging .tile {
-    animation: jiggle 0.5s ease-in-out infinite;
+    animation: jiggle 0.62s ease-in-out infinite;
   }
-  .grid.arranging .tile:nth-child(even) {
-    animation-delay: -0.25s;
+  /* Stagger in three groups so the wobble reads as organic, not synchronized. */
+  .grid.arranging .tile:nth-child(3n) {
+    animation-delay: -0.21s;
+  }
+  .grid.arranging .tile:nth-child(3n + 1) {
+    animation-delay: -0.42s;
   }
   .grid.arranging .tile:hover,
-  .tile.resizing {
+  .tile.resizing,
+  .tile.dragging {
     animation: none !important;
   }
-  .grid.arranging .tile :global(.card) {
+  .grid.arranging .tile:hover {
+    transform: translateY(-2px);
+    z-index: 2;
+  }
+  .grid.arranging .tile :global(.card),
+  .grid.arranging .folder {
     pointer-events: none;
     border-style: dashed;
+    transition: border-color 0.12s, transform 0.12s;
   }
   .tile.dragging {
-    opacity: 0.28;
-    animation: none;
+    opacity: 0.34;
   }
   .tile.dragging :global(.card),
   .tile.dragging .folder {
     filter: grayscale(0.4);
+    border-style: solid;
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
   }
   .tile.droptarget :global(.card),
   .tile.droptarget .folder {
-    outline: 3px solid var(--accent);
-    outline-offset: -3px;
-    transform: scale(1.03);
-    transition: transform 0.12s ease;
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    transform: scale(1.04);
+    box-shadow: 0 0 0 5px var(--accent-soft);
+    transition: transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.14s ease;
   }
   @keyframes jiggle {
     0%,
     100% {
-      transform: rotate(-0.5deg);
+      transform: rotate(-0.4deg);
     }
     50% {
-      transform: rotate(0.5deg);
+      transform: rotate(0.4deg);
+    }
+  }
+  /* Respect reduced-motion: keep the dashed-edit affordance, drop the wobble. */
+  :global([data-reduce-motion="true"]) .grid.arranging .tile {
+    animation: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .grid.arranging .tile {
+      animation: none;
     }
   }
 
   :global(.drag-clone) {
     cursor: grabbing;
-    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5);
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 20px 44px rgba(0, 0, 0, 0.55);
     will-change: transform, left, top;
   }
 
@@ -505,37 +531,63 @@
     z-index: 3;
     touch-action: none;
   }
+  /* Edge handles are invisible hit zones with a thin accent bar on hover. */
   .handle.e {
     top: 0;
     right: -4px;
-    width: 12px;
+    width: 14px;
     height: 100%;
     cursor: ew-resize;
   }
   .handle.s {
     left: 0;
     bottom: -4px;
-    height: 12px;
+    height: 14px;
     width: 100%;
     cursor: ns-resize;
   }
+  .handle.e::after,
+  .handle.s::after {
+    content: "";
+    position: absolute;
+    background: var(--accent);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+  .handle.e::after {
+    top: 50%;
+    right: 4px;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 26px;
+  }
+  .handle.s::after {
+    left: 50%;
+    bottom: 4px;
+    transform: translateX(-50%);
+    height: 3px;
+    width: 26px;
+  }
+  .handle.e:hover::after,
+  .handle.s:hover::after {
+    opacity: 0.85;
+  }
   .handle.se {
-    right: -4px;
-    bottom: -4px;
-    width: 18px;
-    height: 18px;
+    right: 3px;
+    bottom: 3px;
+    width: 15px;
+    height: 15px;
     cursor: nwse-resize;
-    background: linear-gradient(
-      135deg,
-      transparent 45%,
-      var(--accent) 45%,
-      var(--accent) 60%,
-      transparent 60%,
-      transparent 72%,
-      var(--accent) 72%,
-      var(--accent) 87%,
-      transparent 87%
-    );
+    border-right: 3px solid var(--accent);
+    border-bottom: 3px solid var(--accent);
+    border-bottom-right-radius: 5px;
+    opacity: 0.9;
+    transition: transform 0.12s ease, opacity 0.12s ease;
     z-index: 4;
+  }
+  .handle.se:hover {
+    opacity: 1;
+    transform: translate(1px, 1px);
   }
 </style>

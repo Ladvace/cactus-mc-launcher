@@ -1,0 +1,83 @@
+# Flatpak manifest for Cactus Launcher (Flathub / Steam Deck).
+#
+# Built from the .deb that Tauri produces, following the official Tauri v2
+# Flatpak guide. See ./README.md for how to build, test, and submit to Flathub.
+#
+# BEFORE SUBMITTING: fill in the real release .deb URL + sha256 (see the source
+# marked TODO below) and provide reachable screenshot URLs in the metainfo file.
+id: com.ladvace.cactuslauncher
+
+runtime: org.gnome.Platform
+runtime-version: "46"
+sdk: org.gnome.Sdk
+
+command: cactus-launcher
+
+finish-args:
+  # Show the window (Steam Deck's gamescope is Wayland; X11 is the fallback).
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  # Minecraft needs the GPU, sound, and the network (downloads + multiplayer).
+  - --device=dri
+  - --socket=pulseaudio
+  - --share=network
+  # Let users keep instances on a Steam Deck SD card (mounted under /run/media).
+  # For other custom data locations, grant access with Flatseal.
+  - --filesystem=/run/media
+  # Avoids black webviews on some AMD/Wayland setups (Steam Deck is AMD).
+  - --env=WEBKIT_DISABLE_COMPOSITING_MODE=1
+
+modules:
+  - name: cactus-launcher
+    buildsystem: simple
+    sources:
+      - type: file
+        path: com.ladvace.cactuslauncher.metainfo.xml
+
+      # TODO(release): point this at the amd64 .deb of the release you're
+      # packaging and set its sha256. Get both from the GitHub release assets:
+      #   sha256sum "Cactus Launcher_<version>_amd64.deb"
+      # For local testing you can swap this for `path: <local>.deb` instead.
+      - type: file
+        url: https://github.com/Ladvace/cactus-mc-launcher/releases/download/v1.5.1/Cactus%20Launcher_1.5.1_amd64.deb
+        sha256: 0000000000000000000000000000000000000000000000000000000000000000
+        only-arches: [x86_64]
+
+    build-commands:
+      - |
+        set -eu
+
+        # --- Unpack the Debian package -------------------------------------
+        mkdir -p deb
+        ( cd deb && ar x ../*.deb )
+        tar -C deb -xf deb/data.tar.*
+
+        # --- Binary (its on-disk name varies; take whatever is in usr/bin) --
+        bin="$(find deb/usr/bin -maxdepth 1 -type f | head -n1)"
+        install -Dm755 "$bin" /app/bin/cactus-launcher
+
+        # --- Bundled resources, if the build shipped any -------------------
+        if [ -d deb/usr/lib ]; then
+          mkdir -p /app/lib
+          find deb/usr/lib -mindepth 1 -maxdepth 1 -type d \
+            -exec cp -r {} /app/lib/ \;
+        fi
+
+        # --- Desktop entry: retarget Exec/Icon to the Flatpak app id -------
+        desktop="$(find deb/usr/share/applications -name '*.desktop' | head -n1)"
+        sed -i 's/^Exec=.*/Exec=cactus-launcher %U/' "$desktop"
+        sed -i 's/^Icon=.*/Icon=com.ladvace.cactuslauncher/' "$desktop"
+        install -Dm644 "$desktop" \
+          /app/share/applications/com.ladvace.cactuslauncher.desktop
+
+        # --- Icons: copy every size, renamed to the app id -----------------
+        for png in $(find deb/usr/share/icons/hicolor -name '*.png'); do
+          dim="$(basename "$(dirname "$(dirname "$png")")")"   # e.g. 128x128
+          install -Dm644 "$png" \
+            "/app/share/icons/hicolor/$dim/apps/com.ladvace.cactuslauncher.png"
+        done
+
+        # --- AppStream metainfo -------------------------------------------
+        install -Dm644 com.ladvace.cactuslauncher.metainfo.xml \
+          /app/share/metainfo/com.ladvace.cactuslauncher.metainfo.xml

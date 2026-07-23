@@ -240,12 +240,71 @@ fn parse_modrinth_ids(url: &str) -> Option<(String, String)> {
     Some((project, parts.next()?.to_string()))
 }
 
-/// Reject archive paths that try to escape the target directory.
+/// Reject archive paths that try to escape the target directory. Uses a
+/// component-based check (not string matching) so Windows-absolute, drive-root,
+/// UNC and `..` paths are all refused — a bare `contains("..")` misses those.
 fn safe_rel(path: &str) -> Option<PathBuf> {
-    if path.is_empty() || path.starts_with('/') || path.contains("..") {
+    if path.is_empty() {
         return None;
     }
-    Some(PathBuf::from(path))
+    let path_buf = PathBuf::from(path);
+    if path_buf.is_absolute() {
+        return None;
+    }
+    for component in path_buf.components() {
+        if matches!(
+            component,
+            std::path::Component::ParentDir
+                | std::path::Component::Prefix(_)
+                | std::path::Component::RootDir
+        ) {
+            return None;
+        }
+    }
+    Some(path_buf)
+}
+
+/// Hosts a modpack may download files from — the Modrinth `.mrpack` spec's
+/// allow-list. Modrinth enforces the same set on upload, so legitimate packs
+/// only ever use these.
+const ALLOWED_PACK_HOSTS: &[&str] = &[
+    "cdn.modrinth.com",
+    "github.com",
+    "raw.githubusercontent.com",
+    "objects.githubusercontent.com",
+    "gitlab.com",
+    "user-content.gitlab-static.net",
+];
+
+/// Validate a modpack file's download entry before it's fetched. An imported
+/// pack is fully untrusted, so we require: an HTTPS URL, a host on the allow-list
+/// (blocks the launcher being used as an SSRF proxy into internal/loopback/cloud
+/// -metadata services), and a content hash (so every file is pinned rather than
+/// silently swappable). Returns the validated `(url, sha1)` or a descriptive
+/// error that fails the whole import closed.
+pub(crate) fn validate_pack_download(
+    downloads: &[String],
+    sha1: Option<String>,
+) -> Result<(String, String)> {
+    let url = downloads
+        .first()
+        .ok_or_else(|| AppError::Other("a modpack file has no download URL".into()))?;
+    let parsed = reqwest::Url::parse(url)
+        .map_err(|_| AppError::Other(format!("modpack has an invalid download URL: {url}")))?;
+    if parsed.scheme() != "https" {
+        return Err(AppError::Other(format!(
+            "refusing non-HTTPS modpack download: {url}"
+        )));
+    }
+    let host = parsed.host_str().unwrap_or_default();
+    if !ALLOWED_PACK_HOSTS.contains(&host) {
+        return Err(AppError::Other(format!(
+            "modpack download from untrusted host '{host}' was blocked"
+        )));
+    }
+    let sha1 = sha1
+        .ok_or_else(|| AppError::Other(format!("modpack file '{url}' is missing its sha1 hash")))?;
+    Ok((url.clone(), sha1))
 }
 
 fn emit_progress(
@@ -353,27 +412,27 @@ pub async fn install_modpack(
     app.state::<InstanceStore>().save(app, &instance)?;
 
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
-    let tasks: Vec<DownloadTask> = index
-        .files
-        .iter()
-        .filter(|file| {
-            file.env
-                .as_ref()
-                .and_then(|env| env.client.as_deref())
-                .map(|client_env| client_env != "unsupported")
-                .unwrap_or(true)
-        })
-        .filter_map(|file| {
-            let rel = safe_rel(&file.path)?;
-            let url = file.downloads.first()?.clone();
-            Some(DownloadTask {
-                url,
-                dest: game_dir.join(rel),
-                sha1: file.hashes.sha1.clone(),
-                executable: false,
-            })
-        })
-        .collect();
+    let mut tasks: Vec<DownloadTask> = Vec::new();
+    for file in &index.files {
+        let client_supported = file
+            .env
+            .as_ref()
+            .and_then(|env| env.client.as_deref())
+            .map(|client_env| client_env != "unsupported")
+            .unwrap_or(true);
+        if !client_supported {
+            continue;
+        }
+        let rel = safe_rel(&file.path)
+            .ok_or_else(|| AppError::Other(format!("unsafe path in modpack: {}", file.path)))?;
+        let (url, sha1) = validate_pack_download(&file.downloads, file.hashes.sha1.clone())?;
+        tasks.push(DownloadTask {
+            url,
+            dest: game_dir.join(rel),
+            sha1: Some(sha1),
+            executable: false,
+        });
+    }
 
     {
         let app_cb = app.clone();
@@ -655,6 +714,35 @@ mod tests {
         assert!(safe_rel("a/../b").is_none());
         assert!(safe_rel("mods/cool.jar").is_some());
         assert!(safe_rel("config/sub/file.toml").is_some());
+    }
+
+    #[test]
+    fn pack_download_validation() {
+        let sha = || Some("abc123".to_string());
+        // Allowed: https + allow-listed host + a hash.
+        assert!(validate_pack_download(
+            &["https://cdn.modrinth.com/data/x/y.jar".into()],
+            sha()
+        )
+        .is_ok());
+        assert!(validate_pack_download(
+            &["https://github.com/o/r/releases/download/v1/y.jar".into()],
+            sha()
+        )
+        .is_ok());
+        // Blocked: non-https, untrusted host, SSRF targets, and missing hash.
+        assert!(validate_pack_download(&["http://cdn.modrinth.com/x.jar".into()], sha()).is_err());
+        assert!(validate_pack_download(&["https://evil.example/x.jar".into()], sha()).is_err());
+        assert!(validate_pack_download(&["https://127.0.0.1/x.jar".into()], sha()).is_err());
+        assert!(
+            validate_pack_download(&["https://169.254.169.254/latest/meta-data".into()], sha())
+                .is_err()
+        );
+        assert!(
+            validate_pack_download(&["https://cdn.modrinth.com/x.jar".into()], None).is_err(),
+            "a file with no hash must be rejected"
+        );
+        assert!(validate_pack_download(&[], sha()).is_err());
     }
 
     #[test]

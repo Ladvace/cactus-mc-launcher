@@ -506,26 +506,26 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     app.state::<InstanceStore>().save(app, &instance)?;
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
 
-    let tasks: Vec<DownloadTask> = index
-        .files
-        .iter()
-        .filter(|file| {
-            file.env
-                .as_ref()
-                .map(|env| env.client != "unsupported")
-                .unwrap_or(true)
-        })
-        .filter_map(|file| {
-            let rel = safe_rel(&file.path)?;
-            let url = file.downloads.first()?.clone();
-            Some(DownloadTask {
-                url,
-                dest: game_dir.join(rel),
-                sha1: file.hashes.sha1.clone(),
-                executable: false,
-            })
-        })
-        .collect();
+    let mut tasks: Vec<DownloadTask> = Vec::new();
+    for file in &index.files {
+        let client_supported = file
+            .env
+            .as_ref()
+            .map(|env| env.client != "unsupported")
+            .unwrap_or(true);
+        if !client_supported {
+            continue;
+        }
+        let rel = safe_rel(&file.path)
+            .ok_or_else(|| AppError::Other(format!("unsafe path in pack: {}", file.path)))?;
+        let (url, sha1) = content::validate_pack_download(&file.downloads, file.hashes.sha1.clone())?;
+        tasks.push(DownloadTask {
+            url,
+            dest: game_dir.join(rel),
+            sha1: Some(sha1),
+            executable: false,
+        });
+    }
 
     let total = tasks.len();
     emit(app, "installing", 0, total);

@@ -5,6 +5,7 @@ class UiStore {
   accountsOpen = $state(false);
   commandPaletteOpen = $state(false);
   changelogOpen = $state(false);
+  craftingOpen = $state(false);
 
   instanceMenu = $state<{ instance: Instance; x: number; y: number } | null>(
     null
@@ -16,6 +17,7 @@ class UiStore {
   } | null>(null);
 
   groupFor = $state<Instance | null>(null);
+  folderOpen = $state<string | null>(null);
 
   openCreateInstance() {
     this.createInstanceOpen = true;
@@ -41,6 +43,12 @@ class UiStore {
   }
   closeChangelog() {
     this.changelogOpen = false;
+  }
+  openCrafting() {
+    this.craftingOpen = true;
+  }
+  closeCrafting() {
+    this.craftingOpen = false;
   }
 
   openInstanceMenu(instance: Instance, x: number, y: number) {
@@ -74,6 +82,13 @@ class UiStore {
   }
   closeGroupPicker() {
     this.groupFor = null;
+  }
+
+  openFolder(name: string) {
+    this.folderOpen = name;
+  }
+  closeFolder() {
+    this.folderOpen = null;
   }
 }
 

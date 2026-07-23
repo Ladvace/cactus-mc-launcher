@@ -468,6 +468,7 @@
       <Select
         bind:value={draft.defaultLoader}
         options={LOADER_OPTIONS}
+        width="220px"
         onchange={() => saveOne("defaultLoader", draft.defaultLoader)}
         ariaLabel={t("settings.defaultLoader")}
       />
@@ -513,6 +514,7 @@
       <Select
         bind:value={draft.dateFormat}
         options={DATE_FORMATS}
+        width="220px"
         onchange={() => settingsStore.save({ ...settingsStore.settings, dateFormat: draft.dateFormat })}
         ariaLabel={t("settings.dateFormat")}
       />
@@ -901,6 +903,20 @@
           <Icon name="refresh" size={14} /> {t("settings.reset")}
         </button>
       </div>
+    </div>
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.menuBranding")}</span>
+        <small>{t("settings.menuBrandingDesc")}</small>
+      </div>
+      <label class="switch">
+        <input
+          type="checkbox"
+          bind:checked={draft.menuBranding}
+          onchange={() => saveOne("menuBranding", draft.menuBranding)}
+        />
+        <span class="track"><span class="thumb"></span></span>
+      </label>
     </div>
   </section>
 

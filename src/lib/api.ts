@@ -125,6 +125,7 @@ export const api = {
   setupJava: () => invoke<string[]>("setup_java"),
 
   loginMicrosoft: () => invoke<AccountInfo>("login_microsoft"),
+  cancelLogin: () => invoke<void>("cancel_login"),
 
   getAccounts: () => invoke<AccountsState>("get_accounts"),
 

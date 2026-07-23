@@ -50,6 +50,8 @@
     "chevron-up": "angle-up",
     filter: "filter",
     close: "times",
+    grid: "grid",
+    list: "bullet-list",
   };
 
   const iconClass = $derived(`hn hn-${MAP[name] ?? "grid"}`);
