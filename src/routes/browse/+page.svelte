@@ -3,6 +3,9 @@
   import ProjectModal from "$lib/components/ProjectModal.svelte";
   import Select from "$lib/components/Select.svelte";
   import { api } from "$lib/api";
+  import { instancesStore } from "$lib/stores/instances.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
+  import { onDestroy } from "svelte";
   import { formatCount } from "$lib/format";
   import { readJson, writeJson } from "$lib/storage";
   import { t, type MessageKey } from "$lib/i18n";
@@ -32,12 +35,24 @@
 
   const loaders = ["", "fabric", "quilt", "forge", "neoforge"];
 
+  // When Browse is opened from an instance's "Find mods" button, pre-filter to
+  // that instance so only compatible content shows (right type + MC version +
+  // loader) — you can't accidentally grab an incompatible mod.
+  const fromInstance =
+    ui.browseInstanceId ? instancesStore.get(ui.browseInstanceId) : null;
+  onDestroy(() => {
+    ui.browseInstanceId = null;
+  });
+
+  const isVanillaTarget = fromInstance?.loader === "vanilla";
+
   let source = $state<Source>("modrinth");
-  let activeType = $state<ProjectType>("mod");
+  // Vanilla has no loader, so it can only take resource packs / datapacks.
+  let activeType = $state<ProjectType>(isVanillaTarget ? "resourcepack" : "mod");
   let query = $state("");
   let debounced = $state("");
-  let gameVersion = $state("");
-  let loader = $state("");
+  let gameVersion = $state(fromInstance?.mcVersion ?? "");
+  let loader = $state(isVanillaTarget ? "" : (fromInstance?.loader ?? ""));
   let sort = $state("relevance");
 
   let showFilters = $state(false);
@@ -249,7 +264,7 @@
       <Icon name="search" size={16} />
       <input class="search-input" placeholder={t("browse.searchPlaceholder")} bind:value={query} />
     </div>
-    <Select bind:value={gameVersion} options={gameVersionOptions} width="160px" />
+    <Select bind:value={gameVersion} options={gameVersionOptions} width="160px" searchable />
     {#if showLoader}
       <Select bind:value={loader} options={loaderOptions} width="160px" />
     {/if}

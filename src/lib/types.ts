@@ -401,6 +401,31 @@ export interface ContentItem {
   source: string;
 }
 
+export interface ContentUpdate {
+  versionId: string;
+  projectId: string;
+  projectType: string;
+  source: string;
+  title: string;
+  iconUrl: string | null;
+  latestVersionId: string;
+  latestNumber: string;
+}
+
+export interface RestorePoint {
+  id: string;
+  created: string;
+  label: string;
+  auto: boolean;
+  contentCount: number;
+}
+
+export interface ApplyUpdatesResult {
+  updated: number;
+  skipped: string[];
+  restorePointId: string;
+}
+
 export interface MinecraftVersion {
   id: string;
   type: "release" | "snapshot" | "old_beta" | "old_alpha";

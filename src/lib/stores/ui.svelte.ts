@@ -18,6 +18,9 @@ class UiStore {
 
   groupFor = $state<Instance | null>(null);
   folderOpen = $state<string | null>(null);
+  /// Instance to pre-select as the install target when opening Browse from an
+  /// instance's "Find mods" button (so installs land on the right instance).
+  browseInstanceId = $state<string | null>(null);
 
   openCreateInstance() {
     this.createInstanceOpen = true;

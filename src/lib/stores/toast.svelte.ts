@@ -1,9 +1,15 @@
 export type ToastKind = "success" | "error" | "info";
 
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 export interface Toast {
   id: number;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
 }
 
 type Timer = { handle: ReturnType<typeof setTimeout>; remaining: number; startedAt: number };
@@ -14,9 +20,9 @@ class ToastStore {
   private timers = new Map<number, Timer>();
   private paused = false;
 
-  private push(kind: ToastKind, message: string, ttl: number): number {
+  private push(kind: ToastKind, message: string, ttl: number, action?: ToastAction): number {
     const id = this.nextId++;
-    this.toasts = [...this.toasts, { id, kind, message }];
+    this.toasts = [...this.toasts, { id, kind, message, action }];
     if (ttl > 0) this.arm(id, ttl);
     return id;
   }
@@ -29,14 +35,19 @@ class ToastStore {
     });
   }
 
-  success(message: string) {
-    return this.push("success", message, 3500);
+  success(message: string, action?: ToastAction) {
+    return this.push("success", message, action ? 8000 : 3500, action);
   }
-  info(message: string) {
-    return this.push("info", message, 4500);
+  info(message: string, action?: ToastAction) {
+    return this.push("info", message, action ? 8000 : 4500, action);
   }
-  error(message: string) {
-    return this.push("error", message, 12000);
+  error(message: string, action?: ToastAction) {
+    return this.push("error", message, 12000, action);
+  }
+
+  run(id: number, action: ToastAction) {
+    this.dismiss(id);
+    action.run();
   }
 
   // Freeze the auto-dismiss countdowns while the stack is hovered/expanded.

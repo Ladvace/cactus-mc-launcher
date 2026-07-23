@@ -38,7 +38,7 @@ pub fn create_instance(
     payload: CreateInstance,
 ) -> Result<Instance> {
     let instance = Instance::new(
-        payload.name,
+        store.unique_name(&payload.name),
         payload.kind,
         payload.mc_version,
         payload.loader,
@@ -131,7 +131,7 @@ pub fn create_server_from(
     let source = store.get(&id).ok_or_else(|| AppError::InstanceNotFound(id.clone()))?;
 
     let mut server = Instance::new(
-        format!("{} (Server)", source.name),
+        store.unique_name(&format!("{} (Server)", source.name)),
         InstanceKind::Server,
         source.mc_version.clone(),
         source.loader,
@@ -568,6 +568,52 @@ pub fn set_content_enabled(
 #[tauri::command]
 pub fn remove_content(app: AppHandle, instance_id: String, version_id: String) -> Result<()> {
     content::remove(&app, &instance_id, &version_id)
+}
+
+// --- Content updates + restore points ------------------------------------
+
+#[tauri::command]
+pub async fn check_content_updates(
+    app: AppHandle,
+    instance_id: String,
+) -> Result<Vec<crate::restore::ContentUpdate>> {
+    crate::restore::check_updates(&app, &instance_id).await
+}
+
+#[tauri::command]
+pub async fn apply_content_updates(
+    app: AppHandle,
+    instance_id: String,
+    updates: Vec<crate::restore::ContentUpdate>,
+) -> Result<crate::restore::ApplyResult> {
+    crate::restore::apply_updates(&app, &instance_id, updates).await
+}
+
+#[tauri::command]
+pub fn list_restore_points(
+    app: AppHandle,
+    instance_id: String,
+) -> Result<Vec<crate::restore::RestorePoint>> {
+    crate::restore::list(&app, &instance_id)
+}
+
+#[tauri::command]
+pub fn create_restore_point(
+    app: AppHandle,
+    instance_id: String,
+    label: String,
+) -> Result<crate::restore::RestorePoint> {
+    crate::restore::create(&app, &instance_id, &label, false)
+}
+
+#[tauri::command]
+pub async fn restore_instance(app: AppHandle, instance_id: String, id: String) -> Result<()> {
+    crate::restore::restore(&app, &instance_id, &id).await
+}
+
+#[tauri::command]
+pub fn delete_restore_point(app: AppHandle, instance_id: String, id: String) -> Result<()> {
+    crate::restore::delete(&app, &instance_id, &id)
 }
 
 #[tauri::command]

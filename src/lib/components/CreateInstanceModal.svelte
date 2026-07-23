@@ -120,6 +120,7 @@
     visibleVersions.map((version) => ({
       value: version.id,
       label: `${version.id}${version.type !== "release" ? ` (${version.type})` : ""}`,
+      muted: version.type !== "release",
     }))
   );
 
@@ -262,13 +263,7 @@
     </div>
 
     <div>
-      <div class="version-head">
-        <label class="field-label" for="ci-version">{t("create.minecraftVersion")}</label>
-        <label class="snap-toggle">
-          <input type="checkbox" bind:checked={showSnapshots} />
-          {t("create.showSnapshots")}
-        </label>
-      </div>
+      <label class="field-label" for="ci-version">{t("create.minecraftVersion")}</label>
 
       {#if versionsLoading}
         <div class="status">{t("create.loadingVersions")}</div>
@@ -276,7 +271,15 @@
         <div class="status error">{versionError}</div>
         <button class="btn ghost" onclick={loadVersions}>{t("common.retry")}</button>
       {:else}
-        <Select id="ci-version" bind:value={selectedVersion} options={versionOptions} />
+        <Select id="ci-version" bind:value={selectedVersion} options={versionOptions} searchable>
+          {#snippet header()}
+            <label class="dd-snap" title={t("create.showSnapshots")}>
+              <span>{t("create.snapshots")}</span>
+              <input type="checkbox" bind:checked={showSnapshots} />
+              <span class="dd-track"><span class="dd-thumb"></span></span>
+            </label>
+          {/snippet}
+        </Select>
       {/if}
     </div>
 
@@ -435,19 +438,53 @@
   .loader-version {
     margin-top: 14px;
   }
-  .version-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .snap-toggle {
-    display: flex;
+  /* Compact "Snapshots" switch shown on the version dropdown's search row. */
+  .dd-snap {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-secondary);
     cursor: pointer;
-    margin-bottom: 6px;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .dd-snap input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .dd-track {
+    position: relative;
+    width: 28px;
+    height: 16px;
+    flex-shrink: 0;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .dd-thumb {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 10px;
+    height: 10px;
+    background: var(--text-muted);
+    transition: transform 0.12s, background 0.12s;
+  }
+  .dd-snap input:checked ~ .dd-track {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  .dd-snap input:checked ~ .dd-track .dd-thumb {
+    transform: translateX(12px);
+    background: var(--accent);
+  }
+  .dd-snap input:focus-visible ~ .dd-track {
+    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
   .status {
     padding: 10px 12px;

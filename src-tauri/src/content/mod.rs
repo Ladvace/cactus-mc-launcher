@@ -159,6 +159,18 @@ pub fn list(app: &AppHandle, instance_id: &str) -> Result<Vec<ContentItem>> {
     Ok(read_content(app, instance_id)?.items)
 }
 
+/// Delete every tracked content file and empty `content.json`. Blobs stay in the
+/// shared cache, so re-installing (e.g. during a restore) is just a re-link.
+pub fn clear(app: &AppHandle, instance_id: &str) -> Result<()> {
+    let data = read_content(app, instance_id)?;
+    for item in &data.items {
+        if let Ok(path) = item_path(app, instance_id, item) {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+    write_content(app, instance_id, &ContentFile::default())
+}
+
 pub fn set_enabled(
     app: &AppHandle,
     instance_id: &str,

@@ -54,6 +54,26 @@ impl InstanceStore {
         self.cache.lock().unwrap().get(id).cloned()
     }
 
+    /// A copy of `desired` that no existing instance already uses (case-insensitive),
+    /// appending ` (2)`, ` (3)`, … as needed. Prevents indistinguishable duplicates.
+    pub fn unique_name(&self, desired: &str) -> String {
+        let taken: std::collections::HashSet<String> = self
+            .cache
+            .lock()
+            .unwrap()
+            .values()
+            .map(|instance| instance.name.to_lowercase())
+            .collect();
+        let base = desired.trim();
+        if !taken.contains(&base.to_lowercase()) {
+            return base.to_string();
+        }
+        (2..)
+            .map(|n| format!("{base} ({n})"))
+            .find(|candidate| !taken.contains(&candidate.to_lowercase()))
+            .unwrap_or_else(|| base.to_string())
+    }
+
     /// On the first save of a new instance, pin its game directory from the global
     /// instances-folder setting so a later change never moves existing data.
     pub fn save(&self, app: &AppHandle, instance: &Instance) -> Result<()> {

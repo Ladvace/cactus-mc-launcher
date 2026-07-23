@@ -4,6 +4,9 @@ import type {
   AccountsState,
   CacheStats,
   ContentItem,
+  ContentUpdate,
+  RestorePoint,
+  ApplyUpdatesResult,
   ExportResult,
   ImportResult,
   CreateInstance,
@@ -172,6 +175,19 @@ export const api = {
 
   removeContent: (instanceId: string, versionId: string) =>
     invoke<void>("remove_content", { instanceId, versionId }),
+
+  checkContentUpdates: (instanceId: string) =>
+    invoke<ContentUpdate[]>("check_content_updates", { instanceId }),
+  applyContentUpdates: (instanceId: string, updates: ContentUpdate[]) =>
+    invoke<ApplyUpdatesResult>("apply_content_updates", { instanceId, updates }),
+  listRestorePoints: (instanceId: string) =>
+    invoke<RestorePoint[]>("list_restore_points", { instanceId }),
+  createRestorePoint: (instanceId: string, label: string) =>
+    invoke<RestorePoint>("create_restore_point", { instanceId, label }),
+  restoreInstance: (instanceId: string, id: string) =>
+    invoke<void>("restore_instance", { instanceId, id }),
+  deleteRestorePoint: (instanceId: string, id: string) =>
+    invoke<void>("delete_restore_point", { instanceId, id }),
 
   installModpack: (source: Source, versionId: string, iconUrl?: string | null) =>
     invoke<Instance>("install_modpack", {

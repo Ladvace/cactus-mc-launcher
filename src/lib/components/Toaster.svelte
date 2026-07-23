@@ -9,6 +9,15 @@
   let heights = $state<Record<number, number>>({});
   let expanded = $state(false);
 
+  // Drop measured heights for toasts that have been dismissed (ids are
+  // monotonic, so the map would otherwise grow for the whole session).
+  $effect(() => {
+    const alive = new Set(toast.toasts.map((notification) => notification.id));
+    for (const key of Object.keys(heights)) {
+      if (!alive.has(Number(key))) delete heights[Number(key)];
+    }
+  });
+
   const OFFSET = 14; // collapsed peek per card
   const GAP = 12; // expanded gap between cards
   const SCALE_STEP = 0.05;
@@ -87,6 +96,11 @@
       </span>
       <span class="msg">{notification.message}</span>
       <div class="actions">
+        {#if notification.action}
+          <button class="act" onclick={() => toast.run(notification.id, notification.action!)}>
+            {notification.action.label}
+          </button>
+        {/if}
         {#if notification.kind === "error"}
           <button class="act" onclick={() => copy(notification.id, notification.message)}>
             {copied === notification.id ? t("toaster.copied") : t("toaster.copy")}

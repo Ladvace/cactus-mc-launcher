@@ -446,15 +446,16 @@ fn has_entry(pack: &Path, name: &str) -> Result<bool> {
 async fn import_cactuspack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult> {
     let index = read_index(pack_path)?;
 
+    let store = app.state::<InstanceStore>();
     let instance = Instance::new(
-        index.name.clone(),
+        store.unique_name(&index.name),
         InstanceKind::Client,
         index.mc_version.clone(),
         parse_loader(&index.loader),
         index.loader_version.clone(),
         None,
     );
-    app.state::<InstanceStore>().save(app, &instance)?;
+    store.save(app, &instance)?;
 
     // Resolve + install each content ref through the shared cache. Sequential so
     // the per-instance content.json stays consistent; failures are collected.
@@ -502,8 +503,16 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     let (loader, loader_version) = mr_loader_from_deps(&index.dependencies);
     let name = index.name.clone().unwrap_or_else(|| "Imported pack".into());
 
-    let instance = Instance::new(name, InstanceKind::Client, mc_version, loader, loader_version, None);
-    app.state::<InstanceStore>().save(app, &instance)?;
+    let store = app.state::<InstanceStore>();
+    let instance = Instance::new(
+        store.unique_name(&name),
+        InstanceKind::Client,
+        mc_version,
+        loader,
+        loader_version,
+        None,
+    );
+    store.save(app, &instance)?;
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
 
     let mut tasks: Vec<DownloadTask> = Vec::new();

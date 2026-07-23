@@ -15,6 +15,7 @@ mod paths;
 mod board_auth;
 mod settings;
 mod players;
+mod restore;
 mod server_browse;
 mod server_ping;
 mod servers_dat;
@@ -109,6 +110,12 @@ pub fn run() {
             commands::list_content,
             commands::set_content_enabled,
             commands::remove_content,
+            commands::check_content_updates,
+            commands::apply_content_updates,
+            commands::list_restore_points,
+            commands::create_restore_point,
+            commands::restore_instance,
+            commands::delete_restore_point,
             commands::install_modpack,
             commands::tuneup_recommend,
             commands::tuneup_apply,

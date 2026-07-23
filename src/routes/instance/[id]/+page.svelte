@@ -4,10 +4,17 @@
   import { formatDate } from "$lib/time";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { toPct } from "$lib/stores/install.svelte";
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
-  import { MOD_LOADERS, type ContentItem, type Source } from "$lib/types";
+  import {
+    MOD_LOADERS,
+    type ContentItem,
+    type ContentUpdate,
+    type RestorePoint,
+    type Source,
+  } from "$lib/types";
   import Icon from "$lib/components/Icon.svelte";
   import InstanceIcon from "$lib/components/InstanceIcon.svelte";
   import Modal from "$lib/components/Modal.svelte";
@@ -21,7 +28,7 @@
   import ProgressBar from "$lib/components/ProgressBar.svelte";
   import { pickFolder } from "$lib/dialog";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
-  import { t } from "$lib/i18n";
+  import { t, type MessageKey } from "$lib/i18n";
 
   function tabLabel(tab: string): string {
     const map: Record<string, string> = {
@@ -39,6 +46,13 @@
 
   const id = $derived($page.params.id ?? "");
   const instance = $derived(instancesStore.get(id));
+  const isVanilla = $derived(instance?.loader === "vanilla");
+
+  // Open Browse with this instance pre-selected as the install target.
+  function openBrowse() {
+    ui.browseInstanceId = id;
+    goto("/browse");
+  }
 
   const isServer = $derived(instance?.kind === "server");
   const tabs = $derived(
@@ -87,6 +101,30 @@
   let content = $state<ContentItem[]>([]);
   let contentLoading = $state(false);
 
+  // Sub-tabs within Content, by type (only the types actually present are shown).
+  const CONTENT_TYPES = ["mod", "resourcepack", "shader", "datapack"] as const;
+  const CONTENT_TYPE_LABELS: Record<string, MessageKey> = {
+    mod: "browse.tabMods",
+    resourcepack: "browse.tabResourcePacks",
+    shader: "browse.tabShaders",
+    datapack: "browse.tabDatapacks",
+  };
+  let contentFilter = $state("all");
+  const presentTypes = $derived(
+    CONTENT_TYPES.filter((type) => content.some((item) => item.projectType === type))
+  );
+  const filteredContent = $derived(
+    contentFilter === "all"
+      ? content
+      : content.filter((item) => item.projectType === contentFilter)
+  );
+  // If the active sub-tab's type disappears (all removed), fall back to All.
+  $effect(() => {
+    if (contentFilter !== "all" && !presentTypes.includes(contentFilter as (typeof CONTENT_TYPES)[number])) {
+      contentFilter = "all";
+    }
+  });
+
   async function loadContent() {
     if (!id) return;
     contentLoading = true;
@@ -100,7 +138,10 @@
   }
 
   $effect(() => {
-    if (activeTab === "Content" && id) loadContent();
+    if (activeTab === "Content" && id) {
+      loadContent();
+      refreshRestorePoints();
+    }
   });
 
   async function toggleContent(item: ContentItem) {
@@ -121,33 +162,23 @@
     }
   }
 
-  let updates = $state<Record<string, { versionId: string; number: string }>>({});
+  let updates = $state<ContentUpdate[]>([]);
   let checkingUpdates = $state(false);
   let updatingId = $state<string | null>(null);
+  let applyingAll = $state(false);
+
+  let restorePoints = $state<RestorePoint[]>([]);
+  let showRestore = $state(false);
+  let restoringId = $state<string | null>(null);
+
+  const updateFor = (item: ContentItem) => updates.find((u) => u.versionId === item.versionId);
 
   async function checkUpdates() {
     if (!instance) return;
     checkingUpdates = true;
-    updates = {};
     try {
-      const found: Record<string, { versionId: string; number: string }> = {};
-      for (const item of content) {
-        if (!item.projectId) continue;
-        const loaderFilter =
-          item.projectType === "mod" && instance.loader !== "vanilla"
-            ? instance.loader
-            : null;
-        const versions = await api.contentVersions(
-          item.source as Source,
-          item.projectId,
-          loaderFilter,
-          instance.mcVersion
-        );
-        if (versions.length > 0 && versions[0].id !== item.versionId) {
-          found[item.versionId] = { versionId: versions[0].id, number: versions[0].versionNumber };
-        }
-      }
-      updates = found;
+      updates = await api.checkContentUpdates(id);
+      if (updates.length === 0) toast.success(t("content.upToDate"));
     } catch (err) {
       toast.error(String(err));
     } finally {
@@ -155,27 +186,75 @@
     }
   }
 
-  async function updateItem(item: ContentItem) {
-    const update = updates[item.versionId];
-    if (!update) return;
-    updatingId = item.versionId;
+  // Every update auto-creates a restore point first, so it's always undoable.
+  async function applyUpdates(list: ContentUpdate[], singleId: string | null = null) {
+    if (list.length === 0) return;
+    if (singleId) updatingId = singleId;
+    else applyingAll = true;
     try {
-      await api.installContent({
-        instanceId: id,
-        source: item.source as Source,
-        versionId: update.versionId,
-        projectType: item.projectType,
-        title: item.title,
-        iconUrl: item.iconUrl,
-      });
-      const next = { ...updates };
-      delete next[item.versionId];
-      updates = next;
+      const res = await api.applyContentUpdates(id, list);
+      const done = new Set(list.map((u) => u.versionId));
+      updates = updates.filter((u) => !done.has(u.versionId));
       await loadContent();
+      await refreshRestorePoints();
+      const msg = res.skipped.length
+        ? t("content.updatedSomeFailed", { done: res.updated, failed: res.skipped.length })
+        : t("content.updatedN", { n: res.updated });
+      toast.success(msg, { label: t("content.undo"), run: () => restore(res.restorePointId) });
     } catch (err) {
       toast.error(String(err));
     } finally {
       updatingId = null;
+      applyingAll = false;
+    }
+  }
+
+  const updateItem = (item: ContentItem) => {
+    const update = updateFor(item);
+    return update ? applyUpdates([update], item.versionId) : Promise.resolve();
+  };
+  const updateAll = () => applyUpdates([...updates]);
+
+  async function refreshRestorePoints() {
+    try {
+      restorePoints = await api.listRestorePoints(id);
+    } catch {
+      /* non-fatal */
+    }
+  }
+
+  async function restore(pointId: string) {
+    restoringId = pointId;
+    try {
+      await api.restoreInstance(id, pointId);
+      await loadContent();
+      await refreshRestorePoints();
+      updates = [];
+      toast.success(t("content.restored"));
+    } catch (err) {
+      toast.error(String(err));
+    } finally {
+      restoringId = null;
+    }
+  }
+
+  async function createManualRestorePoint() {
+    try {
+      await api.createRestorePoint(id, t("content.manualPoint"));
+      await refreshRestorePoints();
+      showRestore = true;
+      toast.success(t("content.restorePointSaved"));
+    } catch (err) {
+      toast.error(String(err));
+    }
+  }
+
+  async function removeRestorePoint(pointId: string) {
+    try {
+      await api.deleteRestorePoint(id, pointId);
+      await refreshRestorePoints();
+    } catch (err) {
+      toast.error(String(err));
     }
   }
 
@@ -463,6 +542,13 @@
                 : t("instance.itemsInstalled", { count: content.length })}
             </span>
             <div class="content-head-actions">
+              {#if updates.length > 0}
+                <button class="btn primary sm" onclick={updateAll} disabled={applyingAll}>
+                  {applyingAll
+                    ? t("instance.updating")
+                    : t("content.updateAll", { n: updates.length })}
+                </button>
+              {/if}
               {#if content.length > 0}
                 <button
                   class="btn ghost sm"
@@ -471,12 +557,61 @@
                 >
                   {checkingUpdates ? t("instance.checking") : t("instance.checkForUpdates")}
                 </button>
+                <button
+                  class="btn ghost sm"
+                  class:on={showRestore}
+                  onclick={() => (showRestore = !showRestore)}
+                  title={t("content.restorePoints")}
+                >
+                  <Icon name="clock" size={14} />
+                  {#if restorePoints.length > 0}{restorePoints.length}{/if}
+                </button>
               {/if}
-              <button class="btn ghost sm" onclick={() => goto("/browse")}>
+              <button class="btn ghost sm" onclick={openBrowse}>
                 <Icon name="compass" size={14} /> {t("instance.browseModrinth")}
               </button>
             </div>
           </div>
+
+          {#if showRestore}
+            <div class="restore-panel">
+              <div class="restore-panel-head">
+                <span class="muted">{t("content.restorePointsHint")}</span>
+                <button class="btn ghost sm" onclick={createManualRestorePoint}>
+                  <Icon name="plus" size={13} /> {t("content.createRestorePoint")}
+                </button>
+              </div>
+              {#if restorePoints.length === 0}
+                <p class="restore-empty">{t("content.noRestorePoints")}</p>
+              {:else}
+                {#each restorePoints as point (point.id)}
+                  <div class="restore-row">
+                    <div class="restore-info">
+                      <span class="restore-label">{point.label}</span>
+                      <span class="restore-sub">
+                        {formatDate(point.created)} · {point.contentCount}
+                        {point.auto ? ` · ${t("content.autoPoint")}` : ""}
+                      </span>
+                    </div>
+                    <button
+                      class="btn ghost sm"
+                      onclick={() => restore(point.id)}
+                      disabled={restoringId === point.id}
+                    >
+                      {restoringId === point.id ? t("content.restoring") : t("content.restore")}
+                    </button>
+                    <button
+                      class="icon-remove"
+                      onclick={() => removeRestorePoint(point.id)}
+                      title={t("common.remove")}
+                    >
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </div>
+                {/each}
+              {/if}
+            </div>
+          {/if}
 
           {#if contentLoading}
             <div class="content-list">
@@ -497,13 +632,38 @@
             <div class="content-empty">
               <img class="empty-art" src="/empty-cactus.png" alt="" />
               <p>{t("instance.noContent")}</p>
-              <button class="btn primary" onclick={() => goto("/browse")}>
-                <Icon name="compass" size={15} /> {t("instance.findMods")}
+              {#if isVanilla}
+                <p class="vanilla-note">{t("instance.vanillaNoMods")}</p>
+              {/if}
+              <button class="btn primary" onclick={openBrowse}>
+                <Icon name="compass" size={15} />
+                {isVanilla ? t("instance.browseModrinth") : t("instance.findMods")}
               </button>
             </div>
           {:else}
+            {#if presentTypes.length > 1}
+              <div class="content-subtabs">
+                <button
+                  class="subtab"
+                  class:on={contentFilter === "all"}
+                  onclick={() => (contentFilter = "all")}
+                >
+                  {t("content.allTypes")} <span class="subtab-count">{content.length}</span>
+                </button>
+                {#each presentTypes as type (type)}
+                  {@const count = content.filter((item) => item.projectType === type).length}
+                  <button
+                    class="subtab"
+                    class:on={contentFilter === type}
+                    onclick={() => (contentFilter = type)}
+                  >
+                    {t(CONTENT_TYPE_LABELS[type])} <span class="subtab-count">{count}</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
             <div class="content-list">
-              {#each content as item (item.versionId)}
+              {#each filteredContent as item (item.versionId)}
                 <div class="content-row" class:disabled={!item.enabled}>
                   {#if item.iconUrl}
                     <img class="content-icon" src={item.iconUrl} alt={item.title} />
@@ -514,12 +674,12 @@
                     <span class="content-title">{item.title}</span>
                     <span class="content-sub">{item.projectType} · {item.fileName}</span>
                   </div>
-                  {#if updates[item.versionId]}
+                  {#if updateFor(item)}
                     <button
                       class="btn primary sm"
                       onclick={() => updateItem(item)}
                       disabled={updatingId === item.versionId}
-                      title={t("instance.updateTo", { version: updates[item.versionId].number })}
+                      title={t("instance.updateTo", { version: updateFor(item)!.latestNumber })}
                     >
                       {updatingId === item.versionId ? t("instance.updating") : t("instance.update")}
                     </button>
@@ -949,6 +1109,63 @@
     display: flex;
     gap: 8px;
   }
+  .content-head-actions .btn.on {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .restore-panel {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .restore-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .restore-empty {
+    margin: 6px 0;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    text-align: center;
+  }
+  .restore-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 6px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .restore-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .restore-label {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .restore-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .vanilla-note {
+    max-width: 400px;
+    margin: -4px 0 2px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    text-align: center;
+  }
   .content-empty {
     display: flex;
     flex-direction: column;
@@ -956,6 +1173,40 @@
     gap: 12px;
     padding: 48px;
     color: var(--text-secondary);
+  }
+  .content-subtabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .subtab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s, background 0.12s;
+  }
+  .subtab:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .subtab.on {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .subtab-count {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .subtab.on .subtab-count {
+    color: var(--accent);
   }
   .content-list {
     display: flex;

@@ -4,6 +4,7 @@
   import InstancePicker from "./InstancePicker.svelte";
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
+  import { ui } from "$lib/stores/ui.svelte";
   import { installStore, toPct } from "$lib/stores/install.svelte";
   import { formatCount } from "$lib/format";
   import { t } from "$lib/i18n";
@@ -88,9 +89,19 @@
     mpMessage = "";
   });
 
+  // Installing a mod into a loader-less instance won't work.
+  const modOnVanilla = $derived(
+    !isModpack && hit?.projectType === "mod" && selectedInstance?.loader === "vanilla"
+  );
+
   $effect(() => {
     if (open && !isModpack && !selectedInstanceId && instances.length > 0) {
-      selectedInstanceId = instances[0].id;
+      // Prefer the instance we were launched from (its "Find mods" button).
+      const preferred =
+        ui.browseInstanceId && instances.some((inst) => inst.id === ui.browseInstanceId)
+          ? ui.browseInstanceId
+          : instances[0].id;
+      selectedInstanceId = preferred;
     }
   });
 
@@ -99,7 +110,7 @@
     if (!open || !currentHit) return;
     if (isModpack) {
       loadModpackVersion(currentHit);
-    } else if (selectedInstance) {
+    } else if (selectedInstance && !modOnVanilla) {
       loadVersions(currentHit, selectedInstance.mcVersion, selectedInstance.loader);
     }
   });
@@ -274,6 +285,9 @@
       {:else}
         <span class="field-label">{t("browse.installTo")}</span>
         <InstancePicker bind:value={selectedInstanceId} />
+        {#if modOnVanilla}
+          <p class="warn">{t("browse.modNeedsLoader")}</p>
+        {:else}
         <div class="version-line">
           {#if loadingVersions}
             <span class="muted">{t("browse.findingCompatibleVersion")}</span>
@@ -301,6 +315,7 @@
             >{t("browse.curseforgePage")}</button>.
           </p>
         {/if}
+        {/if}
       {/if}
     </div>
 
@@ -322,7 +337,7 @@
     {:else}
       <button
         class="btn primary"
-        disabled={installing || loadingVersions || versions.length === 0 || !canDownload}
+        disabled={installing || loadingVersions || versions.length === 0 || !canDownload || modOnVanilla}
         onclick={install}
       >
         {installLabel}
