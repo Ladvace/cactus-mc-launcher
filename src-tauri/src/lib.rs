@@ -5,6 +5,7 @@ mod content;
 mod error;
 mod friends;
 mod http;
+mod import_launcher;
 mod instance;
 mod launch;
 mod loader;
@@ -65,6 +66,9 @@ pub fn run() {
             commands::update_instance,
             commands::delete_instance,
             commands::create_server_from,
+            commands::detect_launchers,
+            commands::list_external_instances,
+            commands::import_external_instance,
             commands::instance_folder,
             commands::set_instance_game_dir,
             commands::get_settings,

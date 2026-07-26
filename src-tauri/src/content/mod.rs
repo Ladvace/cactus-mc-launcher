@@ -159,6 +159,71 @@ pub fn list(app: &AppHandle, instance_id: &str) -> Result<Vec<ContentItem>> {
     Ok(read_content(app, instance_id)?.items)
 }
 
+pub fn register_local(app: &AppHandle, instance_id: &str) -> Result<usize> {
+    let mut data = read_content(app, instance_id)?;
+    let mut known: std::collections::HashSet<String> = data
+        .items
+        .iter()
+        .map(|item| format!("{}/{}", item.project_type, item.file_name.to_lowercase()))
+        .collect();
+
+    let mut added = 0usize;
+    for (subdir_name, project_type, exts) in [
+        ("mods", "mod", &["jar"][..]),
+        ("resourcepacks", "resourcepack", &["zip"][..]),
+        ("shaderpacks", "shader", &["zip"][..]),
+        ("datapacks", "datapack", &["zip"][..]),
+    ] {
+        let dir = paths::instance_game_dir(app, instance_id)?.join(subdir_name);
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if !entry.file_type().map(|kind| kind.is_file()).unwrap_or(false) {
+                continue;
+            }
+            let raw = entry.file_name().to_string_lossy().to_string();
+            let (file_name, enabled) = match raw.strip_suffix(".disabled") {
+                Some(base) => (base.to_string(), false),
+                None => (raw.clone(), true),
+            };
+            if file_name.is_empty() {
+                continue;
+            }
+            let ext = std::path::Path::new(&file_name)
+                .extension()
+                .and_then(|value| value.to_str())
+                .map(str::to_lowercase);
+            if !ext.as_deref().map(|value| exts.contains(&value)).unwrap_or(false) {
+                continue;
+            }
+            if !known.insert(format!("{project_type}/{}", file_name.to_lowercase())) {
+                continue;
+            }
+            let title = std::path::Path::new(&file_name)
+                .file_stem()
+                .and_then(|value| value.to_str())
+                .unwrap_or(&file_name)
+                .to_string();
+            data.items.push(ContentItem {
+                project_id: None,
+                version_id: format!("local:{project_type}:{file_name}"),
+                project_type: project_type.into(),
+                title,
+                file_name,
+                icon_url: None,
+                enabled,
+                source: "local".into(),
+            });
+            added += 1;
+        }
+    }
+    if added > 0 {
+        write_content(app, instance_id, &data)?;
+    }
+    Ok(added)
+}
+
 /// Delete every tracked content file and empty `content.json`. Blobs stay in the
 /// shared cache, so re-installing (e.g. during a restore) is just a re-link.
 pub fn clear(app: &AppHandle, instance_id: &str) -> Result<()> {

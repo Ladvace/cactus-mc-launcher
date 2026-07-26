@@ -118,6 +118,25 @@ export interface ExportResult {
   skipped: string[];
 }
 
+export interface DetectedLauncher {
+  id: string;
+  name: string;
+  instanceCount: number;
+  canDelete: boolean;
+  icon: string | null;
+}
+
+export interface ExternalInstance {
+  launcher: string;
+  name: string;
+  mcVersion: string;
+  loader: string;
+  loaderVersion: string | null;
+  gameDir: string;
+  sourceDir: string | null;
+  icon: string | null;
+}
+
 // --- Boards service DTOs (mirror server/src/types.ts) ---
 export type BoardKind = "streamer" | "creator" | "server";
 

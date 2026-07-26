@@ -277,7 +277,9 @@
   .feature-meta {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
+    width: 100%;
     font-size: 11px;
     color: rgba(255, 255, 255, 0.65);
     margin-top: 2px;
@@ -326,6 +328,7 @@
     color: var(--text-muted);
   }
   .mini-body {
+    flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -353,7 +356,9 @@
   .mini-meta {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
+    width: 100%;
     font-size: 10.5px;
     color: var(--text-muted);
     margin-top: auto;
@@ -361,6 +366,8 @@
   .more {
     color: var(--accent);
     margin-left: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 
   .dots {

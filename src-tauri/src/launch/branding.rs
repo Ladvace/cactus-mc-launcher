@@ -100,7 +100,7 @@ fn remove_legacy_overlay(game_dir: &Path) {
             // unrelated mod (e.g. "melodycraft.jar") isn't caught by "melody".
             let is_ours = ["fancymenu", "konkrete", "melody"].iter().any(|lib| {
                 name.strip_prefix(lib)
-                    .is_some_and(|rest| rest.chars().next().map_or(true, |c| !c.is_ascii_alphanumeric()))
+                    .is_some_and(|rest| rest.chars().next().is_none_or(|c| !c.is_ascii_alphanumeric()))
             });
             if is_ours {
                 let _ = std::fs::remove_file(entry.path());

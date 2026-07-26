@@ -117,7 +117,7 @@
         : []),
       {
         label: t("instanceMenu.exportToFile"),
-        icon: "download",
+        icon: "upload",
         onSelect: () => exportSetup(inst.id, "cactuspack"),
       },
       {

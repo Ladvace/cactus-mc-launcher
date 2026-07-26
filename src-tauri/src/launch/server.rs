@@ -4,6 +4,7 @@
 
 use std::path::Path;
 
+use sha1::{Digest, Sha1};
 use tauri::AppHandle;
 
 use super::{download, java, process};
@@ -209,6 +210,18 @@ async fn prepare_fabric_like(
         .error_for_status()?
         .bytes()
         .await?;
+
+    if let Some(expected) = fetch_sha1_sidecar(client, &installer_url).await {
+        let mut hasher = Sha1::new();
+        hasher.update(&bytes);
+        let got = hex::encode(hasher.finalize());
+        if !got.eq_ignore_ascii_case(&expected) {
+            return Err(AppError::Other(format!(
+                "{:?} installer failed its integrity check (expected {expected}, got {got})",
+                instance.loader
+            )));
+        }
+    }
     std::fs::write(&installer, &bytes)?;
 
     let mut cmd = tokio::process::Command::new(java);
@@ -261,6 +274,21 @@ async fn prepare_fabric_like(
         )));
     }
     Ok(vec!["-jar".into(), path_str(&launch_jar), "nogui".into()])
+}
+
+async fn fetch_sha1_sidecar(client: &reqwest::Client, url: &str) -> Option<String> {
+    let text = client
+        .get(format!("{url}.sha1"))
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .text()
+        .await
+        .ok()?;
+    let token = text.split_whitespace().next()?;
+    (token.len() == 40 && token.chars().all(|c| c.is_ascii_hexdigit())).then(|| token.to_string())
 }
 
 /// Write `eula.txt=true`. Acceptance is gathered in the UI at creation time.

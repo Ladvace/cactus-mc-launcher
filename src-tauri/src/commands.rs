@@ -162,6 +162,25 @@ pub fn create_server_from(
 }
 
 #[tauri::command]
+pub fn detect_launchers() -> Vec<crate::import_launcher::DetectedLauncher> {
+    crate::import_launcher::detect()
+}
+
+#[tauri::command]
+pub fn list_external_instances(launcher: String) -> Vec<crate::import_launcher::ExternalInstance> {
+    crate::import_launcher::list_instances(&launcher)
+}
+
+#[tauri::command]
+pub fn import_external_instance(
+    app: AppHandle,
+    instance: crate::import_launcher::ExternalInstance,
+    delete_source: bool,
+) -> Result<Instance> {
+    crate::import_launcher::import(&app, &instance, delete_source)
+}
+
+#[tauri::command]
 pub fn instance_folder(app: AppHandle, id: String) -> Result<String> {
     let dir = crate::paths::instance_game_dir(&app, &id)?;
     std::fs::create_dir_all(&dir)?;

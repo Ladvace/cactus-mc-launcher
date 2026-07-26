@@ -4,6 +4,98 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] — 2026-07-26
+
+### Added
+- **Import from other launchers** — Cactus now detects **Prism Launcher,
+  MultiMC, PolyMC, CurseForge, the Modrinth App, and the official Minecraft
+  launcher**, lists their instances, and imports any of them — mods, config,
+  worlds, resource packs and all — into a new Cactus instance. There's an
+  optional "delete from the other launcher after importing", and each launcher
+  shows its own logo (read from your installed copy) with a coloured badge as a
+  fallback. Copied mods/packs show up in the Content tab as local items.
+
+### Changed
+- The home **Import** menu now spells out the file formats it accepts
+  (`.mrpack`, `.zip`, …); file import was removed from the Community page, which
+  now keeps only share-code import.
+- Button hover reworked to a clean fill brighten, replacing the pixel-edge
+  highlight that could leave a stray line at non-fullscreen window sizes.
+- Fabric/Quilt dedicated-server installers are now verified against their Maven
+  SHA-1 before running.
+
+### Fixed
+- The **"Read" link** in news cards now sits in the bottom-right corner
+  regardless of the headline length.
+- The instance right-click **"Export setup"** entry now uses an export (upload)
+  icon instead of a download one.
+- Detection of the Modrinth App (its data format changed) and imported instances
+  keeping their original icon.
+
+### Security
+- Launcher imports validate every source path against a fresh on-disk detection,
+  refuse symlinked / absolute / path-escaping sources, only delete real launcher
+  instances under your home directory, and size-cap icon reads — so a forged
+  request can't copy from or delete an arbitrary folder.
+
+## [1.7.0] — 2026-07-23
+
+### Added
+- **Content updates & restore points** — update installed mods/content per-item
+  or all at once (checked concurrently). Every update auto-creates a restore
+  point with one-click Undo from a toast, and a Restore Points panel snapshots
+  content + config so you can restore in place or delete points. Restores
+  pre-download everything into the cache before touching the instance, so a
+  failed rollback can never half-wipe it.
+- Searchable **version dropdowns** with a full-viewport blur backdrop and
+  keyboard navigation (arrows, Home/End, PageUp/Down), plus an in-dropdown
+  **"Snapshots" toggle** with snapshot versions shown indented and dimmed.
+
+### Changed
+- The Content tab is split into sub-tabs by type (Mods / Resource Packs / …).
+- **"Find mods"** from an instance now targets that instance and pre-filters
+  Browse to its type + Minecraft version + loader, so you can't grab an
+  incompatible mod. Vanilla instances guide you to resource packs / datapacks
+  and block mod installs.
+- Generic **"Browse content"** labels covering Modrinth + CurseForge and all
+  content types.
+
+### Fixed
+- Duplicate instance names are prevented (auto-suffix on every creation path).
+- Full translations across all 12 locales for the new update/restore, sub-tab,
+  view, and branding strings.
+
+## [1.6.0] — 2026-07-23
+
+### Added
+- **Crafting-table easter egg** using real Minecraft textures (streamed, none
+  bundled).
+- **In-game menu branding** — a Cactus wordmark and splashes on the title screen
+  for every instance.
+- **Flatpak / Flathub packaging** for Steam Deck and Linux desktops.
+- **Folder tiles in the dock**, plus a sleeker, reduced-motion-aware tile
+  rearrange on the home screen.
+- **Browse grid/list toggle** and advanced browse filters.
+- **Cancellable Microsoft sign-in.**
+- Website: per-arch macOS links and all Linux formats always point at the latest
+  release.
+
+### Fixed
+- LWJGL 2 (Minecraft ≤ 1.12.2) now launches on Apple Silicon via Rosetta
+  detection.
+- Board sessions auto-relogin on expiry.
+- Settings dropdown sizing and consistent "Export setup" wording.
+
+### Security
+- Modpack import now enforces an HTTPS host allow-list, mandatory file hashes,
+  and a component-based path-escape check (closing SSRF / arbitrary-write / RCE
+  vectors).
+- The Minecraft access token is redacted from launch logs; `accounts.json` and
+  `settings.json` are stored owner-only (0600).
+- SSRF guard on image downloads; version-JSON and Maven-library integrity
+  checks; an HTTP read timeout with all fetches routed through the shared
+  client; and a Content-Security-Policy is now enabled.
+
 ## [1.5.1] — 2026-07-22
 
 ### Added

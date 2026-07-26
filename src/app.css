@@ -295,13 +295,10 @@ button {
     drop-shadow(0 calc(-1 * var(--p)) 0 var(--edge))
     drop-shadow(0 var(--p) 0 var(--edge))
     drop-shadow(0 var(--d) 0 var(--depth));
-  transition: transform 0.06s ease-out;
+  transition: transform 0.06s ease-out, background 0.1s ease-out;
 }
-.btn:hover {
-  --edge: var(--accent);
-  /* Tint the 3D base too, so the gold edge and the depth read as one raised
-     edge instead of a thin gold line floating above a black base. */
-  --depth: #6b4e10;
+.btn:not(:disabled):hover {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1));
 }
 /* Scale in on click — a tactile squish, no vertical shift. */
 .btn:active {
@@ -311,9 +308,6 @@ button {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.btn:disabled:hover {
-  --edge: #100e0b;
-}
 .btn.primary {
   --face: var(--accent);
   --ink: var(--accent-contrast);
@@ -321,9 +315,9 @@ button {
   --bevel-lt: rgba(255, 255, 255, 0.45);
   --bevel-dk: rgba(0, 0, 0, 0.22);
 }
-.btn.primary:hover {
+.btn.primary:not(:disabled):hover {
   --face: var(--accent-hover);
-  --edge: #4a3608;
+  background-image: none;
 }
 .btn.ghost {
   --face: var(--bg-raised);
@@ -331,9 +325,6 @@ button {
 .btn.danger {
   --face: var(--bg-raised);
   --ink: var(--danger);
-}
-.btn.danger:hover {
-  --edge: var(--danger);
 }
 /* Size variants (shared so components don't each redefine them). */
 .btn.sm {

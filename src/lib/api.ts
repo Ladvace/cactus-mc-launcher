@@ -5,6 +5,8 @@ import type {
   CacheStats,
   ContentItem,
   ContentUpdate,
+  DetectedLauncher,
+  ExternalInstance,
   RestorePoint,
   ApplyUpdatesResult,
   ExportResult,
@@ -51,6 +53,14 @@ export const api = {
 
   createServerFrom: (id: string) =>
     invoke<Instance>("create_server_from", { id }),
+
+  detectLaunchers: () => invoke<DetectedLauncher[]>("detect_launchers"),
+
+  listExternalInstances: (launcher: string) =>
+    invoke<ExternalInstance[]>("list_external_instances", { launcher }),
+
+  importExternalInstance: (instance: ExternalInstance, deleteSource: boolean) =>
+    invoke<Instance>("import_external_instance", { instance, deleteSource }),
 
   instanceFolder: (id: string) => invoke<string>("instance_folder", { id }),
 

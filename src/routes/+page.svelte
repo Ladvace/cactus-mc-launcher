@@ -11,6 +11,7 @@
   import Icon from "$lib/components/Icon.svelte";
   import ContextMenu, { type MenuItem } from "$lib/components/ContextMenu.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import LauncherImport from "$lib/components/LauncherImport.svelte";
   import Select from "$lib/components/Select.svelte";
   import { api } from "$lib/api";
   import { boardApi } from "$lib/boardApi";
@@ -50,6 +51,7 @@
   let fileInput = $state<HTMLInputElement>();
   let homeMenu = $state<{ x: number; y: number } | null>(null);
   let codeOpen = $state(false);
+  let launcherImportOpen = $state(false);
   let code = $state("");
   let importing = $state(false);
 
@@ -71,6 +73,7 @@
     { label: t("home.newInstance"), icon: "plus", onSelect: () => ui.openCreateInstance() },
     { separator: true },
     { label: t("home.importSetupFile"), icon: "download", onSelect: () => fileInput?.click() },
+    { label: t("home.importFromLauncher"), icon: "shuffle", onSelect: () => (launcherImportOpen = true) },
     ...(online
       ? [{ label: t("home.importFromCode"), icon: "share", onSelect: () => (codeOpen = true) }]
       : []),
@@ -272,6 +275,8 @@
     </button>
   {/snippet}
 </Modal>
+
+<LauncherImport open={launcherImportOpen} onClose={() => (launcherImportOpen = false)} />
 
 <style>
   .page {

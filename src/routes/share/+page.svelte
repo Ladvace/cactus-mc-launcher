@@ -4,7 +4,6 @@
   import BoardView from "$lib/components/BoardView.svelte";
   import PresencePanel from "$lib/components/PresencePanel.svelte";
   import FriendsList from "$lib/components/FriendsList.svelte";
-  import { api } from "$lib/api";
   import { boardApi } from "$lib/boardApi";
   import { boardAuth } from "$lib/stores/boardAuth.svelte";
   import { followedBoards } from "$lib/stores/followedBoards.svelte";
@@ -59,29 +58,10 @@
       .finally(() => (searching = false));
   });
 
-  let fileInput = $state<HTMLInputElement>();
   let importing = $state(false);
   let result = $state<ImportResult | null>(null);
   let code = $state("");
   let codeBusy = $state(false);
-
-  async function onFile(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file) return;
-    importing = true;
-    result = null;
-    try {
-      const buf = await file.arrayBuffer();
-      result = await api.importSetup(Array.from(new Uint8Array(buf)));
-      await instancesStore.refresh();
-    } catch (err) {
-      toast.error(String(err));
-    } finally {
-      importing = false;
-    }
-  }
 
   async function importByCode() {
     const trimmedCode = code.trim();
@@ -180,23 +160,18 @@
         </div>
       {:else if importing}
         <p class="muted">{t("common.importing")}</p>
-      {:else}
+      {:else if online}
         <div class="share-row">
-          <button class="btn ghost" onclick={() => fileInput?.click()}>
-            <Icon name="download" size={15} /> {t("community.importFileButton")}
-          </button>
-          {#if online}
-            <div class="code">
-              <input placeholder={t("community.shareCodePlaceholder")} bind:value={code} onkeydown={(event) => event.key === "Enter" && importByCode()} />
-              <button class="btn primary sm" disabled={codeBusy || !code.trim()} onclick={importByCode}>{t("community.go")}</button>
-            </div>
-          {/if}
+          <div class="code">
+            <input placeholder={t("community.shareCodePlaceholder")} bind:value={code} onkeydown={(event) => event.key === "Enter" && importByCode()} />
+            <button class="btn primary sm" disabled={codeBusy || !code.trim()} onclick={importByCode}>{t("community.go")}</button>
+          </div>
         </div>
       {/if}
-      <input bind:this={fileInput} type="file" accept=".cactuspack,.drakepack,.mrpack,application/zip" style="display:none" onchange={onFile} />
     </section>
 
-    <p class="tip"><Icon name="share" size={13} /> {t("community.exportTip")} <strong>{t("instanceMenu.exportToFile")}</strong></p>
+    <p class="tip"><Icon name="download" size={13} /> {t("community.importFileTip")} <strong>{t("common.import")}</strong></p>
+    <p class="tip"><Icon name="upload" size={13} /> {t("community.exportTip")} <strong>{t("instanceMenu.exportToFile")}</strong></p>
   {/if}
 </div>
 
