@@ -134,6 +134,7 @@ struct CfMod {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Pagination {
     #[serde(default)]
     total_count: u64,

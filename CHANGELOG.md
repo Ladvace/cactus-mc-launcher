@@ -4,6 +4,13 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.9.1] — 2026-07-26
+
+### Fixed
+- **CurseForge browse was capped at 20 results.** The CurseForge total-count
+  field wasn't parsed (a camelCase mismatch), so it read as 0 and the "Load more"
+  button never appeared. Browse now pages through all CurseForge results.
+
 ## [1.9.0] — 2026-07-26
 
 ### Added
