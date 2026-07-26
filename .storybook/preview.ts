@@ -8,14 +8,19 @@ const preview: Preview = {
       matchers: { color: /(background|color)$/i, date: /Date$/i },
     },
     backgrounds: {
-      default: "Stone",
-      values: [
-        { name: "Stone", value: "#17161a" },
-        { name: "Card", value: "#2a2825" },
-      ],
+      options: {
+        stone: { name: "Stone", value: "#17161a" },
+        card: { name: "Card", value: "#2a2825" }
+      }
     },
     a11y: { test: "todo" },
   },
+
+  initialGlobals: {
+    backgrounds: {
+      value: "stone"
+    }
+  }
 };
 
 export default preview;

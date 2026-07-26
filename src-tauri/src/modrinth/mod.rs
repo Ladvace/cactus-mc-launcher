@@ -219,6 +219,50 @@ pub async fn get_version(version_id: &str) -> Result<Version> {
         .await?)
 }
 
+/// Look up versions by file SHA-1 in bulk. Returns a map of hash to the matching
+/// version; hashes with no match are simply absent.
+pub async fn version_files(
+    sha1s: &[String],
+) -> Result<std::collections::HashMap<String, Version>> {
+    if sha1s.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+    let body = serde_json::json!({ "hashes": sha1s, "algorithm": "sha1" });
+    Ok(client()?
+        .post(format!("{API_BASE}/version_files"))
+        .json(&body)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?)
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Project {
+    pub id: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub icon_url: Option<String>,
+}
+
+/// Fetch project metadata (title, icon, type) for many ids at once.
+pub async fn projects(ids: &[String]) -> Result<Vec<Project>> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let ids_param = serde_json::to_string(ids)?;
+    Ok(client()?
+        .get(format!("{API_BASE}/projects"))
+        .query(&[("ids", ids_param)])
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?)
+}
+
 impl Version {
     pub fn primary_file(&self) -> Option<&VersionFile> {
         self.files

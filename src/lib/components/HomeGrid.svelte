@@ -14,7 +14,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { groupCovers } from "$lib/stores/groupCovers.svelte";
   import { ui } from "$lib/stores/ui.svelte";
-  import { toast } from "$lib/stores/toast.svelte";
+  import { toast, showError } from "$lib/stores/toast.svelte";
   import { t } from "$lib/i18n";
 
   interface Props {
@@ -145,15 +145,15 @@
     if (target.kind === "folder") {
       instancesStore
         .update(draggedId, { group: target.name })
-        .catch((e) => toast.error(String(e)));
+        .catch(showError);
     } else {
       const name = uniqueFolderName();
       instancesStore
         .update(draggedId, { group: name })
-        .catch((e) => toast.error(String(e)));
+        .catch(showError);
       instancesStore
         .update(target.instance.id, { group: name })
-        .catch((e) => toast.error(String(e)));
+        .catch(showError);
     }
   }
 

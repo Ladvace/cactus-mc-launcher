@@ -172,12 +172,12 @@ pub fn list_external_instances(launcher: String) -> Vec<crate::import_launcher::
 }
 
 #[tauri::command]
-pub fn import_external_instance(
+pub async fn import_external_instance(
     app: AppHandle,
     instance: crate::import_launcher::ExternalInstance,
     delete_source: bool,
 ) -> Result<Instance> {
-    crate::import_launcher::import(&app, &instance, delete_source)
+    crate::import_launcher::import(&app, &instance, delete_source).await
 }
 
 #[tauri::command]
@@ -575,6 +575,11 @@ pub fn list_content(app: AppHandle, instance_id: String) -> Result<Vec<ContentIt
 }
 
 #[tauri::command]
+pub fn shared_content(app: AppHandle, instance_id: String) -> Result<Vec<String>> {
+    content::shared_version_ids(&app, &instance_id)
+}
+
+#[tauri::command]
 pub fn set_content_enabled(
     app: AppHandle,
     instance_id: String,
@@ -786,6 +791,11 @@ pub async fn import_setup(
     bytes: Vec<u8>,
 ) -> Result<crate::snapshot::ImportResult> {
     crate::snapshot::import(&app, bytes).await
+}
+
+#[tauri::command]
+pub fn clear_exports(app: AppHandle) -> Result<usize> {
+    crate::snapshot::clear_exports(&app)
 }
 
 #[tauri::command]

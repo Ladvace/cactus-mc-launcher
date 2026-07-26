@@ -27,7 +27,8 @@
   import TuneupModal from "$lib/components/TuneupModal.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
   import { pickFolder } from "$lib/dialog";
-  import { revealItemInDir } from "@tauri-apps/plugin-opener";
+  import { tooltip } from "$lib/tooltip";
+  import { revealPath } from "$lib/reveal";
   import { t, type MessageKey } from "$lib/i18n";
 
   function tabLabel(tab: string): string {
@@ -100,6 +101,7 @@
 
   let content = $state<ContentItem[]>([]);
   let contentLoading = $state(false);
+  let sharedIds = $state<Set<string>>(new Set());
 
   // Sub-tabs within Content, by type (only the types actually present are shown).
   const CONTENT_TYPES = ["mod", "resourcepack", "shader", "datapack"] as const;
@@ -130,6 +132,10 @@
     contentLoading = true;
     try {
       content = await api.listContent(id);
+      api
+        .sharedContent(id)
+        .then((ids) => (sharedIds = new Set(ids)))
+        .catch(() => (sharedIds = new Set()));
     } catch (err) {
       toast.error(String(err));
     } finally {
@@ -330,11 +336,7 @@
   }
 
   async function openGameFolder() {
-    try {
-      await revealItemInDir(await api.instanceFolder(id));
-    } catch (err) {
-      toast.error(String(err));
-    }
+    await revealPath(await api.instanceFolder(id));
   }
 
   function fmtPlaytime(sec: number): string {
@@ -419,13 +421,26 @@
             <button
               class="btn ghost"
               onclick={() => (tuneupOpen = true)}
-              title={t("instance.tuneupTitle")}
+              use:tooltip={t("instance.tuneupTitle")}
               aria-label={t("instance.tuneupLabel")}
             >
               <Icon name="sparkles" size={16} />
             </button>
           {/if}
-          <button class="btn ghost" onclick={openRename} aria-label={t("instance.rename")}>
+          <button
+            class="btn ghost"
+            onclick={openGameFolder}
+            use:tooltip={t("instanceMenu.openFolder")}
+            aria-label={t("instanceMenu.openFolder")}
+          >
+            <Icon name="folder" size={16} />
+          </button>
+          <button
+            class="btn ghost"
+            onclick={openRename}
+            use:tooltip={t("instance.rename")}
+            aria-label={t("instance.rename")}
+          >
             <Icon name="edit" size={16} />
           </button>
         </div>
@@ -674,6 +689,15 @@
                     <span class="content-title">{item.title}</span>
                     <span class="content-sub">{item.projectType} · {item.fileName}</span>
                   </div>
+                  {#if sharedIds.has(item.versionId)}
+                    <span
+                      class="shared-badge"
+                      use:tooltip={t("instance.sharedTooltip")}
+                      aria-label={t("instance.sharedTooltip")}
+                    >
+                      <Icon name="copy" size={13} />
+                    </span>
+                  {/if}
                   {#if updateFor(item)}
                     <button
                       class="btn primary sm"
@@ -831,7 +855,7 @@
     border-bottom: 1px solid var(--border-subtle);
   }
   .col {
-    max-width: 960px;
+    max-width: 1040px;
     margin: 0 auto;
   }
   .back {
@@ -926,9 +950,9 @@
   }
   .tab-body {
     padding: 28px 32px;
-    /* 960 column + the 32px horizontal padding on each side, so the content
+    /* 1040 column + the 32px horizontal padding on each side, so the content
        edge lines up with the header/tabs columns above. */
-    max-width: 1024px;
+    max-width: 1104px;
     margin: 0 auto;
   }
   .tab-placeholder {
@@ -997,7 +1021,7 @@
     font-size: 12px;
   }
   .danger-zone {
-    border-color: rgba(255, 91, 91, 0.25);
+    border-color: color-mix(in srgb, var(--danger) 25%, transparent);
   }
   .confirm-text {
     margin: 0;
@@ -1013,8 +1037,8 @@
     margin-top: 16px;
     max-width: 640px;
     padding: 10px 14px;
-    background: rgba(255, 91, 110, 0.1);
-    border: 1px solid rgba(255, 91, 110, 0.3);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
     border-radius: var(--radius-sm);
     color: var(--danger);
     font-size: 13px;
@@ -1255,6 +1279,11 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .shared-badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--text-muted);
+  }
   .content-sub {
     font-size: 11.5px;
     color: var(--text-muted);
@@ -1269,7 +1298,7 @@
     display: flex;
   }
   .icon-remove:hover {
-    background: rgba(255, 91, 110, 0.12);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
     color: var(--danger);
   }
 </style>

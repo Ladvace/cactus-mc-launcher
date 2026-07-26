@@ -141,6 +141,11 @@ export const en = {
   "settings.menuBrandingDesc": "Show the Cactus logo and splash texts on the in-game title screen.",
   "settings.servers": "Servers",
   "settings.storage": "Storage",
+  "settings.openFolder": "Open folder",
+  "settings.exportedSetups": "Exported setups",
+  "settings.exportedSetupsDesc": "Exported .cactuspack / .mrpack files; older ones are pruned automatically.",
+  "settings.clearExports": "Clear exports",
+  "settings.exportsCleared": "Cleared {count} exported files",
   "settings.about": "About",
 
   // Settings — Interface section.
@@ -454,6 +459,7 @@ export const en = {
   "instance.customLocation": "Custom location",
   "instance.defaultLocation": "Default location",
   "instance.open": "Open",
+  "instance.sharedTooltip": "Shared with other instances — stored once on disk",
   "instance.reset": "Reset",
   "instance.moving": "Moving…",
   "instance.change": "Change…",

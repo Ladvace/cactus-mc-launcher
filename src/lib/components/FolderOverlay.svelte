@@ -291,7 +291,7 @@
   .remove-zone.over {
     border-color: var(--danger);
     color: var(--danger);
-    background: rgba(255, 91, 110, 0.08);
+    background: color-mix(in srgb, var(--danger) 8%, transparent);
   }
   .remove-zone :global(.hn) {
     color: inherit;

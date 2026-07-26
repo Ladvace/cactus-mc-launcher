@@ -7,6 +7,7 @@
   import { formatDate } from "$lib/time";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import Icon from "./Icon.svelte";
+  import { tooltip } from "$lib/tooltip";
   import type { NewsItem } from "$lib/types";
 
   let items = $state<NewsItem[]>([]);
@@ -72,24 +73,24 @@
       <h2>{t("news.title")}</h2>
       <div class="head-actions">
         {#if pages.length > 1}
-          <button class="nav" title={t("news.previous")} onclick={() => go(-1)}>
+          <button class="nav" use:tooltip={t("news.previous")} onclick={() => go(-1)}>
             <Icon name="chevron-left" size={14} />
           </button>
-          <button class="nav" title={t("news.next")} onclick={() => go(1)}>
+          <button class="nav" use:tooltip={t("news.next")} onclick={() => go(1)}>
             <Icon name="chevron-right" size={14} />
           </button>
         {/if}
         <button
           class="nav"
-          title={single ? t("news.layoutSingle") : t("news.layoutMulti")}
+          use:tooltip={single ? t("news.layoutSingle") : t("news.layoutMulti")}
           onclick={toggleLayout}
         >
           <Icon name={single ? "grid" : "expand"} size={14} />
         </button>
-        <button class="nav" title={t("news.refresh")} onclick={() => load(true)} disabled={loading}>
+        <button class="nav" use:tooltip={t("news.refresh")} onclick={() => load(true)} disabled={loading}>
           <Icon name="refresh" size={13} />
         </button>
-        <button class="nav" title={t("news.hide")} onclick={hide}>
+        <button class="nav" use:tooltip={t("news.hide")} onclick={hide}>
           <Icon name="close" size={14} />
         </button>
       </div>

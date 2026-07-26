@@ -77,3 +77,5 @@ class ToastStore {
 }
 
 export const toast = new ToastStore();
+
+export const showError = (error: unknown) => toast.error(String(error));

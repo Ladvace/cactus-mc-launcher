@@ -598,7 +598,11 @@ const SKIP_NAMES: &[&str] = &[
     ".ds_store",
 ];
 
-pub fn import(app: &AppHandle, ext: &ExternalInstance, delete_source: bool) -> Result<Instance> {
+pub async fn import(
+    app: &AppHandle,
+    ext: &ExternalInstance,
+    delete_source: bool,
+) -> Result<Instance> {
     let ext = list_instances(&ext.launcher)
         .into_iter()
         .find(|candidate| {
@@ -641,6 +645,7 @@ pub fn import(app: &AppHandle, ext: &ExternalInstance, delete_source: bool) -> R
     }
 
     let _ = crate::content::register_local(app, &instance.id);
+    let _ = crate::content::resolve_local(app, &instance.id).await;
 
     if delete_source && launcher_can_delete(&ext.launcher) {
         delete_source_dir(app, &ext);

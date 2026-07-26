@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import Icon from "./Icon.svelte";
   import { api } from "$lib/api";
   import { toast } from "$lib/stores/toast.svelte";
+  import { revealPath } from "$lib/reveal";
+  import { formatBytes } from "$lib/format";
   import { timeAgo } from "$lib/time";
   import { t } from "$lib/i18n";
   import type { WorldInfo } from "$lib/types";
@@ -34,11 +35,7 @@
   }
 
   async function reveal(world: WorldInfo) {
-    try {
-      await revealItemInDir(world.path);
-    } catch (error) {
-      toast.error(String(error));
-    }
+    revealPath(world.path);
   }
 
   async function backup(world: WorldInfo) {
@@ -46,10 +43,7 @@
     try {
       const path = await api.backupWorld(id, world.folder);
       toast.success(t("server.backedUp", { name: world.name }));
-      try {
-        await revealItemInDir(path);
-      } catch {
-      }
+      revealPath(path, { silent: true });
     } catch (error) {
       toast.error(String(error));
     } finally {
@@ -71,14 +65,6 @@
     }
   }
 
-  function fmtSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    const kb = bytes / 1024;
-    if (kb < 1024) return `${kb.toFixed(0)} KB`;
-    const mb = kb / 1024;
-    if (mb < 1024) return `${mb.toFixed(1)} MB`;
-    return `${(mb / 1024).toFixed(2)} GB`;
-  }
 </script>
 
 <div class="worlds">
@@ -108,7 +94,7 @@
               <span class="name" title={world.folder}>{world.name}</span>
               <span class="loc">{world.location === "server" ? t("server.locServer") : t("server.locSave")}</span>
             </div>
-            <span class="sub">{t("server.worldMeta", { size: fmtSize(world.sizeBytes), ago: timeAgo(world.lastModified) })}</span>
+            <span class="sub">{t("server.worldMeta", { size: formatBytes(world.sizeBytes), ago: timeAgo(world.lastModified) })}</span>
           </div>
           <div class="acts">
             <button class="btn ghost sm" title={t("server.showInFileManager")} onclick={() => reveal(world)}>

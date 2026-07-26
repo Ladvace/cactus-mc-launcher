@@ -4,6 +4,33 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.9.0] — 2026-07-26
+
+### Added
+- **Imported mods become fully managed** — after importing from another launcher,
+  Cactus matches each loose mod against Modrinth by file hash and upgrades matches
+  into tracked content with a real name, icon, and one-click updates (unmatched
+  files stay as local content).
+- **"Shared" badge** in the Content tab marks mods that are hard-linked across
+  instances (stored once on disk), with a hover tooltip explaining it.
+- **Open folder** buttons — on the instance header (opens its game folder) and in
+  Settings → Storage (opens the app-data folder).
+- **Export cleanup** — old exported `.cactuspack`/`.mrpack` files are auto-pruned
+  to the most recent 20, plus a "Clear exports" button in Settings → Storage.
+
+### Changed
+- The instance detail view is a little wider, and its buttons use real tooltips
+  (native ones don't render in the app's webview).
+
+### Fixed
+- **"Saved by sharing"** in Settings now reports the real figure instead of 0 —
+  it was comparing against the whole cache (including orphaned downloads) rather
+  than the deduplicated on-disk size of instance content.
+
+### Security
+- Launcher imports read the launcher's icon strictly from within its bundle, and
+  the Modrinth profile path is validated against traversal before use.
+
 ## [1.8.0] — 2026-07-26
 
 ### Added

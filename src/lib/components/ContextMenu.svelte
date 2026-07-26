@@ -127,7 +127,7 @@
     color: var(--danger);
   }
   .item.danger:hover:not(:disabled) {
-    background: rgba(255, 91, 110, 0.12);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
     color: var(--danger);
   }
   .item.danger:hover:not(:disabled) :global(.hn) {

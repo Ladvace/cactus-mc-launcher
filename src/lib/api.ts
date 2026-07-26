@@ -180,6 +180,9 @@ export const api = {
   listContent: (instanceId: string) =>
     invoke<ContentItem[]>("list_content", { instanceId }),
 
+  sharedContent: (instanceId: string) =>
+    invoke<string[]>("shared_content", { instanceId }),
+
   setContentEnabled: (instanceId: string, versionId: string, enabled: boolean) =>
     invoke<void>("set_content_enabled", { instanceId, versionId, enabled }),
 
@@ -241,6 +244,8 @@ export const api = {
       format,
       note: note ?? null,
     }),
+
+  clearExports: () => invoke<number>("clear_exports"),
 
   importSetup: (bytes: number[]) =>
     invoke<ImportResult>("import_setup", { bytes }),

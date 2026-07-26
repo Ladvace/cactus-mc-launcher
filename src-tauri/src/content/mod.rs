@@ -224,6 +224,132 @@ pub fn register_local(app: &AppHandle, instance_id: &str) -> Result<usize> {
     Ok(added)
 }
 
+fn file_sha1(path: &std::path::Path) -> Option<String> {
+    use sha1::{Digest, Sha1};
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut hasher = Sha1::new();
+    std::io::copy(&mut file, &mut hasher).ok()?;
+    Some(hex::encode(hasher.finalize()))
+}
+
+/// Match `local` items (loose files imported from another launcher) against
+/// Modrinth by file hash, upgrading any match into a tracked item with a real
+/// title, icon, project and version id — so it shows properly and can be updated.
+/// Best-effort: unmatched items and any network failure leave items untouched.
+pub async fn resolve_local(app: &AppHandle, instance_id: &str) -> Result<usize> {
+    let mut data = read_content(app, instance_id)?;
+
+    let mut hashes: Vec<String> = Vec::new();
+    let mut idx_by_hash: HashMap<String, Vec<usize>> = HashMap::new();
+    for (index, item) in data.items.iter().enumerate() {
+        if item.source != "local" || item.project_id.is_some() {
+            continue;
+        }
+        let Some(sha1) = file_sha1(&item_path(app, instance_id, item)?) else {
+            continue;
+        };
+        idx_by_hash.entry(sha1.clone()).or_default().push(index);
+        hashes.push(sha1);
+    }
+    hashes.sort();
+    hashes.dedup();
+    if hashes.is_empty() {
+        return Ok(0);
+    }
+
+    let versions = modrinth::version_files(&hashes).await.unwrap_or_default();
+    if versions.is_empty() {
+        return Ok(0);
+    }
+    let project_ids: Vec<String> = versions
+        .values()
+        .map(|version| version.project_id.clone())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    let projects: HashMap<String, modrinth::Project> = modrinth::projects(&project_ids)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|project| (project.id.clone(), project))
+        .collect();
+
+    let mut matched = 0usize;
+    for (sha1, version) in &versions {
+        let Some(indices) = idx_by_hash.get(sha1) else {
+            continue;
+        };
+        // Two loose files with identical content would collapse onto one
+        // version_id, making the second unmanageable; leave such duplicates local.
+        let [index] = indices[..] else {
+            continue;
+        };
+        let item = &mut data.items[index];
+        item.project_id = Some(version.project_id.clone());
+        item.version_id = version.id.clone();
+        item.source = "modrinth".into();
+        if let Some(project) = projects.get(&version.project_id) {
+            if !project.title.is_empty() {
+                item.title = project.title.clone();
+            }
+            item.icon_url = project.icon_url.clone();
+        }
+        matched += 1;
+    }
+    if matched > 0 {
+        write_content(app, instance_id, &data)?;
+    }
+    Ok(matched)
+}
+
+#[cfg(unix)]
+fn path_inode(path: &std::path::Path) -> Option<u64> {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata(path).ok().map(|meta| meta.ino())
+}
+
+#[cfg(not(unix))]
+fn path_inode(path: &std::path::Path) -> Option<u64> {
+    use std::os::windows::fs::MetadataExt;
+    std::fs::metadata(path).ok().and_then(|meta| meta.file_index())
+}
+
+/// Version ids of this instance's content whose file is the same on-disk file
+/// (hard link) as one in another instance — i.e. physically shared.
+pub fn shared_version_ids(app: &AppHandle, instance_id: &str) -> Result<Vec<String>> {
+    let mut inode_instances: HashMap<u64, std::collections::HashSet<String>> = HashMap::new();
+    let store = app.state::<InstanceStore>();
+    for instance in store.list() {
+        let Ok(game) = paths::instance_game_dir(app, &instance.id) else {
+            continue;
+        };
+        for sub in ["mods", "resourcepacks", "shaderpacks", "datapacks"] {
+            let Ok(entries) = std::fs::read_dir(game.join(sub)) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                if let Some(inode) = path_inode(&entry.path()) {
+                    inode_instances
+                        .entry(inode)
+                        .or_default()
+                        .insert(instance.id.clone());
+                }
+            }
+        }
+    }
+
+    let mut out = Vec::new();
+    for item in list(app, instance_id)? {
+        let Some(inode) = path_inode(&item_path(app, instance_id, &item)?) else {
+            continue;
+        };
+        if inode_instances.get(&inode).map_or(0, |set| set.len()) >= 2 {
+            out.push(item.version_id);
+        }
+    }
+    Ok(out)
+}
+
 /// Delete every tracked content file and empty `content.json`. Blobs stay in the
 /// shared cache, so re-installing (e.g. during a restore) is just a re-link.
 pub fn clear(app: &AppHandle, instance_id: &str) -> Result<()> {

@@ -250,7 +250,7 @@
     display: flex;
   }
   .remove:hover {
-    background: rgba(255, 91, 110, 0.12);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
     color: var(--danger);
   }
   .add-area {

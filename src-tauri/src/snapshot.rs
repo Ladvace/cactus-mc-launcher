@@ -208,28 +208,83 @@ pub async fn export(
     let items = content::list(app, instance_id)?;
     let game_dir = paths::instance_game_dir(app, instance_id)?;
 
-    let exports = paths::data_dir(app)?.join("exports");
+    let exports = exports_dir(app)?;
     std::fs::create_dir_all(&exports)?;
     let ts = chrono::Utc::now().format("%Y%m%d-%H%M%S");
     let base = sanitize(&instance.name);
     let opts = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated);
 
-    if format == "mrpack" {
+    let result = if format == "mrpack" {
         let out_path = exports.join(format!("{base}-{ts}.mrpack"));
         let skipped = export_mrpack(&instance, &items, &game_dir, &out_path, opts).await?;
-        Ok(ExportResult {
+        ExportResult {
             path: out_path.to_string_lossy().to_string(),
             skipped,
-        })
+        }
     } else {
         let out_path = exports.join(format!("{base}-{ts}.cactuspack"));
         export_cactuspack(&instance, items, &game_dir, &out_path, opts, note)?;
-        Ok(ExportResult {
+        ExportResult {
             path: out_path.to_string_lossy().to_string(),
             skipped: Vec::new(),
+        }
+    };
+
+    let _ = prune_exports(app, EXPORT_KEEP);
+    Ok(result)
+}
+
+/// How many exported packs to keep after each export.
+const EXPORT_KEEP: usize = 20;
+
+fn exports_dir(app: &AppHandle) -> Result<std::path::PathBuf> {
+    Ok(paths::data_dir(app)?.join("exports"))
+}
+
+fn export_files(app: &AppHandle) -> Vec<std::path::PathBuf> {
+    let Ok(dir) = exports_dir(app) else {
+        return Vec::new();
+    };
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return Vec::new();
+    };
+    entries
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file()
+                && matches!(
+                    path.extension().and_then(|ext| ext.to_str()),
+                    Some("cactuspack" | "mrpack")
+                )
         })
+        .collect()
+}
+
+/// Keep the `keep` most-recently-modified exported packs, delete the rest.
+pub fn prune_exports(app: &AppHandle, keep: usize) -> Result<()> {
+    let mut files = export_files(app);
+    if files.len() <= keep {
+        return Ok(());
     }
+    files.sort_by_key(|path| std::fs::metadata(path).and_then(|meta| meta.modified()).ok());
+    let remove = files.len() - keep;
+    for path in files.into_iter().take(remove) {
+        let _ = std::fs::remove_file(path);
+    }
+    Ok(())
+}
+
+/// Delete every exported pack. Returns how many files were removed.
+pub fn clear_exports(app: &AppHandle) -> Result<usize> {
+    let mut removed = 0;
+    for path in export_files(app) {
+        if std::fs::remove_file(&path).is_ok() {
+            removed += 1;
+        }
+    }
+    Ok(removed)
 }
 
 fn export_cactuspack(

@@ -6,11 +6,12 @@
   import Select from "$lib/components/Select.svelte";
   import { sliderFill } from "$lib/slider";
   import { formatDate } from "$lib/time";
+  import { formatBytes } from "$lib/format";
   import { api } from "$lib/api";
   import { listen } from "@tauri-apps/api/event";
   import { getVersion } from "@tauri-apps/api/app";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { openUrl } from "@tauri-apps/plugin-opener";
+  import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
   import Icon from "$lib/components/Icon.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
   import Modal from "$lib/components/Modal.svelte";
@@ -170,6 +171,25 @@
       dataMoveOpen = true;
     }
   }
+  async function openDataDir() {
+    try {
+      if (dataDir) await revealItemInDir(dataDir);
+    } catch (error) {
+      toast.error(String(error));
+    }
+  }
+  let clearingExports = $state(false);
+  async function clearExports() {
+    clearingExports = true;
+    try {
+      const removed = await api.clearExports();
+      toast.success(t("settings.exportsCleared", { count: removed }));
+    } catch (error) {
+      toast.error(String(error));
+    } finally {
+      clearingExports = false;
+    }
+  }
   function resetDataDir() {
     pendingDataDir = null; // null = back to default
     dataMoveOpen = true;
@@ -203,12 +223,6 @@
     loadCache();
   });
 
-  function formatBytes(bytes: number): string {
-    if (bytes <= 0) return "0 B";
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-    return `${(bytes / Math.pow(1024, unitIndex)).toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
-  }
 
   const kind = $derived(bgKind(draft.background ?? ""));
   const colorValue = $derived.by(() => {
@@ -954,6 +968,7 @@
         <small class="path">{dataDir || "…"}</small>
       </div>
       <div class="folder-actions">
+        <button class="btn ghost" onclick={openDataDir}>{t("settings.openFolder")}</button>
         <button class="btn ghost" onclick={browseDataDir} disabled={anyRunning}>{t("settings.move")}</button>
         <button class="btn ghost" onclick={resetDataDir} disabled={anyRunning}>{t("settings.reset")}</button>
       </div>
@@ -972,6 +987,17 @@
         {#if draft.instancesDir}
           <button class="btn ghost" onclick={() => (draft.instancesDir = "")}>{t("settings.reset")}</button>
         {/if}
+      </div>
+    </div>
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.exportedSetups")}</span>
+        <small>{t("settings.exportedSetupsDesc")}</small>
+      </div>
+      <div class="folder-actions">
+        <button class="btn ghost" onclick={clearExports} disabled={clearingExports}>
+          {clearingExports ? t("settings.clearing") : t("settings.clearExports")}
+        </button>
       </div>
     </div>
     <div class="setting">

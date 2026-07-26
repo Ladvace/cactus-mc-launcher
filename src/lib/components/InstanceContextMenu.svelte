@@ -10,10 +10,10 @@
   import { boardApi } from "$lib/boardApi";
   import { api } from "$lib/api";
   import { fileToIconDataUri } from "$lib/image";
-  import { toast } from "$lib/stores/toast.svelte";
+  import { toast, showError } from "$lib/stores/toast.svelte";
   import { localServerAddress } from "$lib/serverAddress";
   import { copyText } from "$lib/clipboard";
-  import { revealItemInDir } from "@tauri-apps/plugin-opener";
+  import { revealPath } from "$lib/reveal";
   import { t } from "$lib/i18n";
 
   const shareOnline = boardApi.configured();
@@ -92,14 +92,14 @@
         onSelect: () =>
           instancesStore
             .update(inst.id, { coverImage: !inst.coverImage })
-            .catch((e) => toast.error(String(e))),
+            .catch(showError),
       },
       {
         label: t("instanceMenu.resetImage"),
         icon: "refresh",
         disabled: !inst.icon,
         onSelect: () =>
-          instancesStore.resetIcon(inst.id).catch((e) => toast.error(String(e))),
+          instancesStore.resetIcon(inst.id).catch(showError),
       },
       { separator: true },
       ...(shareOnline
@@ -177,11 +177,7 @@
   }
 
   async function openFolder(id: string) {
-    try {
-      await revealItemInDir(await api.instanceFolder(id));
-    } catch (error) {
-      toast.error(String(error));
-    }
+    revealPath(await api.instanceFolder(id));
   }
 
   async function copyServerAddress(id: string) {
@@ -206,10 +202,7 @@
           ? t("instanceMenu.exportedSkipped", { count: result.skipped.length })
           : t("instanceMenu.setupExported")
       );
-      try {
-        await revealItemInDir(result.path);
-      } catch {
-      }
+      revealPath(result.path, { silent: true });
     } catch (error) {
       toast.error(String(error));
     }

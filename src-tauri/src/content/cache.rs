@@ -134,40 +134,45 @@ pub struct CacheStats {
     pub bytes: u64,
     /// Bytes that would be used if every instance kept its own copy.
     pub linked_bytes: u64,
-    /// `linked_bytes - bytes`: disk saved by sharing.
+    /// `linked_bytes` minus the real disk those files occupy (hard-linked files
+    /// share one inode, counted once): the disk saved by sharing.
     pub saved_bytes: u64,
 }
 
 pub fn stats(app: &AppHandle) -> Result<CacheStats> {
     use std::collections::HashMap;
+    use tauri::Manager;
 
-    // Map inode -> size for every cached blob (one entry per unique file).
+    // Cache footprint on disk (unique blobs; may include versions no longer
+    // linked into any instance).
     let mut blob_size: HashMap<u64, u64> = HashMap::new();
-    let cache = paths::content_cache_dir(app)?;
-    collect_inodes(&cache, &mut blob_size);
+    collect_inodes(&paths::content_cache_dir(app)?, &mut blob_size);
 
-    let mut cache_stats = CacheStats {
-        files: blob_size.len() as u64,
-        bytes: blob_size.values().sum(),
-        ..Default::default()
-    };
-
-    // Sum the apparent size of every linked file across instances: this is what
-    // per-instance copies would have cost.
-    let instances = paths::instances_dir(app)?;
-    if let Ok(entries) = std::fs::read_dir(&instances) {
-        for entry in entries.flatten() {
-            let game = entry.path().join("minecraft");
-            for sub in ["mods", "resourcepacks", "shaderpacks", "datapacks"] {
-                let mut sizes: HashMap<u64, u64> = HashMap::new();
-                collect_inodes(&game.join(sub), &mut sizes);
-                cache_stats.linked_bytes += sizes.values().sum::<u64>();
-            }
+    // Walk each instance's content folders. `apparent` is what per-instance
+    // copies would cost (each instance counted separately); `physical` is the
+    // real disk they occupy — hard links across instances share an inode and are
+    // counted once. Saved = apparent - physical.
+    let mut apparent: u64 = 0;
+    let mut physical: HashMap<u64, u64> = HashMap::new();
+    let store = app.state::<crate::instance::store::InstanceStore>();
+    for instance in store.list() {
+        let Ok(game) = paths::instance_game_dir(app, &instance.id) else {
+            continue;
+        };
+        for sub in ["mods", "resourcepacks", "shaderpacks", "datapacks"] {
+            let mut per: HashMap<u64, u64> = HashMap::new();
+            collect_inodes(&game.join(sub), &mut per);
+            apparent += per.values().sum::<u64>();
+            physical.extend(per);
         }
     }
 
-    cache_stats.saved_bytes = cache_stats.linked_bytes.saturating_sub(cache_stats.bytes);
-    Ok(cache_stats)
+    Ok(CacheStats {
+        files: blob_size.len() as u64,
+        bytes: blob_size.values().sum(),
+        linked_bytes: apparent,
+        saved_bytes: apparent.saturating_sub(physical.values().sum::<u64>()),
+    })
 }
 
 /// Record each file's (inode -> size) under `dir`, deduplicating shared inodes.
@@ -193,8 +198,13 @@ fn inode_of(meta: &std::fs::Metadata) -> u64 {
     meta.ino()
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
 fn inode_of(meta: &std::fs::Metadata) -> u64 {
-    // No stable inode on non-Unix here; fall back to size (approximate dedup).
+    use std::os::windows::fs::MetadataExt;
+    meta.file_index().unwrap_or_else(|| meta.len())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn inode_of(meta: &std::fs::Metadata) -> u64 {
     meta.len()
 }
