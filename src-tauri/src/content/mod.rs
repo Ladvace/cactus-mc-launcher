@@ -308,10 +308,11 @@ fn path_inode(path: &std::path::Path) -> Option<u64> {
     std::fs::metadata(path).ok().map(|meta| meta.ino())
 }
 
+// A stable per-file identity isn't available on non-Unix std (file_index is
+// nightly-only), so hard-link/shared detection simply reports nothing there.
 #[cfg(not(unix))]
-fn path_inode(path: &std::path::Path) -> Option<u64> {
-    use std::os::windows::fs::MetadataExt;
-    std::fs::metadata(path).ok().and_then(|meta| meta.file_index())
+fn path_inode(_path: &std::path::Path) -> Option<u64> {
+    None
 }
 
 /// Version ids of this instance's content whose file is the same on-disk file

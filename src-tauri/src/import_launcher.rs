@@ -38,21 +38,32 @@ fn home_dir() -> Option<PathBuf> {
         .filter(|path| !path.as_os_str().is_empty())
 }
 
-#[allow(clippy::vec_init_then_push)]
 fn app_support(name: &str) -> Vec<PathBuf> {
-    let Some(home) = home_dir() else {
-        return Vec::new();
-    };
-    let mut roots = Vec::new();
     #[cfg(target_os = "macos")]
-    roots.push(home.join("Library/Application Support").join(name));
+    {
+        match home_dir() {
+            Some(home) => vec![home.join("Library/Application Support").join(name)],
+            None => Vec::new(),
+        }
+    }
     #[cfg(target_os = "windows")]
-    if let Some(appdata) = std::env::var_os("APPDATA") {
-        roots.push(PathBuf::from(appdata).join(name));
+    {
+        std::env::var_os("APPDATA")
+            .map(|appdata| vec![PathBuf::from(appdata).join(name)])
+            .unwrap_or_default()
     }
     #[cfg(target_os = "linux")]
-    roots.push(home.join(".local/share").join(name));
-    roots
+    {
+        match home_dir() {
+            Some(home) => vec![home.join(".local/share").join(name)],
+            None => Vec::new(),
+        }
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        let _ = name;
+        Vec::new()
+    }
 }
 
 fn candidate_roots(launcher: &str) -> Vec<PathBuf> {

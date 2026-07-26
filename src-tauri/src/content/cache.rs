@@ -198,13 +198,8 @@ fn inode_of(meta: &std::fs::Metadata) -> u64 {
     meta.ino()
 }
 
-#[cfg(windows)]
-fn inode_of(meta: &std::fs::Metadata) -> u64 {
-    use std::os::windows::fs::MetadataExt;
-    meta.file_index().unwrap_or_else(|| meta.len())
-}
-
-#[cfg(not(any(unix, windows)))]
+// No stable per-file id on non-Unix std; fall back to size (approximate dedup).
+#[cfg(not(unix))]
 fn inode_of(meta: &std::fs::Metadata) -> u64 {
     meta.len()
 }
