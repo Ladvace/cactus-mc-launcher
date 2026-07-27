@@ -21,6 +21,7 @@ mod server_browse;
 mod server_ping;
 mod servers_dat;
 mod snapshot;
+mod status;
 mod tunnel;
 mod sources;
 mod stickers;
@@ -134,6 +135,7 @@ pub fn run() {
             commands::export_setup,
             commands::import_setup,
             commands::clear_exports,
+            status::service_status,
             commands::board_login,
             commands::publish_setup,
             commands::instance_share_check,

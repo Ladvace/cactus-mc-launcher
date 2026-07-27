@@ -189,6 +189,9 @@
       />
       <span class="heap-val"><strong>{gb(maxMem)} GB</strong> {t("tuneup.max")} · {gb(minMem)} GB {t("tuneup.min")}</span>
     </div>
+    {#if plan.lowRam}
+      <p class="heap-warn">{t("tuneup.lowRamWarning")}</p>
+    {/if}
     <label class="row">
       <input type="checkbox" bind:checked={applyFlags} />
       <span>{t("tuneup.applyJvmFlags")}{plan.jvmArgs.includes("MaxGCPauseMillis") ? " (Aikar's G1GC)" : ""}</span>
@@ -279,6 +282,12 @@
     font-size: 0.85rem;
     color: var(--text-muted);
     white-space: nowrap;
+  }
+  .heap-warn {
+    margin: 0.4rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--warning);
   }
   .specs {
     display: flex;

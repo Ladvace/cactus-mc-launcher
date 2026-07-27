@@ -93,7 +93,7 @@ pub struct AccountsState {
     pub microsoft_configured: bool,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 struct AccountData {
     #[serde(default)]
     accounts: Vec<Account>,
@@ -121,7 +121,6 @@ impl AccountStore {
 
     fn persist(&self, app: &AppHandle, data: &AccountData) -> Result<()> {
         let file = paths::data_dir(app)?.join("accounts.json");
-        // Contains the long-lived Microsoft refresh token — keep it owner-only.
         paths::write_private(&file, serde_json::to_string_pretty(data)?.as_bytes())
     }
 
@@ -168,6 +167,19 @@ impl AccountStore {
             data.active_id = None;
         }
         self.persist(app, &data)
+    }
+
+    /// Remove every account and delete accounts.json. Used by the full "reset
+    /// app data" flow.
+    pub fn clear(&self, app: &AppHandle) -> Result<()> {
+        let mut data = self.inner.lock().unwrap();
+        data.accounts.clear();
+        data.active_id = None;
+        let file = paths::data_dir(app)?.join("accounts.json");
+        if file.exists() {
+            std::fs::remove_file(&file)?;
+        }
+        Ok(())
     }
 }
 

@@ -99,6 +99,56 @@
   );
   const progressPct = $derived(toPct(runtime.current, runtime.total));
 
+  // Turn a raw crash into an actionable hint by scanning the recent log tail.
+  const crashHint = $derived.by(() => {
+    if (runtime.state !== "error") return null;
+    const text = (runtime.logs.slice(-250).join("\n") + " " + (runtime.message ?? "")).toLowerCase();
+    if (
+      text.includes("outofmemoryerror") ||
+      text.includes("java heap space") ||
+      text.includes("gc overhead limit")
+    ) {
+      return t("instance.crashOom");
+    }
+    // The JVM refusing to start (usually max memory set higher than available) —
+    // note the advice is the opposite of an out-of-memory crash.
+    if (
+      text.includes("could not reserve enough space for object heap") ||
+      text.includes("could not create the java virtual machine") ||
+      text.includes("error occurred during initialization of vm") ||
+      text.includes("invalid maximum heap size") ||
+      text.includes("too small maximum heap")
+    ) {
+      return t("instance.crashJvm");
+    }
+    if (
+      text.includes("unsupportedclassversionerror") ||
+      text.includes("class file version") ||
+      text.includes("compiled by a more recent version of the java")
+    ) {
+      return t("instance.crashJava");
+    }
+    if (
+      (text.includes("requires") && text.includes("which is missing")) ||
+      text.includes("missing or unsupported mandatory dependencies") ||
+      text.includes("mixin apply") ||
+      text.includes("incompatible mod")
+    ) {
+      return t("instance.crashMods");
+    }
+    if (
+      text.includes("glfw") ||
+      text.includes("failed to create window") ||
+      text.includes("could not create window") ||
+      text.includes("could not create context") ||
+      text.includes("pixel format") ||
+      text.includes("no opengl")
+    ) {
+      return t("instance.crashGraphics");
+    }
+    return t("instance.crashGeneric");
+  });
+
   let content = $state<ContentItem[]>([]);
   let contentLoading = $state(false);
   let sharedIds = $state<Set<string>>(new Set());
@@ -453,7 +503,10 @@
       {:else if runtime.state === "error"}
         <div class="launch-error">
           <strong>{t("instance.launchFailed")}</strong>
-          {runtime.message}
+          {#if crashHint}
+            <span class="crash-hint"><Icon name="sparkles" size={13} /> {crashHint}</span>
+          {/if}
+          {#if runtime.message}<span class="crash-msg">{runtime.message}</span>{/if}
         </div>
       {/if}
 
@@ -1042,6 +1095,24 @@
     border-radius: var(--radius-sm);
     color: var(--danger);
     font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .crash-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .crash-msg {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: var(--font-mono, monospace);
+    word-break: break-word;
+    max-height: 6em;
+    overflow-y: auto;
   }
 
   .logs-head {

@@ -86,7 +86,7 @@ impl InstanceStore {
         let dir = paths::instance_dir(app, &instance.id)?;
         std::fs::create_dir_all(&dir)?;
         let json = serde_json::to_string_pretty(&instance)?;
-        std::fs::write(dir.join("instance.json"), json)?;
+        paths::write_atomic(&dir.join("instance.json"), json.as_bytes())?;
         self.cache
             .lock()
             .unwrap()

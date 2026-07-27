@@ -40,6 +40,9 @@ pub struct TuneupPlan {
     pub max_mem_mb: u32,
     pub min_mem_mb: u32,
     pub jvm_args: String,
+    /// True when RAM is tight enough that we backed off to a lazily-grown heap
+    /// (`min < max`); the UI warns that raising memory may prevent launch.
+    pub low_ram: bool,
     pub mods: Vec<ModRec>,
     pub unavailable: Vec<String>,
 }
@@ -86,11 +89,27 @@ const AIKAR_FLAGS: &str = "-XX:+UseG1GC -XX:+ParallelRefProcEnabled \
 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 \
 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1";
 
-/// Returns `(min_mb, max_mb, jvm_args)`.
+/// Returns `(min_mb, max_mb, jvm_args)`. Recommends a *matched* heap
+/// (`min == max`) so the JVM never resizes it mid-session — matching min/max is
+/// the standard way to avoid the GC pauses that show up as in-game stutter.
+///
+/// Exception: on a RAM-constrained machine, committing the whole heap up front
+/// can leave too little for the OS, the JVM's own non-heap memory, and
+/// Minecraft's native/GPU buffers, causing a failed launch. There we keep a
+/// lower `min` so the heap grows lazily — trading a little stutter for actually
+/// starting. `min != max` in the result signals this backed-off state.
 fn recommend_heap(total_ram_mb: u64) -> (u32, u32, String) {
+    // Leave this much for everything that isn't the Java heap before committing
+    // the full heap at startup.
+    const HEADROOM_MB: u64 = 3072;
+
     let half = (total_ram_mb / 2) as u32;
     let max = (half.clamp(2048, 8192) / 512) * 512;
-    let min = (max / 2).max(1024);
+    let min = if total_ram_mb.saturating_sub(max as u64) >= HEADROOM_MB {
+        max
+    } else {
+        (max / 2).max(1024)
+    };
     let jvm_args = if max >= 6144 {
         AIKAR_FLAGS.to_string()
     } else {
@@ -209,6 +228,7 @@ pub async fn recommend(app: &AppHandle, instance_id: &str, mode: &str) -> Result
         max_mem_mb,
         min_mem_mb,
         jvm_args,
+        low_ram: min_mem_mb != max_mem_mb,
         mods,
         unavailable,
     })
@@ -272,18 +292,31 @@ mod tests {
 
     #[test]
     fn heap_is_conservative_and_capped() {
+        // Comfortable RAM: matched heap (min == max), sized to the machine and
+        // capped at 8 GB.
         let (min, max, args) = recommend_heap(8192);
-        assert_eq!(max, 4096);
-        assert_eq!(min, 2048);
+        assert_eq!((min, max), (4096, 4096));
         assert_eq!(args, "-XX:+UseG1GC");
 
         let (min, max, args) = recommend_heap(32768);
-        assert_eq!(max, 8192);
-        assert_eq!(min, 4096);
+        assert_eq!((min, max), (8192, 8192));
         assert!(args.contains("G1GC") && args.contains("MaxGCPauseMillis"));
 
-        let (_, max, _) = recommend_heap(3000);
-        assert_eq!(max, 2048);
+        // 6 GB is the boundary where committing the full heap still leaves the
+        // 3 GB headroom, so it stays matched.
+        assert_eq!(recommend_heap(6144).0, recommend_heap(6144).1);
+    }
+
+    #[test]
+    fn low_ram_backs_off_to_a_lazily_grown_heap() {
+        // Under the headroom threshold, min drops below max so the JVM commits
+        // less up front and can actually start; max is unchanged from before.
+        let (min, max, _) = recommend_heap(3000);
+        assert_eq!((min, max), (1024, 2048));
+
+        let (min, max, _) = recommend_heap(4096);
+        assert_eq!((min, max), (1024, 2048));
+        assert!(min < max);
     }
 
     #[test]

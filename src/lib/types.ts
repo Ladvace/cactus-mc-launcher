@@ -205,6 +205,14 @@ export interface CacheStats {
   savedBytes: number;
 }
 
+export interface ServiceStatus {
+  id: string;
+  name: string;
+  /** `null` = not configured for this build (shown neutral, not down). */
+  up: boolean | null;
+  latencyMs: number | null;
+}
+
 export interface Settings {
   theme: string;
   javaPath: string | null;
@@ -511,6 +519,8 @@ export interface TuneupPlan {
   maxMemMb: number;
   minMemMb: number;
   jvmArgs: string;
+  /** RAM is tight; heap backed off to grow lazily. Raising memory may prevent launch. */
+  lowRam: boolean;
   mods: ModRec[];
   unavailable: string[];
 }

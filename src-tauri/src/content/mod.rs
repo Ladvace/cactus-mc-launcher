@@ -62,11 +62,28 @@ fn read_content(app: &AppHandle, instance_id: &str) -> Result<ContentFile> {
 }
 
 fn write_content(app: &AppHandle, instance_id: &str, data: &ContentFile) -> Result<()> {
-    std::fs::write(
-        content_file(app, instance_id)?,
-        serde_json::to_string_pretty(data)?,
-    )?;
-    Ok(())
+    paths::write_atomic(
+        &content_file(app, instance_id)?,
+        serde_json::to_string_pretty(data)?.as_bytes(),
+    )
+}
+
+static CONTENT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Serialize read-modify-write on content.json so concurrent operations on the
+/// same instance can't clobber each other. `mutate` runs under the lock against
+/// a freshly-read copy, which is then written atomically. Any network/download
+/// work must happen *before* calling this (don't hold the lock across it).
+fn update_content<F>(app: &AppHandle, instance_id: &str, mutate: F) -> Result<()>
+where
+    F: FnOnce(&mut ContentFile) -> Result<()>,
+{
+    // Recover a poisoned lock (a panicked mutation) instead of bricking all
+    // future content ops for the session.
+    let _guard = CONTENT_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
+    let mut data = read_content(app, instance_id)?;
+    mutate(&mut data)?;
+    write_content(app, instance_id, &data)
 }
 
 fn subdir(project_type: &str) -> &'static str {
@@ -92,9 +109,27 @@ fn disk_name(file_name: &str, enabled: bool) -> String {
     }
 }
 
+/// Validate a filename that came from a remote source before joining it onto a
+/// directory. A name with a path separator, a `..` component, or an absolute
+/// path could otherwise escape the instance folder (`Path::join` doesn't collapse
+/// `..`, and an absolute join replaces the base entirely). We require the name to
+/// be exactly its own single leaf component and reject anything else. Backslashes
+/// are rejected too — a separator on Windows, and never wanted in a name here.
+fn safe_file_name(name: &str) -> Result<&str> {
+    let safe = !name.is_empty()
+        && !name.contains('/')
+        && !name.contains('\\')
+        && std::path::Path::new(name).file_name().and_then(|n| n.to_str()) == Some(name);
+    if safe {
+        Ok(name)
+    } else {
+        Err(AppError::Other(format!("unsafe filename from source: {name}")))
+    }
+}
+
 fn item_path(app: &AppHandle, instance_id: &str, item: &ContentItem) -> Result<PathBuf> {
     let dir = target_dir(app, instance_id, &item.project_type)?;
-    Ok(dir.join(disk_name(&item.file_name, item.enabled)))
+    Ok(dir.join(disk_name(safe_file_name(&item.file_name)?, item.enabled)))
 }
 
 pub async fn install(
@@ -121,10 +156,13 @@ pub async fn install(
     }
 
     let dir = target_dir(app, instance_id, project_type)?;
-    let dest = dir.join(&file.filename);
+    // The filename comes from the remote source; refuse a path-traversal name
+    // before it's written to disk or stored on the item.
+    let dest = dir.join(safe_file_name(&file.filename)?);
 
+    // Fetch the blob outside the lock (network); the link happens under it.
     let client = modrinth::client()?;
-    cache::install_one(&client, app, &file.url, &dest, file.hashes.sha1.as_deref()).await?;
+    let blob = cache::fetch(&client, app, &file.url, file.hashes.sha1.as_deref()).await?;
 
     let item = ContentItem {
         project_id: Some(version.project_id.clone()),
@@ -137,20 +175,25 @@ pub async fn install(
         source: format!("{source:?}").to_lowercase(),
     };
 
-    let mut data = read_content(app, instance_id)?;
-    if let Some(project_id) = &item.project_id {
-        for old in data
-            .items
-            .iter()
-            .filter(|existing| existing.project_id.as_ref() == Some(project_id))
-        {
-            let _ = std::fs::remove_file(item_path(app, instance_id, old)?);
+    update_content(app, instance_id, |data| {
+        if let Some(project_id) = &item.project_id {
+            for old in data
+                .items
+                .iter()
+                .filter(|existing| existing.project_id.as_ref() == Some(project_id))
+            {
+                let _ = std::fs::remove_file(item_path(app, instance_id, old)?);
+            }
+            data.items
+                .retain(|existing| existing.project_id.as_ref() != Some(project_id));
         }
-        data.items
-            .retain(|existing| existing.project_id.as_ref() != Some(project_id));
-    }
-    data.items.push(item.clone());
-    write_content(app, instance_id, &data)?;
+        // Link in *after* removing older versions, so a concurrent install of the
+        // same file can't delete the copy we just placed (the removal and the link
+        // are one atomic step under the lock).
+        cache::link_into(&blob, &dest)?;
+        data.items.push(item.clone());
+        Ok(())
+    })?;
 
     Ok(item)
 }
@@ -160,67 +203,66 @@ pub fn list(app: &AppHandle, instance_id: &str) -> Result<Vec<ContentItem>> {
 }
 
 pub fn register_local(app: &AppHandle, instance_id: &str) -> Result<usize> {
-    let mut data = read_content(app, instance_id)?;
-    let mut known: std::collections::HashSet<String> = data
-        .items
-        .iter()
-        .map(|item| format!("{}/{}", item.project_type, item.file_name.to_lowercase()))
-        .collect();
-
     let mut added = 0usize;
-    for (subdir_name, project_type, exts) in [
-        ("mods", "mod", &["jar"][..]),
-        ("resourcepacks", "resourcepack", &["zip"][..]),
-        ("shaderpacks", "shader", &["zip"][..]),
-        ("datapacks", "datapack", &["zip"][..]),
-    ] {
-        let dir = paths::instance_game_dir(app, instance_id)?.join(subdir_name);
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            if !entry.file_type().map(|kind| kind.is_file()).unwrap_or(false) {
+    update_content(app, instance_id, |data| {
+        let mut known: std::collections::HashSet<String> = data
+            .items
+            .iter()
+            .map(|item| format!("{}/{}", item.project_type, item.file_name.to_lowercase()))
+            .collect();
+
+        for (subdir_name, project_type, exts) in [
+            ("mods", "mod", &["jar"][..]),
+            ("resourcepacks", "resourcepack", &["zip"][..]),
+            ("shaderpacks", "shader", &["zip"][..]),
+            ("datapacks", "datapack", &["zip"][..]),
+        ] {
+            let dir = paths::instance_game_dir(app, instance_id)?.join(subdir_name);
+            let Ok(entries) = std::fs::read_dir(&dir) else {
                 continue;
-            }
-            let raw = entry.file_name().to_string_lossy().to_string();
-            let (file_name, enabled) = match raw.strip_suffix(".disabled") {
-                Some(base) => (base.to_string(), false),
-                None => (raw.clone(), true),
             };
-            if file_name.is_empty() {
-                continue;
+            for entry in entries.flatten() {
+                if !entry.file_type().map(|kind| kind.is_file()).unwrap_or(false) {
+                    continue;
+                }
+                let raw = entry.file_name().to_string_lossy().to_string();
+                let (file_name, enabled) = match raw.strip_suffix(".disabled") {
+                    Some(base) => (base.to_string(), false),
+                    None => (raw.clone(), true),
+                };
+                if file_name.is_empty() {
+                    continue;
+                }
+                let ext = std::path::Path::new(&file_name)
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .map(str::to_lowercase);
+                if !ext.as_deref().map(|value| exts.contains(&value)).unwrap_or(false) {
+                    continue;
+                }
+                if !known.insert(format!("{project_type}/{}", file_name.to_lowercase())) {
+                    continue;
+                }
+                let title = std::path::Path::new(&file_name)
+                    .file_stem()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or(&file_name)
+                    .to_string();
+                data.items.push(ContentItem {
+                    project_id: None,
+                    version_id: format!("local:{project_type}:{file_name}"),
+                    project_type: project_type.into(),
+                    title,
+                    file_name,
+                    icon_url: None,
+                    enabled,
+                    source: "local".into(),
+                });
+                added += 1;
             }
-            let ext = std::path::Path::new(&file_name)
-                .extension()
-                .and_then(|value| value.to_str())
-                .map(str::to_lowercase);
-            if !ext.as_deref().map(|value| exts.contains(&value)).unwrap_or(false) {
-                continue;
-            }
-            if !known.insert(format!("{project_type}/{}", file_name.to_lowercase())) {
-                continue;
-            }
-            let title = std::path::Path::new(&file_name)
-                .file_stem()
-                .and_then(|value| value.to_str())
-                .unwrap_or(&file_name)
-                .to_string();
-            data.items.push(ContentItem {
-                project_id: None,
-                version_id: format!("local:{project_type}:{file_name}"),
-                project_type: project_type.into(),
-                title,
-                file_name,
-                icon_url: None,
-                enabled,
-                source: "local".into(),
-            });
-            added += 1;
         }
-    }
-    if added > 0 {
-        write_content(app, instance_id, &data)?;
-    }
+        Ok(())
+    })?;
     Ok(added)
 }
 
@@ -237,18 +279,20 @@ fn file_sha1(path: &std::path::Path) -> Option<String> {
 /// title, icon, project and version id — so it shows properly and can be updated.
 /// Best-effort: unmatched items and any network failure leave items untouched.
 pub async fn resolve_local(app: &AppHandle, instance_id: &str) -> Result<usize> {
-    let mut data = read_content(app, instance_id)?;
-
+    // Phase 1 (no lock): hash the local items and query Modrinth. Keyed by the
+    // item's stable local version_id so the write can re-match after any
+    // concurrent change.
+    let snapshot = read_content(app, instance_id)?;
     let mut hashes: Vec<String> = Vec::new();
-    let mut idx_by_hash: HashMap<String, Vec<usize>> = HashMap::new();
-    for (index, item) in data.items.iter().enumerate() {
+    let mut vids_by_hash: HashMap<String, Vec<String>> = HashMap::new();
+    for item in &snapshot.items {
         if item.source != "local" || item.project_id.is_some() {
             continue;
         }
         let Some(sha1) = file_sha1(&item_path(app, instance_id, item)?) else {
             continue;
         };
-        idx_by_hash.entry(sha1.clone()).or_default().push(index);
+        vids_by_hash.entry(sha1.clone()).or_default().push(item.version_id.clone());
         hashes.push(sha1);
     }
     hashes.sort();
@@ -274,32 +318,60 @@ pub async fn resolve_local(app: &AppHandle, instance_id: &str) -> Result<usize> 
         .map(|project| (project.id.clone(), project))
         .collect();
 
-    let mut matched = 0usize;
+    // local version_id -> the tracked item it should become.
+    let mut upgrades: HashMap<String, ContentUpgrade> = HashMap::new();
     for (sha1, version) in &versions {
-        let Some(indices) = idx_by_hash.get(sha1) else {
+        let Some(vids) = vids_by_hash.get(sha1) else {
             continue;
         };
         // Two loose files with identical content would collapse onto one
         // version_id, making the second unmanageable; leave such duplicates local.
-        let [index] = indices[..] else {
+        let [vid] = &vids[..] else {
             continue;
         };
-        let item = &mut data.items[index];
-        item.project_id = Some(version.project_id.clone());
-        item.version_id = version.id.clone();
-        item.source = "modrinth".into();
-        if let Some(project) = projects.get(&version.project_id) {
-            if !project.title.is_empty() {
-                item.title = project.title.clone();
+        let project = projects.get(&version.project_id);
+        upgrades.insert(
+            vid.clone(),
+            ContentUpgrade {
+                project_id: version.project_id.clone(),
+                version_id: version.id.clone(),
+                title: project.map(|p| p.title.clone()).filter(|t| !t.is_empty()),
+                icon_url: project.and_then(|p| p.icon_url.clone()),
+            },
+        );
+    }
+    if upgrades.is_empty() {
+        return Ok(0);
+    }
+
+    // Phase 2 (locked): re-read and apply the upgrades to whatever is still local.
+    let mut matched = 0usize;
+    update_content(app, instance_id, |data| {
+        for item in &mut data.items {
+            if item.source != "local" || item.project_id.is_some() {
+                continue;
             }
-            item.icon_url = project.icon_url.clone();
+            if let Some(upgrade) = upgrades.get(&item.version_id) {
+                item.project_id = Some(upgrade.project_id.clone());
+                item.version_id = upgrade.version_id.clone();
+                item.source = "modrinth".into();
+                if let Some(title) = &upgrade.title {
+                    item.title = title.clone();
+                }
+                item.icon_url = upgrade.icon_url.clone();
+                matched += 1;
+            }
         }
-        matched += 1;
-    }
-    if matched > 0 {
-        write_content(app, instance_id, &data)?;
-    }
+        Ok(())
+    })?;
     Ok(matched)
+}
+
+struct ContentUpgrade {
+    project_id: String,
+    version_id: String,
+    title: Option<String>,
+    icon_url: Option<String>,
 }
 
 #[cfg(unix)]
@@ -354,6 +426,7 @@ pub fn shared_version_ids(app: &AppHandle, instance_id: &str) -> Result<Vec<Stri
 /// Delete every tracked content file and empty `content.json`. Blobs stay in the
 /// shared cache, so re-installing (e.g. during a restore) is just a re-link.
 pub fn clear(app: &AppHandle, instance_id: &str) -> Result<()> {
+    let _guard = CONTENT_LOCK.lock().unwrap_or_else(|poison| poison.into_inner());
     let data = read_content(app, instance_id)?;
     for item in &data.items {
         if let Ok(path) = item_path(app, instance_id, item) {
@@ -369,25 +442,25 @@ pub fn set_enabled(
     version_id: &str,
     enabled: bool,
 ) -> Result<()> {
-    let mut data = read_content(app, instance_id)?;
-    let item = data
-        .items
-        .iter_mut()
-        .find(|candidate| candidate.version_id == version_id)
-        .ok_or_else(|| AppError::Other("content not found".into()))?;
+    update_content(app, instance_id, |data| {
+        let item = data
+            .items
+            .iter_mut()
+            .find(|candidate| candidate.version_id == version_id)
+            .ok_or_else(|| AppError::Other("content not found".into()))?;
 
-    if item.enabled != enabled {
-        let dir = target_dir(app, instance_id, &item.project_type)?;
-        let from = dir.join(disk_name(&item.file_name, item.enabled));
-        let to = dir.join(disk_name(&item.file_name, enabled));
-        if from.exists() {
-            std::fs::rename(&from, &to)?;
+        if item.enabled != enabled {
+            let dir = target_dir(app, instance_id, &item.project_type)?;
+            let name = safe_file_name(&item.file_name)?;
+            let from = dir.join(disk_name(name, item.enabled));
+            let to = dir.join(disk_name(name, enabled));
+            if from.exists() {
+                std::fs::rename(&from, &to)?;
+            }
+            item.enabled = enabled;
         }
-        item.enabled = enabled;
-    }
-
-    write_content(app, instance_id, &data)?;
-    Ok(())
+        Ok(())
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -897,13 +970,13 @@ fn apply_overrides(mrpack: &PathBuf, game_dir: &std::path::Path) -> Result<()> {
 }
 
 pub fn remove(app: &AppHandle, instance_id: &str, version_id: &str) -> Result<()> {
-    let mut data = read_content(app, instance_id)?;
-    if let Some(pos) = data.items.iter().position(|item| item.version_id == version_id) {
-        let item = data.items.remove(pos);
-        let _ = std::fs::remove_file(item_path(app, instance_id, &item)?);
-        write_content(app, instance_id, &data)?;
-    }
-    Ok(())
+    update_content(app, instance_id, |data| {
+        if let Some(pos) = data.items.iter().position(|item| item.version_id == version_id) {
+            let item = data.items.remove(pos);
+            let _ = std::fs::remove_file(item_path(app, instance_id, &item)?);
+        }
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -918,6 +991,18 @@ mod tests {
         assert!(safe_rel("a/../b").is_none());
         assert!(safe_rel("mods/cool.jar").is_some());
         assert!(safe_rel("config/sub/file.toml").is_some());
+    }
+
+    #[test]
+    fn safe_file_name_rejects_traversal() {
+        assert_eq!(safe_file_name("sodium.jar").unwrap(), "sodium.jar");
+        assert!(safe_file_name("").is_err());
+        assert!(safe_file_name("..").is_err());
+        assert!(safe_file_name(".").is_err());
+        assert!(safe_file_name("../evil.jar").is_err());
+        assert!(safe_file_name("/etc/passwd").is_err());
+        assert!(safe_file_name("sub/dir/mod.jar").is_err());
+        assert!(safe_file_name("..\\evil.jar").is_err());
     }
 
     #[test]

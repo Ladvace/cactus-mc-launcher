@@ -20,6 +20,7 @@ import type {
   PlayerEntry,
   SearchParams,
   SearchResults,
+  ServiceStatus,
   ContentCategory,
   BrowseServersParams,
   BrowseServersResult,
@@ -226,6 +227,8 @@ export const api = {
   resolvedJavaPaths: () => invoke<Record<string, string>>("resolved_java_paths"),
 
   clearContentCache: () => invoke<CacheStats>("clear_content_cache"),
+
+  serviceStatus: () => invoke<ServiceStatus[]>("service_status"),
 
   resetAppData: () => invoke<void>("reset_app_data"),
 

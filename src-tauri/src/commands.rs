@@ -693,15 +693,20 @@ pub fn reset_app_data(
     app: AppHandle,
     instances: State<'_, InstanceStore>,
     settings: State<'_, SettingsStore>,
+    accounts: State<'_, AccountStore>,
 ) -> Result<()> {
+    // Sign out first: the refresh token is the most sensitive thing to clear, so
+    // don't let a file still locked by a running game abort the reset and leave
+    // it on disk. The bulk removals below are best-effort for the same reason.
+    accounts.clear(&app)?;
     for dir in [crate::paths::instances_dir(&app)?, crate::paths::meta_dir(&app)?] {
         if dir.exists() {
-            std::fs::remove_dir_all(&dir)?;
+            let _ = std::fs::remove_dir_all(&dir);
         }
     }
     let settings_file = crate::paths::settings_file(&app)?;
     if settings_file.exists() {
-        std::fs::remove_file(&settings_file)?;
+        let _ = std::fs::remove_file(&settings_file);
     }
     settings.save(&app, Settings::default())?;
     instances.load(&app)?;

@@ -4,6 +4,45 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.10.0] — 2026-07-27
+
+### Added
+- **Service status in Settings.** A new panel shows the live reachability of the
+  services Cactus depends on — Modrinth, CurseForge, Minecraft services,
+  Microsoft sign-in, Mojang game files, and mod-loader metadata — with a
+  red/green dot, latency, and a refresh button, so you can tell at a glance
+  whether a failed browse, sign-in, or download is your connection or an
+  upstream outage.
+- **Low-RAM heap warning in Tune-up.** On memory-constrained machines the
+  recommended startup heap is now kept small so the game can still launch, and
+  Tune-up warns that raising max memory much higher may prevent it from starting.
+
+### Changed
+- **Resumable downloads.** Mod, resource-pack, and shader downloads now stream to
+  disk and resume from where they left off after a dropped connection (HTTP
+  `Range`) instead of starting over, with checksum verification and automatic
+  retries.
+- **Matched heap for smoother play.** Tune-up now recommends an equal min/max
+  heap (`-Xms` = `-Xmx`) so the JVM never resizes mid-session — removing a common
+  source of in-game stutter — while automatically backing off on machines without
+  the RAM headroom to commit it up front.
+- **Crash hints on launch failures.** When a game fails to launch, Cactus now
+  reads the log tail and shows a plain-language hint (out of memory, heap set too
+  high, outdated Java, incompatible mods, graphics drivers) instead of only a raw
+  error.
+
+### Fixed
+- **Crash-safe writes.** Accounts, settings, instance metadata, content lists, and
+  server op/whitelist files are now written atomically (write-then-rename), so a
+  crash or power loss mid-write can never leave a truncated or corrupt file.
+- **Concurrent content operations no longer clobber each other.** Installing,
+  toggling, or removing content on the same instance is now serialized, closing
+  a race where a file could be recorded as installed but deleted from disk.
+- **Expired sessions refresh on launch** instead of failing, falling back to a
+  clean re-login prompt when a token can't be renewed.
+- **Hardened against malformed remote filenames** — a downloaded file's name is
+  now validated so it can only ever be written inside its instance folder.
+
 ## [1.9.1] — 2026-07-26
 
 ### Fixed

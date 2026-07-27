@@ -36,7 +36,7 @@
   import { LINKS } from "$lib/links";
   import { playClick } from "$lib/sound";
   import { MOD_LOADERS } from "$lib/types";
-  import type { CacheStats, DockPosition, Settings } from "$lib/types";
+  import type { CacheStats, DockPosition, Settings, ServiceStatus } from "$lib/types";
 
   const DOCK_POSITIONS: { value: DockPosition; labelKey: MessageKey }[] = [
     { value: "bottom", labelKey: "settings.dockBottom" },
@@ -135,6 +135,22 @@
   let appVersion = $state("");
   $effect(() => {
     getVersion().then((version) => (appVersion = version)).catch(() => {});
+  });
+
+  let services = $state<ServiceStatus[]>([]);
+  let servicesChecking = $state(false);
+  async function checkServices() {
+    servicesChecking = true;
+    try {
+      services = await api.serviceStatus();
+    } catch {
+      services = [];
+    } finally {
+      servicesChecking = false;
+    }
+  }
+  $effect(() => {
+    checkServices();
   });
 
   let clearingCache = $state(false);
@@ -1043,6 +1059,45 @@
   </section>
 
   <section class="card-block">
+    <div class="status-head">
+      <h3>{t("settings.serviceStatus")}</h3>
+      <button class="btn ghost sm" onclick={checkServices} disabled={servicesChecking}>
+        <Icon name="refresh" size={14} /> {servicesChecking ? t("settings.checking") : t("settings.refresh")}
+      </button>
+    </div>
+    <p class="about-app">{t("settings.serviceStatusDesc")}</p>
+    <ul class="status-list">
+      {#each services as svc (svc.id)}
+        <li class="status-row">
+          <span
+            class="status-dot"
+            class:up={svc.up === true}
+            class:down={svc.up === false}
+            class:na={svc.up === null}
+          ></span>
+          <span class="status-name">{svc.name}</span>
+          <span class="status-state">
+            {#if svc.up === null}
+              {t("settings.statusNotConfigured")}
+            {:else if svc.up}
+              {t("settings.statusOperational")}{#if svc.latencyMs != null}
+                <span class="status-latency">· {svc.latencyMs} ms</span>
+              {/if}
+            {:else}
+              {t("settings.statusDown")}
+            {/if}
+          </span>
+        </li>
+      {/each}
+      {#if services.length === 0}
+        <li class="status-row muted">
+          {servicesChecking ? t("settings.checking") : t("settings.statusUnavailable")}
+        </li>
+      {/if}
+    </ul>
+  </section>
+
+  <section class="card-block">
     <h3>{t("settings.about")}</h3>
     <p class="about-app">{t("settings.aboutTagline")}</p>
     <div class="setting">
@@ -1448,6 +1503,66 @@
     gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 12px;
+  }
+  .status-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .status-head h3 {
+    margin: 0;
+  }
+  .status-list {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 2px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .status-row:last-child {
+    border-bottom: none;
+  }
+  .status-row.muted {
+    color: var(--text-muted);
+    justify-content: center;
+  }
+  .status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--text-muted);
+  }
+  .status-dot.up {
+    background: var(--success, #3fb950);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #3fb950) 22%, transparent);
+  }
+  .status-dot.down {
+    background: var(--danger);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
+  }
+  .status-dot.na {
+    background: var(--text-muted);
+  }
+  .status-name {
+    flex: 1;
+    color: var(--text);
+  }
+  .status-state {
+    color: var(--text-muted);
+    font-size: 12.5px;
+  }
+  .status-latency {
+    opacity: 0.7;
   }
   .about-credit {
     margin: 0;

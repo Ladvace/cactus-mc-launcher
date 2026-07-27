@@ -4,7 +4,7 @@
 //! functions edit the JSON files directly for a stopped server, resolving the
 //! player's UUID (from Mojang for online-mode, or the offline hash otherwise).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
@@ -41,16 +41,15 @@ fn whitelist_file(app: &AppHandle, id: &str) -> Result<PathBuf> {
     Ok(paths::instance_game_dir(app, id)?.join("whitelist.json"))
 }
 
-fn read_json<T: for<'de> Deserialize<'de>>(path: &PathBuf) -> Vec<T> {
+fn read_json<T: for<'de> Deserialize<'de>>(path: &Path) -> Vec<T> {
     std::fs::read_to_string(path)
         .ok()
         .and_then(|text| serde_json::from_str(&text).ok())
         .unwrap_or_default()
 }
 
-fn write_json<T: Serialize>(path: &PathBuf, items: &[T]) -> Result<()> {
-    std::fs::write(path, serde_json::to_string_pretty(items)?)?;
-    Ok(())
+fn write_json<T: Serialize>(path: &Path, items: &[T]) -> Result<()> {
+    crate::paths::write_atomic(path, serde_json::to_string_pretty(items)?.as_bytes())
 }
 
 pub fn read_ops(app: &AppHandle, id: &str) -> Result<Vec<OpEntry>> {

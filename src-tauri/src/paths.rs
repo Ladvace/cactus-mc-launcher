@@ -1,20 +1,98 @@
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
 use crate::settings::SettingsStore;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Manager};
 
-/// Write a file containing secrets (tokens, API keys) and restrict it to the
-/// owner (`0600` on Unix). On Windows the per-user profile ACL already keeps it
-/// private, so the mode is a no-op there.
-pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
-    std::fs::write(path, contents)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+static WRITE_SEQ: AtomicU64 = AtomicU64::new(0);
+
+/// Replace a file atomically: write a sibling temp file, then `rename` it over
+/// the target (an atomic swap, so a crash never leaves a half-written file).
+/// `private` creates the temp `0600` on Unix; `durable` `fsync`s before the
+/// rename (survives power loss, at some latency cost).
+fn atomic_write(path: &Path, contents: &[u8], private: bool, durable: bool) -> Result<()> {
+    let dir = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .ok_or_else(|| AppError::Other("cannot write a file with no parent directory".into()))?;
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("state");
+    let seq = WRITE_SEQ.fetch_add(1, Ordering::Relaxed);
+    let tmp = dir.join(format!(".{name}.tmp.{}.{seq}", std::process::id()));
+    // A stale temp (from a crashed run reusing this pid) could have the wrong
+    // mode, so start from a clean create.
+    let _ = std::fs::remove_file(&tmp);
+
+    let written = (|| -> Result<()> {
+        use std::io::Write;
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create_new(true);
+        #[cfg(unix)]
+        if private {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        #[cfg(not(unix))]
+        let _ = private;
+        let mut file = opts.open(&tmp)?;
+        file.write_all(contents)?;
+        if durable {
+            file.sync_all()?;
+        }
+        Ok(())
+    })();
+    if written.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+        return written;
+    }
+
+    if let Err(error) = rename_replace(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(error.into());
+    }
+    if durable {
+        let _ = fsync_dir(dir);
     }
     Ok(())
+}
+
+/// `rename` over an existing file, retrying briefly — on Windows a file that
+/// antivirus or another process has momentarily open can't be replaced yet.
+fn rename_replace(from: &Path, to: &Path) -> std::io::Result<()> {
+    let mut last = None;
+    for attempt in 0..5u32 {
+        match std::fs::rename(from, to) {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                last = Some(error);
+                if attempt < 4 {
+                    std::thread::sleep(std::time::Duration::from_millis(20 * (attempt as u64 + 1)));
+                }
+            }
+        }
+    }
+    Err(last.expect("loop runs at least once"))
+}
+
+#[cfg(unix)]
+fn fsync_dir(dir: &Path) -> std::io::Result<()> {
+    std::fs::File::open(dir)?.sync_all()
+}
+#[cfg(not(unix))]
+fn fsync_dir(_dir: &Path) -> std::io::Result<()> {
+    Ok(())
+}
+
+/// Atomically write a file that may contain secrets, owner-only on Unix and
+/// `fsync`ed for durability.
+pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
+    atomic_write(path, contents, true, true)
+}
+
+/// Atomically replace a (non-secret) state file — corruption-safe on a crash,
+/// without the `fsync` cost, for frequently-written files.
+pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<()> {
+    atomic_write(path, contents, false, false)
 }
 
 /// The OS default app data dir (e.g. `~/Library/Application Support/<id>`). The
