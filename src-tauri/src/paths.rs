@@ -1,9 +1,23 @@
 use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
 use crate::settings::SettingsStore;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Manager};
+
+/// Accept a repo/archive-relative path only if it stays inside its base — every
+/// component must be `Normal` or `.` (so `..`, absolute paths, Windows drive
+/// prefixes, and drive-relative roots like `\Windows` are all refused). Returns
+/// the validated path. The single guard behind archive extraction (modpacks,
+/// snapshots, restore points) and maven library layout.
+pub fn safe_rel(path: &str) -> Option<PathBuf> {
+    let path_buf = PathBuf::from(path);
+    let safe = !path_buf.as_os_str().is_empty()
+        && path_buf
+            .components()
+            .all(|component| matches!(component, Component::Normal(_) | Component::CurDir));
+    safe.then_some(path_buf)
+}
 
 static WRITE_SEQ: AtomicU64 = AtomicU64::new(0);
 
@@ -83,8 +97,10 @@ fn fsync_dir(_dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Atomically write a file that may contain secrets, owner-only on Unix and
-/// `fsync`ed for durability.
+/// Atomically write a file that may contain secrets, owner-only (0600) on Unix
+/// and `fsync`ed for durability. NOTE: on Windows no explicit ACL is applied yet
+/// — confidentiality there rests on the per-user `%APPDATA%` location; a proper
+/// owner-only DACL (Win32 `SetFileSecurity`) is still TODO.
 pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
     atomic_write(path, contents, true, true)
 }
@@ -142,7 +158,25 @@ pub fn instances_dir(app: &AppHandle) -> Result<PathBuf> {
     Ok(dir)
 }
 
+/// Reject an instance id that isn't a single safe path component. IDs are joined
+/// onto the instances dir; a crafted id (`../…`, an absolute path, a separator)
+/// from a compromised webview would otherwise let instance-scoped commands read
+/// or write outside the data dir. Real ids are generated UUIDs, so a legitimate
+/// instance is never rejected.
+pub fn validate_instance_id(id: &str) -> Result<()> {
+    let safe = !id.is_empty()
+        && !id.contains('/')
+        && !id.contains('\\')
+        && std::path::Path::new(id).file_name().and_then(|name| name.to_str()) == Some(id);
+    if safe {
+        Ok(())
+    } else {
+        Err(AppError::Other(format!("invalid instance id: {id}")))
+    }
+}
+
 pub fn instance_dir(app: &AppHandle, id: &str) -> Result<PathBuf> {
+    validate_instance_id(id)?;
     Ok(instances_dir(app)?.join(id))
 }
 
@@ -181,6 +215,14 @@ pub fn content_cache_dir(app: &AppHandle) -> Result<PathBuf> {
 
 pub fn java_dir(app: &AppHandle) -> Result<PathBuf> {
     let dir = meta_dir(app)?.join("java");
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+/// `meta/log-configs/` — Mojang's per-version log4j configuration files (the
+/// Log4Shell mitigation), shared across instances by their manifest id.
+pub fn log_configs_dir(app: &AppHandle) -> Result<PathBuf> {
+    let dir = meta_dir(app)?.join("log-configs");
     std::fs::create_dir_all(&dir)?;
     Ok(dir)
 }
@@ -230,4 +272,38 @@ pub fn new_instance_game_dir(app: &AppHandle, instance_id: &str) -> Option<Strin
 
 pub fn settings_file(app: &AppHandle) -> Result<PathBuf> {
     Ok(data_dir(app)?.join("settings.json"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{safe_rel, validate_instance_id};
+
+    #[test]
+    fn safe_rel_accepts_relative_rejects_escapes() {
+        assert!(safe_rel("mods/cool.jar").is_some());
+        assert!(safe_rel("config/sub/a.toml").is_some());
+        assert!(safe_rel("").is_none());
+        assert!(safe_rel("../evil").is_none());
+        assert!(safe_rel("a/../../evil").is_none());
+        assert!(safe_rel("/etc/passwd").is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn safe_rel_rejects_windows_drive_relative_root() {
+        // Not is_absolute() on Windows (no drive), but escapes to the drive root.
+        assert!(safe_rel(r"\Windows\System32\x").is_none());
+        assert!(safe_rel(r"C:\Windows").is_none());
+    }
+
+    #[test]
+    fn validate_instance_id_accepts_uuids_rejects_traversal() {
+        assert!(validate_instance_id("550e8400-e29b-41d4-a716-446655440000").is_ok());
+        assert!(validate_instance_id("").is_err());
+        assert!(validate_instance_id("..").is_err());
+        assert!(validate_instance_id("../../etc").is_err());
+        assert!(validate_instance_id("a/b").is_err());
+        assert!(validate_instance_id(r"a\b").is_err());
+        assert!(validate_instance_id("/abs").is_err());
+    }
 }

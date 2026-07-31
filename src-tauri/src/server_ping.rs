@@ -45,7 +45,22 @@ async fn ping(address: &str) -> Result<ServerStatus> {
     let (host, port) = split_host_port(address);
     let started = Instant::now();
 
-    let mut stream = TcpStream::connect((host.as_str(), port))
+    // Resolve first and refuse link-local/metadata targets so the pinger can't be
+    // pointed at 169.254.169.254 etc. LAN/loopback servers stay allowed.
+    let addrs: Vec<std::net::SocketAddr> = tokio::net::lookup_host((host.as_str(), port))
+        .await
+        .map_err(|e| AppError::Other(format!("could not resolve {host}: {e}")))?
+        .collect();
+    if addrs.is_empty() {
+        return Err(AppError::Other(format!("could not resolve {host}")));
+    }
+    if addrs.iter().any(|addr| crate::http::is_never_a_server_ip(addr.ip())) {
+        return Err(AppError::Other(
+            "refusing to ping a link-local or metadata address".into(),
+        ));
+    }
+
+    let mut stream = TcpStream::connect(&addrs[..])
         .await
         .map_err(|e| AppError::Other(format!("could not reach {host}:{port}: {e}")))?;
 

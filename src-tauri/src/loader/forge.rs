@@ -136,7 +136,10 @@ pub async fn apply(
 
     if let Some(extra) = profile.arguments {
         let args = detail.arguments.get_or_insert_with(Arguments::default);
-        args.jvm.extend(extra.jvm);
+        // Same guard as Fabric/Quilt: drop agent/bootclasspath/@argfile flags from
+        // the (un-pinned) installer-produced profile.
+        args.jvm
+            .extend(extra.jvm.into_iter().filter(super::arg_is_safe_jvm));
         args.game.extend(extra.game);
     }
 

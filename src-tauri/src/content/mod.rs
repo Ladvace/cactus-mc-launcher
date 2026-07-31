@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::io::Read;
-use std::path::PathBuf;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
@@ -9,6 +9,7 @@ use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
 use crate::instance::{Instance, InstanceKind, ModLoader};
 use crate::launch::download::{download_one, DownloadTask};
+use crate::paths::safe_rel;
 
 pub mod cache;
 pub use cache::CacheStats;
@@ -517,30 +518,6 @@ fn parse_modrinth_ids(url: &str) -> Option<(String, String)> {
     Some((project, parts.next()?.to_string()))
 }
 
-/// Reject archive paths that try to escape the target directory. Uses a
-/// component-based check (not string matching) so Windows-absolute, drive-root,
-/// UNC and `..` paths are all refused — a bare `contains("..")` misses those.
-fn safe_rel(path: &str) -> Option<PathBuf> {
-    if path.is_empty() {
-        return None;
-    }
-    let path_buf = PathBuf::from(path);
-    if path_buf.is_absolute() {
-        return None;
-    }
-    for component in path_buf.components() {
-        if matches!(
-            component,
-            std::path::Component::ParentDir
-                | std::path::Component::Prefix(_)
-                | std::path::Component::RootDir
-        ) {
-            return None;
-        }
-    }
-    Some(path_buf)
-}
-
 /// Hosts a modpack may download files from — the Modrinth `.mrpack` spec's
 /// allow-list. Modrinth enforces the same set on upload, so legitimate packs
 /// only ever use these.
@@ -602,8 +579,12 @@ fn emit_progress(
     );
 }
 
-async fn fetch_icon_data_uri(client: &reqwest::Client, url: &str) -> Option<String> {
-    let resp = client.get(url).send().await.ok()?;
+async fn fetch_icon_data_uri(url: &str) -> Option<String> {
+    // `url` comes from third-party modpack metadata, so fetch it through the
+    // SSRF-guarded path (blocks private/loopback/metadata hosts across redirects)
+    // and only accept an actual image — never embed an internal service's HTML/
+    // JSON response as an "icon".
+    let resp = crate::http::guarded_get(url).await.ok()?;
     if !resp.status().is_success() {
         return None;
     }
@@ -615,7 +596,11 @@ async fn fetch_icon_data_uri(client: &reqwest::Client, url: &str) -> Option<Stri
         .split(';')
         .next()
         .unwrap_or("image/png")
+        .trim()
         .to_string();
+    if !content_type.starts_with("image/") {
+        return None;
+    }
     let bytes = resp.bytes().await.ok()?;
     if bytes.is_empty() || bytes.len() > 2_000_000 {
         return None;
@@ -657,9 +642,7 @@ pub async fn install_modpack(
         let mut entry = zip
             .by_name("modrinth.index.json")
             .map_err(|_| AppError::Other("modpack is missing modrinth.index.json".into()))?;
-        let mut text = String::new();
-        entry.read_to_string(&mut text)?;
-        serde_json::from_str(&text)?
+        serde_json::from_str(&read_text_capped(&mut entry, MAX_INDEX_BYTES)?)?
     };
 
     let mc_version = index
@@ -682,7 +665,7 @@ pub async fn install_modpack(
 
     let name = index.name.clone().unwrap_or_else(|| version.name.clone());
     let icon = match icon_url.as_deref().filter(|url| !url.is_empty()) {
-        Some(url) => fetch_icon_data_uri(&client, url).await,
+        Some(url) => fetch_icon_data_uri(url).await,
         None => None,
     };
     let instance = Instance::new(name, InstanceKind::Client, mc_version, loader, loader_version, icon);
@@ -834,13 +817,19 @@ pub async fn install_cf_modpack(
     let client = crate::http::client()?;
     let tmp = paths::meta_dir(app)?.join("tmp");
     std::fs::create_dir_all(&tmp)?;
-    let pack = tmp.join(&file.filename);
+    // The pack file name is attacker-controlled (CurseForge API JSON) — validate
+    // it before joining, and require a hash so the archive we then unzip is
+    // pinned. Both mirror the Modrinth path (`safe_file_name` / `validate_pack_download`).
+    let pack = tmp.join(safe_file_name(&file.filename)?);
+    let pack_sha1 = file.hashes.sha1.clone().ok_or_else(|| {
+        AppError::Other("this CurseForge modpack file has no integrity hash; refusing to install".into())
+    })?;
     download_one(
         &client,
         &DownloadTask {
             url: file.url.clone(),
             dest: pack.clone(),
-            sha1: file.hashes.sha1.clone(),
+            sha1: Some(pack_sha1),
             executable: false,
         },
     )
@@ -852,9 +841,7 @@ pub async fn install_cf_modpack(
         let mut entry = zip
             .by_name("manifest.json")
             .map_err(|_| AppError::Other("modpack is missing manifest.json".into()))?;
-        let mut text = String::new();
-        entry.read_to_string(&mut text)?;
-        serde_json::from_str(&text)?
+        serde_json::from_str(&read_text_capped(&mut entry, MAX_INDEX_BYTES)?)?
     };
 
     let (loader, loader_version) = manifest
@@ -868,7 +855,7 @@ pub async fn install_cf_modpack(
 
     let name = manifest.name.clone().unwrap_or_else(|| version.name.clone());
     let icon = match icon_url.as_deref().filter(|url| !url.is_empty()) {
-        Some(url) => fetch_icon_data_uri(&client, url).await,
+        Some(url) => fetch_icon_data_uri(url).await,
         None => None,
     };
     let instance = Instance::new(
@@ -886,7 +873,9 @@ pub async fn install_cf_modpack(
     emit_progress(app, Some(&instance.id), 0, 0, "Resolving mods…");
     let concurrency =
         crate::settings::clamp_concurrency(app.state::<crate::settings::SettingsStore>().get().max_concurrent_downloads);
-    let resolved: Vec<Option<(DownloadTask, ContentItem)>> = stream::iter(manifest.files)
+    // `None` = author opted out (skip silently); `Some(Err)` = a file we refuse
+    // to install (bad name or missing hash) — that fails the whole install closed.
+    let resolved: Vec<Option<Result<(DownloadTask, ContentItem)>>> = stream::iter(manifest.files)
         .map(|f| {
             let mods_dir = mods_dir.clone();
             async move {
@@ -896,32 +885,56 @@ pub async fn install_cf_modpack(
                 if cf_file.url.is_empty() {
                     return None; // author opted out — skip
                 }
-                let title = cf_file.filename.rsplit_once('.').map_or(cf_file.filename.as_str(), |(s, _)| s);
-                Some((
+                // Attacker-controlled filename + integrity hash come from the CF
+                // API — validate the name and require a hash before writing into
+                // mods/ (which the JVM then loads). Fail closed, never open.
+                let safe_name = match safe_file_name(&cf_file.filename) {
+                    Ok(name) => name.to_string(),
+                    Err(err) => return Some(Err(err)),
+                };
+                let sha1 = match cf_file.hashes.sha1.clone() {
+                    Some(hash) => hash,
+                    None => {
+                        return Some(Err(AppError::Other(format!(
+                            "CurseForge file '{safe_name}' has no integrity hash; refusing to install"
+                        ))))
+                    }
+                };
+                let title = safe_name
+                    .rsplit_once('.')
+                    .map_or(safe_name.as_str(), |(stem, _)| stem)
+                    .to_string();
+                Some(Ok((
                     DownloadTask {
                         url: cf_file.url.clone(),
-                        dest: mods_dir.join(&cf_file.filename),
-                        sha1: cf_file.hashes.sha1.clone(),
+                        dest: mods_dir.join(&safe_name),
+                        sha1: Some(sha1),
                         executable: false,
                     },
                     ContentItem {
                         project_id: Some(f.project_id.to_string()),
                         version_id: composite,
                         project_type: "mod".into(),
-                        title: title.to_string(),
-                        file_name: cf_file.filename.clone(),
+                        title,
+                        file_name: safe_name,
                         icon_url: None,
                         enabled: true,
                         source: "curseforge".into(),
                     },
-                ))
+                )))
             }
         })
         .buffer_unordered(concurrency)
         .collect()
         .await;
 
-    let (tasks, items): (Vec<_>, Vec<_>) = resolved.into_iter().flatten().unzip();
+    let mut tasks: Vec<DownloadTask> = Vec::new();
+    let mut items: Vec<ContentItem> = Vec::new();
+    for entry in resolved.into_iter().flatten() {
+        let (task, item) = entry?;
+        tasks.push(task);
+        items.push(item);
+    }
     {
         let app_cb = app.clone();
         let id = instance.id.clone();
@@ -943,30 +956,97 @@ pub async fn install_cf_modpack(
     Ok(instance)
 }
 
-fn apply_overrides(mrpack: &PathBuf, game_dir: &std::path::Path) -> Result<()> {
-    let file = std::fs::File::open(mrpack)?;
-    let mut zip = zip::ZipArchive::new(file)?;
+/// Size caps for extracting a pack's `overrides/` — an anti-zip-bomb guard.
+pub(crate) struct OverrideLimits {
+    pub max_file: u64,
+    pub max_total: u64,
+    pub max_entries: usize,
+}
 
+/// Generous absolute caps for a modpack/`.mrpack`'s bundled overrides — stop a
+/// decompression bomb without tripping on a real pack (overrides may legitimately
+/// include a bundled resource pack).
+pub(crate) const PACK_OVERRIDE_LIMITS: OverrideLimits = OverrideLimits {
+    max_file: 1_000_000_000,
+    max_total: 4_000_000_000,
+    max_entries: 100_000,
+};
+
+/// Copy `reader` into `writer`, failing past `limit` bytes so a small archive
+/// entry can't decompress into an unbounded file. Returns bytes written.
+pub(crate) fn copy_capped(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+    limit: u64,
+) -> Result<u64> {
+    let written = std::io::copy(&mut reader.take(limit + 1), writer)?;
+    if written > limit {
+        return Err(AppError::Other("a file in this pack is larger than allowed".into()));
+    }
+    Ok(written)
+}
+
+/// Decompressed-size cap for a pack's JSON index/manifest — plenty for a real
+/// index, but stops a compression bomb in that entry from exhausting memory.
+pub(crate) const MAX_INDEX_BYTES: u64 = 64_000_000;
+
+/// Read a zip entry to a string, failing if it decompresses past `limit` bytes.
+pub(crate) fn read_text_capped(reader: &mut impl Read, limit: u64) -> Result<String> {
+    let mut text = String::new();
+    reader.take(limit + 1).read_to_string(&mut text)?;
+    if text.len() as u64 > limit {
+        return Err(AppError::Other("a file in this pack is too large".into()));
+    }
+    Ok(text)
+}
+
+/// Extract a pack zip's `overrides/` (or `client-overrides/`) entries into
+/// `game_dir`, each path-checked with `safe_rel` and size-capped by `limits`.
+/// `allow` decides which relative paths are written (e.g. a cactuspack's
+/// config-only allowlist); pass `|_| true` to accept every safe path.
+pub(crate) fn extract_overrides(
+    pack: &Path,
+    game_dir: &Path,
+    limits: &OverrideLimits,
+    allow: impl Fn(&Path) -> bool,
+) -> Result<()> {
+    let file = std::fs::File::open(pack)?;
+    let mut zip = zip::ZipArchive::new(file)?;
+    if zip.len() > limits.max_entries {
+        return Err(AppError::Other("this pack has too many files".into()));
+    }
+    let mut total: u64 = 0;
     for index in 0..zip.len() {
-        let mut entry = zip
-            .by_index(index)?;
+        let mut entry = zip.by_index(index)?;
         let name = entry.name().to_string();
-        let rel = name
+        let Some(rel) = name
             .strip_prefix("overrides/")
-            .or_else(|| name.strip_prefix("client-overrides/"));
-        let Some(rel) = rel else { continue };
+            .or_else(|| name.strip_prefix("client-overrides/"))
+        else {
+            continue;
+        };
         if rel.is_empty() || entry.is_dir() || name.ends_with('/') {
             continue;
         }
         let Some(rel) = safe_rel(rel) else { continue };
-        let dest = game_dir.join(rel);
+        if !allow(&rel) {
+            continue;
+        }
+        let dest = game_dir.join(&rel);
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let mut out = std::fs::File::create(&dest)?;
-        std::io::copy(&mut entry, &mut out)?;
+        total = total.saturating_add(copy_capped(&mut entry, &mut out, limits.max_file)?);
+        if total > limits.max_total {
+            return Err(AppError::Other("this pack's overrides are too large".into()));
+        }
     }
     Ok(())
+}
+
+fn apply_overrides(mrpack: &Path, game_dir: &Path) -> Result<()> {
+    extract_overrides(mrpack, game_dir, &PACK_OVERRIDE_LIMITS, |_| true)
 }
 
 pub fn remove(app: &AppHandle, instance_id: &str, version_id: &str) -> Result<()> {
@@ -984,13 +1064,67 @@ mod tests {
     use super::*;
 
     #[test]
-    fn safe_rel_blocks_escapes() {
-        assert!(safe_rel("").is_none());
-        assert!(safe_rel("/etc/passwd").is_none());
-        assert!(safe_rel("../secrets").is_none());
-        assert!(safe_rel("a/../b").is_none());
-        assert!(safe_rel("mods/cool.jar").is_some());
-        assert!(safe_rel("config/sub/file.toml").is_some());
+    fn copy_capped_enforces_limit() {
+        use std::io::Cursor;
+        let mut out = Vec::new();
+        assert_eq!(copy_capped(&mut Cursor::new(b"hello".to_vec()), &mut out, 10).unwrap(), 5);
+        assert_eq!(out, b"hello");
+        // Exactly at the limit is allowed.
+        let mut exact = Vec::new();
+        assert_eq!(copy_capped(&mut Cursor::new(vec![1u8; 10]), &mut exact, 10).unwrap(), 10);
+        // Over the limit fails (a small entry that decompresses too big).
+        let mut over = Vec::new();
+        assert!(copy_capped(&mut Cursor::new(vec![0u8; 20]), &mut over, 10).is_err());
+    }
+
+    #[test]
+    fn read_text_capped_enforces_limit() {
+        use std::io::Cursor;
+        assert_eq!(read_text_capped(&mut Cursor::new(b"hi".to_vec()), 10).unwrap(), "hi");
+        assert!(read_text_capped(&mut Cursor::new(vec![b'a'; 20]), 10).is_err());
+    }
+
+    fn make_zip(path: &Path, entries: &[(&str, &[u8])]) {
+        use std::io::Write;
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+        let opts = zip::write::SimpleFileOptions::default();
+        for (name, bytes) in entries {
+            zip.start_file(*name, opts).unwrap();
+            zip.write_all(bytes).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn extract_overrides_guards_paths_caps_and_allow() {
+        let base = std::env::temp_dir().join(format!("cactus-extract-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        let pack = base.join("pack.zip");
+        make_zip(
+            &pack,
+            &[
+                ("overrides/config/ok.toml", b"ok"),
+                ("overrides/../evil.txt", b"x"), // traversal → refused by safe_rel
+                ("overrides/mods/bad.jar", b"jar"), // filtered out by `allow`
+            ],
+        );
+
+        // Config-only allow + generous caps: config written, mods filtered, no escape.
+        let game = base.join("game");
+        let limits = OverrideLimits { max_file: 1_000, max_total: 10_000, max_entries: 100 };
+        extract_overrides(&pack, &game, &limits, |rel| rel.starts_with("config")).unwrap();
+        assert!(game.join("config/ok.toml").is_file());
+        assert!(!game.join("mods/bad.jar").exists());
+        assert!(!base.join("evil.txt").exists());
+
+        // Per-file cap and entry-count cap both fail closed.
+        let tiny = OverrideLimits { max_file: 1, max_total: 10_000, max_entries: 100 };
+        assert!(extract_overrides(&pack, &base.join("g2"), &tiny, |_| true).is_err());
+        let few = OverrideLimits { max_file: 1_000, max_total: 10_000, max_entries: 1 };
+        assert!(extract_overrides(&pack, &base.join("g3"), &few, |_| true).is_err());
+
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]

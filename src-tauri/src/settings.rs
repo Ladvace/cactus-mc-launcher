@@ -92,6 +92,10 @@ pub struct Settings {
     /// Show Cactus branding (wordmark + splashes) on the in-game title screen.
     #[serde(default = "default_true")]
     pub menu_branding: bool,
+    /// After installing a modpack, navigate to the new instance's page. When
+    /// false, the current page stays put.
+    #[serde(default = "default_true")]
+    pub open_instance_on_install: bool,
 }
 
 fn default_ui_scale() -> u32 {
@@ -153,6 +157,7 @@ impl Default for Settings {
             reduce_transparency: false,
             always_show_focus: false,
             menu_branding: true,
+            open_instance_on_install: true,
         }
     }
 }
@@ -180,7 +185,9 @@ impl SettingsStore {
 
     pub fn save(&self, app: &AppHandle, settings: Settings) -> Result<()> {
         let file = paths::settings_file(app)?;
-        // Holds the ngrok authtoken + Giphy key — keep it owner-only.
+        // Holds the ngrok authtoken + Giphy key — owner-only (0600) on Unix. On
+        // Windows it relies on the per-user %APPDATA% location; an explicit
+        // owner-only ACL is still TODO (needs Win32 SetFileSecurity).
         paths::write_private(&file, serde_json::to_string_pretty(&settings)?.as_bytes())?;
         *self.inner.lock().unwrap() = settings;
         Ok(())

@@ -48,7 +48,10 @@ fn push_artifact(
     base: &std::path::Path,
     artifact: &Artifact,
 ) -> Option<PathBuf> {
+    // Loader/Forge profiles aren't hash-pinned, so refuse a crafted `path` with
+    // `..` that would write a jar outside the libraries dir.
     let rel = artifact.path.clone()?;
+    paths::safe_rel(&rel)?;
     let dest = base.join(&rel);
     let sha1 = if artifact.sha1.is_empty() {
         None
@@ -102,7 +105,7 @@ pub fn resolve(app: &AppHandle, libraries: &[Library]) -> Result<ResolvedLibrari
             // Maven-style library (Fabric/Quilt/Forge): resolve from name + url.
             // These go straight onto the classpath, so require HTTPS — a plaintext
             // mirror could otherwise serve a swapped jar that runs in the JVM.
-            if let Some(rel) = maven_to_path(&lib.name) {
+            if let Some(rel) = maven_to_path(&lib.name).filter(|rel| paths::safe_rel(rel).is_some()) {
                 let base_url = lib.url.as_deref().unwrap_or(MAVEN_CENTRAL);
                 if !base_url.starts_with("https://") {
                     return Err(AppError::Other(format!(
@@ -114,7 +117,10 @@ pub fn resolve(app: &AppHandle, libraries: &[Library]) -> Result<ResolvedLibrari
                 downloads.push(DownloadTask {
                     url: join_url(base_url, &rel),
                     dest: dest.clone(),
-                    sha1: None,
+                    // Pin to the hash the loader meta published (Fabric/Quilt do),
+                    // so a swapped jar on the maven host is rejected. HTTPS-only
+                    // remains the floor when no hash is available.
+                    sha1: lib.sha1.clone().filter(|hash| !hash.is_empty()),
                     executable: false,
                 });
                 classpath.push(dest);
@@ -189,7 +195,8 @@ pub fn extract_natives(
         };
         let out_path = dest_dir.join(file_name);
         let mut out = std::fs::File::create(&out_path)?;
-        std::io::copy(&mut entry, &mut out)?;
+        // Cap each extracted native (defense-in-depth; native jars are hash-pinned).
+        crate::content::copy_capped(&mut entry, &mut out, crate::content::PACK_OVERRIDE_LIMITS.max_file)?;
     }
 
     Ok(())

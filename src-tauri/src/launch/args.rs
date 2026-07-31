@@ -65,6 +65,11 @@ pub fn build(detail: &VersionDetail, ctx: &LaunchContext) -> Vec<String> {
 
     out.push(format!("-Xmx{}M", ctx.max_mem));
     out.push(format!("-Xms{}M", ctx.min_mem));
+    // Log4Shell (CVE-2021-44228) mitigation: harmless on patched/newer versions,
+    // and neutralises `${jndi:…}` message lookups on log4j ≥2.10 (1.12–1.17).
+    // Older versions additionally get Mojang's patched logging config, wired in
+    // via `extra_jvm` by the launch flow.
+    out.push("-Dlog4j2.formatMsgNoLookups=true".to_string());
     out.extend(ctx.extra_jvm.iter().filter(|s| !s.is_empty()).cloned());
 
     match &detail.arguments {

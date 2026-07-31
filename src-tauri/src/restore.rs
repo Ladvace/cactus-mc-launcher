@@ -8,7 +8,7 @@
 //! always one click from being undone.
 
 use std::io::{Read, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -42,10 +42,6 @@ fn loader_str(loader: ModLoader) -> &'static str {
         ModLoader::NeoForge => "neoforge",
     }
 }
-
-// ---------------------------------------------------------------------------
-// Restore points
-// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -285,39 +281,8 @@ pub async fn restore(app: &AppHandle, instance_id: &str, id: &str) -> Result<()>
 }
 
 fn extract_overrides(pack: &Path, game_dir: &Path) -> Result<()> {
-    let file = std::fs::File::open(pack)?;
-    let mut zip = zip::ZipArchive::new(file)?;
-    for index in 0..zip.len() {
-        let mut entry = zip.by_index(index)?;
-        let name = entry.name().to_string();
-        let Some(rel) = name.strip_prefix("overrides/") else {
-            continue;
-        };
-        if rel.is_empty() || entry.is_dir() || name.ends_with('/') {
-            continue;
-        }
-        let Some(rel) = safe_rel(rel) else { continue };
-        let dest = game_dir.join(rel);
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut out = std::fs::File::create(&dest)?;
-        std::io::copy(&mut entry, &mut out)?;
-    }
-    Ok(())
-}
-
-fn safe_rel(path: &str) -> Option<PathBuf> {
-    let path_buf = PathBuf::from(path);
-    if path_buf.is_absolute() {
-        return None;
-    }
-    for component in path_buf.components() {
-        if matches!(component, Component::ParentDir | Component::Prefix(_) | Component::RootDir) {
-            return None;
-        }
-    }
-    Some(path_buf)
+    // Share the one guarded extractor (traversal-checked + zip-bomb-capped).
+    content::extract_overrides(pack, game_dir, &content::PACK_OVERRIDE_LIMITS, |_| true)
 }
 
 fn prune_auto(app: &AppHandle, instance_id: &str) -> Result<()> {
@@ -331,10 +296,6 @@ fn prune_auto(app: &AppHandle, instance_id: &str) -> Result<()> {
     }
     Ok(())
 }
-
-// ---------------------------------------------------------------------------
-// Update detection + application
-// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

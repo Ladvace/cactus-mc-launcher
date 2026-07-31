@@ -344,7 +344,17 @@ pub fn read_server_properties(app: AppHandle, id: String) -> Result<String> {
 }
 
 #[tauri::command]
-pub fn write_server_properties(app: AppHandle, id: String, content: String) -> Result<()> {
+pub fn write_server_properties(
+    app: AppHandle,
+    store: State<'_, InstanceStore>,
+    id: String,
+    content: String,
+) -> Result<()> {
+    // Only write into an instance that actually exists — the id is otherwise
+    // untrusted (webview-supplied) and turns into a filesystem path.
+    if store.get(&id).is_none() {
+        return Err(crate::error::AppError::InstanceNotFound(id));
+    }
     let file = crate::paths::instance_game_dir(&app, &id)?.join("server.properties");
     std::fs::write(file, content)?;
     Ok(())
@@ -804,10 +814,11 @@ pub fn clear_exports(app: AppHandle) -> Result<usize> {
 }
 
 #[tauri::command]
-pub async fn board_login(
-    app: AppHandle,
-    api_base: String,
-) -> Result<crate::board_auth::BoardSession> {
+pub async fn board_login(app: AppHandle) -> Result<crate::board_auth::BoardSession> {
+    // Use the compiled-in backend base, never a webview-supplied URL, so a
+    // compromised webview can't redirect the auth handshake to its own server.
+    let api_base = crate::http::backend_base()
+        .ok_or_else(|| crate::error::AppError::Other("the board backend isn't configured".into()))?;
     crate::board_auth::login(&app, &api_base).await
 }
 
@@ -817,12 +828,14 @@ pub async fn publish_setup(
     app: AppHandle,
     instance_id: String,
     format: String,
-    api_base: String,
     access_token: String,
     board_handle: Option<String>,
     name: Option<String>,
     changelog: Option<String>,
 ) -> Result<String> {
+    // Pin the destination to the compiled-in backend base (not a webview arg).
+    let api_base = crate::http::backend_base()
+        .ok_or_else(|| crate::error::AppError::Other("the board backend isn't configured".into()))?;
     crate::snapshot::publish(
         &app,
         &instance_id,
@@ -1047,4 +1060,21 @@ pub fn add_server_to_instance(
 ) -> Result<()> {
     let game_dir = crate::paths::instance_game_dir(&app, &instance_id)?;
     crate::servers_dat::add_server(&game_dir.join("servers.dat"), &name, &address)
+}
+
+/// Toggle the webview DevTools/console. `open_devtools` only exists in debug
+/// builds (or with the `devtools` Cargo feature), so this is a no-op in a normal
+/// release build — matching Tauri's default of dev-only DevTools.
+#[tauri::command]
+pub fn toggle_devtools(window: tauri::WebviewWindow) {
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    {
+        if window.is_devtools_open() {
+            window.close_devtools();
+        } else {
+            window.open_devtools();
+        }
+    }
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    let _ = window;
 }

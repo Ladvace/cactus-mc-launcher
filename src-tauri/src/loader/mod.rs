@@ -72,6 +72,8 @@ struct ProfileLib {
     name: String,
     #[serde(default)]
     url: Option<String>,
+    #[serde(default)]
+    sha1: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -90,6 +92,32 @@ struct ProfileJson {
     libraries: Vec<ProfileLib>,
     #[serde(default)]
     arguments: Option<ProfileArgs>,
+}
+
+/// Reject the JVM flags that would turn compromised/MITM'd loader metadata into
+/// arbitrary code execution: agents, boot classpath, and `@argfile` includes.
+/// Legitimate loader flags (`-p`/module path, `--add-opens`, `-D…` properties,
+/// etc.) pass through. The vanilla version JSON is hash-pinned; loader profile
+/// args are not, so this is their equivalent guard.
+pub(crate) fn is_safe_loader_jvm_arg(arg: &str) -> bool {
+    let lower = arg.trim().to_ascii_lowercase();
+    !(lower.starts_with("-javaagent")
+        || lower.starts_with("-agentlib")
+        || lower.starts_with("-agentpath")
+        || lower.starts_with("-xbootclasspath")
+        || lower.starts_with('@'))
+}
+
+/// `is_safe_loader_jvm_arg` for a structured `Argument` (Forge/NeoForge profiles).
+pub(crate) fn arg_is_safe_jvm(arg: &Argument) -> bool {
+    use crate::minecraft::version::ArgValue;
+    match arg {
+        Argument::Plain(value) => is_safe_loader_jvm_arg(value),
+        Argument::Conditional { value, .. } => match value {
+            ArgValue::One(value) => is_safe_loader_jvm_arg(value),
+            ArgValue::Many(list) => list.iter().all(|value| is_safe_loader_jvm_arg(value)),
+        },
+    }
 }
 
 async fn fetch_profile(
@@ -156,6 +184,7 @@ pub async fn apply_loader(
             name: lib.name,
             downloads: None,
             url: lib.url,
+            sha1: lib.sha1,
             rules: None,
             natives: None,
             extract: None,
@@ -166,9 +195,48 @@ pub async fn apply_loader(
 
     if let Some(extra) = profile.arguments {
         let args = detail.arguments.get_or_insert_with(Arguments::default);
-        args.jvm.extend(extra.jvm.into_iter().map(Argument::Plain));
+        args.jvm.extend(
+            extra
+                .jvm
+                .into_iter()
+                .filter(|arg| is_safe_loader_jvm_arg(arg))
+                .map(Argument::Plain),
+        );
         args.game.extend(extra.game.into_iter().map(Argument::Plain));
     }
 
     Ok(resolved)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_safe_loader_jvm_arg;
+
+    #[test]
+    fn rejects_code_execution_flags() {
+        for bad in [
+            "-javaagent:/tmp/evil.jar",
+            "-agentlib:foo",
+            "-agentpath:/x.so",
+            "-Xbootclasspath/a:/x.jar",
+            "@/tmp/argfile",
+        ] {
+            assert!(!is_safe_loader_jvm_arg(bad), "should reject {bad}");
+        }
+    }
+
+    #[test]
+    fn allows_legitimate_loader_flags() {
+        for ok in [
+            "-DFabricMcEmu=net.minecraft.client.main.Main",
+            "-Djava.library.path=natives",
+            "-p",
+            "--add-opens",
+            "--add-modules",
+            "ALL-MODULE-PATH",
+            "-Dlog4j2.formatMsgNoLookups=true",
+        ] {
+            assert!(is_safe_loader_jvm_arg(ok), "should allow {ok}");
+        }
+    }
 }

@@ -247,6 +247,29 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         sha1: Some(detail.downloads.client.sha1.clone()),
         executable: false,
     });
+
+    // Log4Shell mitigation for affected versions: fetch Mojang's patched log4j
+    // config (hash-verified) and pass its `-Dlog4j.configurationFile=…` argument.
+    // Newer versions ship no `logging` block, so this is a no-op there.
+    let mut log_config_arg: Option<String> = None;
+    if let Some(logging) = detail.logging.as_ref().and_then(|l| l.client.as_ref()) {
+        // `file.id` is from the hash-pinned version JSON, but it becomes a
+        // filename — collapse it to a bare component defensively.
+        let file_name = std::path::Path::new(&logging.file.id)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| !name.is_empty());
+        if let Some(file_name) = file_name {
+            let dest = paths::log_configs_dir(app)?.join(file_name);
+            file_tasks.push(download::DownloadTask {
+                url: logging.file.url.clone(),
+                dest: dest.clone(),
+                sha1: (!logging.file.sha1.is_empty()).then(|| logging.file.sha1.clone()),
+                executable: false,
+            });
+            log_config_arg = Some(logging.argument.replace("${path}", &dest.to_string_lossy()));
+        }
+    }
     {
         let app = app.clone();
         let id = id.clone();
@@ -299,6 +322,8 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         .as_deref()
         .filter(|s| !s.trim().is_empty())
         .unwrap_or(settings.jvm_args.as_str());
+    let mut extra_jvm: Vec<String> = jvm_args_src.split_whitespace().map(String::from).collect();
+    extra_jvm.extend(log_config_arg);
     let ctx = args::LaunchContext {
         classpath,
         natives_dir,
@@ -314,7 +339,7 @@ async fn prepare_and_spawn(app: &AppHandle, instance: &Instance, settings: &Sett
         height: instance.game_height.unwrap_or(settings.game_height),
         min_mem: instance.min_memory_mb.unwrap_or(settings.min_memory_mb),
         max_mem: instance.max_memory_mb.unwrap_or(settings.max_memory_mb),
-        extra_jvm: jvm_args_src.split_whitespace().map(String::from).collect(),
+        extra_jvm,
     };
     let command_args = args::build(&detail, &ctx);
 

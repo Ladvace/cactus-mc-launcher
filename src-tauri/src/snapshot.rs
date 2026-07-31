@@ -12,7 +12,7 @@
 //! Mods themselves are references, not files — the importer resolves and
 //! downloads them through the shared, deduplicated content cache.
 
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ use crate::error::{AppError, Result};
 use crate::instance::store::InstanceStore;
 use crate::instance::{Instance, InstanceKind, ModLoader};
 use crate::launch::download::DownloadTask;
-use crate::paths;
+use crate::paths::{self, safe_rel};
 use crate::sources::Source;
 
 const FORMAT_VERSION: u32 = 1;
@@ -162,8 +162,12 @@ pub struct ExportResult {
 
 type Zip = zip::ZipWriter<std::fs::File>;
 
+// Tight caps for the config-only overrides a `.cactuspack` bundles (applied on
+// both export and, via `extract_overrides`, import).
 const MAX_OVERRIDE_FILE: u64 = 2_000_000;
 const MAX_OVERRIDES_TOTAL: u64 = 12_000_000;
+/// Largest pack file we'll accept for import (bounds the on-disk staging write).
+const MAX_IMPORT_PACK_BYTES: usize = 1_000_000_000;
 
 fn add_overrides(
     zip: &mut Zip,
@@ -469,6 +473,9 @@ pub async fn publish(
 }
 
 pub async fn import(app: &AppHandle, bytes: Vec<u8>) -> Result<ImportResult> {
+    if bytes.len() > MAX_IMPORT_PACK_BYTES {
+        return Err(AppError::Other("this pack file is too large to import".into()));
+    }
     // Stash the upload so we can open it as a zip (and re-open for overrides).
     let tmp = paths::meta_dir(app)?.join("tmp");
     std::fs::create_dir_all(&tmp)?;
@@ -537,7 +544,8 @@ async fn import_cactuspack(app: &AppHandle, pack_path: &Path) -> Result<ImportRe
     }
 
     let game_dir = paths::instance_game_dir(app, &instance.id)?;
-    extract_overrides(pack_path, &game_dir)?;
+    // config-only: a .cactuspack must not carry mods/jars.
+    extract_overrides(pack_path, &game_dir, true)?;
     emit(app, "done", total, total);
 
     Ok(ImportResult {
@@ -603,7 +611,8 @@ async fn import_mrpack(app: &AppHandle, pack_path: &Path) -> Result<ImportResult
     })
     .await?;
 
-    extract_overrides(pack_path, &game_dir)?;
+    // .mrpack overrides legitimately include mods/config; permissive extraction.
+    extract_overrides(pack_path, &game_dir, false)?;
     emit(app, "done", total, total);
 
     Ok(ImportResult {
@@ -631,9 +640,9 @@ fn read_zip_text(pack: &Path, entry: &str) -> Result<String> {
     let mut zip_entry = zip
         .by_name(entry)
         .map_err(|_| AppError::Other(format!("missing {entry}")))?;
-    let mut text = String::new();
-    zip_entry.read_to_string(&mut text)?;
-    Ok(text)
+    // Bounded read — a pack's index entry is untrusted and could be a
+    // compression bomb (the overrides are capped the same way).
+    content::read_text_capped(&mut zip_entry, content::MAX_INDEX_BYTES)
 }
 
 fn mr_loader_from_deps(
@@ -694,46 +703,32 @@ struct MrEnv {
     server: String,
 }
 
-fn extract_overrides(pack: &Path, game_dir: &Path) -> Result<()> {
-    let file = std::fs::File::open(pack)?;
-    let mut zip =
-        zip::ZipArchive::new(file)?;
-    for index in 0..zip.len() {
-        let mut entry = zip
-            .by_index(index)?;
-        let name = entry.name().to_string();
-        let Some(rel) = name
-            .strip_prefix("overrides/")
-            .or_else(|| name.strip_prefix("client-overrides/"))
-        else {
-            continue;
-        };
-        if rel.is_empty() || entry.is_dir() || name.ends_with('/') {
-            continue;
-        }
-        let Some(rel) = safe_rel(rel) else { continue };
-        let dest = game_dir.join(rel);
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut out = std::fs::File::create(&dest)?;
-        std::io::copy(&mut entry, &mut out)?;
-    }
-    Ok(())
+/// A `.cactuspack` promises "mods are references, not files" — its overrides only
+/// ever carry config. Mirror what the exporter bundles (`override_files`) so a
+/// hand-crafted pack can't smuggle a jar into `mods/` and get it run on launch.
+fn is_allowed_cactus_override(rel: &Path) -> bool {
+    rel.starts_with("config")
+        || matches!(
+            rel.to_str(),
+            Some("options.txt") | Some("optionsshaders.txt") | Some("servers.dat")
+        )
 }
 
-/// Reject absolute paths and `..` traversal in archive entry names.
-fn safe_rel(path: &str) -> Option<PathBuf> {
-    let path_buf = PathBuf::from(path);
-    if path_buf.is_absolute() {
-        return None;
+/// Extract `overrides/…` from an imported pack into the game dir. `config_only`
+/// (for `.cactuspack`) restricts entries to the config allowlist under tight size
+/// caps; otherwise (`.mrpack`) any safe path is allowed under generous anti-bomb
+/// caps. Shares one guarded extractor with the modpack-install path.
+fn extract_overrides(pack: &Path, game_dir: &Path, config_only: bool) -> Result<()> {
+    if config_only {
+        let limits = content::OverrideLimits {
+            max_file: MAX_OVERRIDE_FILE,
+            max_total: MAX_OVERRIDES_TOTAL,
+            max_entries: content::PACK_OVERRIDE_LIMITS.max_entries,
+        };
+        content::extract_overrides(pack, game_dir, &limits, is_allowed_cactus_override)
+    } else {
+        content::extract_overrides(pack, game_dir, &content::PACK_OVERRIDE_LIMITS, |_| true)
     }
-    for component in path_buf.components() {
-        if matches!(component, std::path::Component::ParentDir | std::path::Component::Prefix(_)) {
-            return None;
-        }
-    }
-    Some(path_buf)
 }
 
 #[cfg(test)]
@@ -757,5 +752,18 @@ mod tests {
     fn parse_loader_defaults_to_vanilla() {
         assert_eq!(parse_loader("nonsense"), ModLoader::Vanilla);
         assert_eq!(parse_loader(""), ModLoader::Vanilla);
+    }
+
+    #[test]
+    fn cactus_override_allowlist() {
+        use std::path::Path;
+        assert!(is_allowed_cactus_override(Path::new("options.txt")));
+        assert!(is_allowed_cactus_override(Path::new("optionsshaders.txt")));
+        assert!(is_allowed_cactus_override(Path::new("servers.dat")));
+        assert!(is_allowed_cactus_override(Path::new("config/sodium.toml")));
+        // Never let a cactuspack smuggle a mod/other executable content.
+        assert!(!is_allowed_cactus_override(Path::new("mods/evil.jar")));
+        assert!(!is_allowed_cactus_override(Path::new("resourcepacks/x.zip")));
+        assert!(!is_allowed_cactus_override(Path::new("evil.jar")));
     }
 }

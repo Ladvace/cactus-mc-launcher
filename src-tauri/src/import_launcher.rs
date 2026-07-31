@@ -418,15 +418,6 @@ fn parse_modrinth(root: &Path) -> Vec<ExternalInstance> {
     read_modrinth_db(root, &db).unwrap_or_default()
 }
 
-fn is_safe_rel(path: &str) -> bool {
-    use std::path::Component;
-    let path = Path::new(path);
-    !path.as_os_str().is_empty()
-        && path
-            .components()
-            .all(|component| matches!(component, Component::Normal(_) | Component::CurDir))
-}
-
 fn read_modrinth_db(root: &Path, db: &Path) -> Result<Vec<ExternalInstance>> {
     let conn = open_sqlite_ro(db)
         .map_err(|error| AppError::Other(format!("modrinth db: {error}")))?;
@@ -456,7 +447,7 @@ fn read_modrinth_db(root: &Path, db: &Path) -> Result<Vec<ExternalInstance>> {
         let Some(mc_version) = game_version.filter(|value| !value.is_empty()) else {
             continue;
         };
-        if !is_safe_rel(&path) {
+        if paths::safe_rel(&path).is_none() {
             continue;
         }
         let game_dir = root.join("profiles").join(&path);
@@ -915,16 +906,6 @@ mod tests {
         assert!(looks_like_mc_version("1.21"));
         assert!(!looks_like_mc_version("forge"));
         assert!(!looks_like_mc_version("47"));
-    }
-
-    #[test]
-    fn safe_rel_rejects_traversal_and_absolute() {
-        assert!(is_safe_rel("My Pack"));
-        assert!(is_safe_rel("nested/ok"));
-        assert!(!is_safe_rel(""));
-        assert!(!is_safe_rel("/Users/victim/Documents"));
-        assert!(!is_safe_rel("../../etc"));
-        assert!(!is_safe_rel("a/../../b"));
     }
 
     #[test]

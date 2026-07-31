@@ -83,6 +83,11 @@ pub struct Library {
     /// no `downloads` block — resolved from `name` + this base).
     #[serde(default)]
     pub url: Option<String>,
+    /// SHA-1 for a maven-style library, when the loader metadata publishes one
+    /// (Fabric/Quilt do). Lets us pin the classpath jar downloaded from a
+    /// separate maven host against the hash from the meta host.
+    #[serde(default)]
+    pub sha1: Option<String>,
     #[serde(default)]
     pub rules: Option<Vec<Rule>>,
     /// Old-style natives: maps OS name -> classifier key (e.g. "natives-osx").
@@ -161,6 +166,37 @@ pub struct VersionDetail {
     pub arguments: Option<Arguments>,
     #[serde(default)]
     pub minecraft_arguments: Option<String>,
+    /// Mojang's log4j configuration for this version. Present for versions
+    /// affected by Log4Shell (CVE-2021-44228); Mojang serves a patched (lookup-
+    /// free) config here, applied via `client.argument`. Absent on newer patched
+    /// versions.
+    #[serde(default)]
+    pub logging: Option<Logging>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct Logging {
+    #[serde(default)]
+    pub client: Option<LoggingClient>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LoggingClient {
+    /// The JVM argument template, e.g. `-Dlog4j.configurationFile=${path}`.
+    pub argument: String,
+    pub file: LoggingFile,
+    #[serde(rename = "type", default)]
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LoggingFile {
+    pub id: String,
+    #[serde(default)]
+    pub sha1: String,
+    #[serde(default)]
+    pub size: u64,
+    pub url: String,
 }
 
 /// Fetch a version's detail JSON. `sha1` is the hash from the version manifest;

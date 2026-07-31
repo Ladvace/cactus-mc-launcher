@@ -68,12 +68,11 @@ fn is_disallowed_ip(ip: IpAddr) -> bool {
     }
 }
 
-/// Validate a URL supplied to an image/proxy fetch: must be http(s) and every
-/// address it resolves to must be public. Guards commands like `download_image`
-/// from being turned into an SSRF probe of internal services.
-pub async fn ensure_public_url(raw: &str) -> Result<()> {
-    let url = reqwest::Url::parse(raw)
-        .map_err(|_| AppError::Other("invalid URL".into()))?;
+/// Resolve a URL's host and return every address it maps to, erroring if the
+/// scheme isn't http(s) or any resolved address is private/loopback/link-local/
+/// metadata. Used by `guarded_get`, which pins each request to the validated
+/// addresses returned here.
+async fn resolve_public_addrs(url: &reqwest::Url) -> Result<Vec<std::net::SocketAddr>> {
     if !matches!(url.scheme(), "http" | "https") {
         return Err(AppError::Other("only http(s) URLs are allowed".into()));
     }
@@ -81,20 +80,75 @@ pub async fn ensure_public_url(raw: &str) -> Result<()> {
         .host_str()
         .ok_or_else(|| AppError::Other("URL has no host".into()))?;
     let port = url.port_or_known_default().unwrap_or(443);
-    let addrs = tokio::net::lookup_host((host, port))
+    let addrs: Vec<std::net::SocketAddr> = tokio::net::lookup_host((host, port))
         .await
-        .map_err(|_| AppError::Other("could not resolve host".into()))?;
-    let mut resolved = false;
-    for addr in addrs {
-        resolved = true;
+        .map_err(|_| AppError::Other("could not resolve host".into()))?
+        .collect();
+    if addrs.is_empty() {
+        return Err(AppError::Other("host did not resolve".into()));
+    }
+    for addr in &addrs {
         if is_disallowed_ip(addr.ip()) {
             return Err(AppError::Other(
                 "refusing request to a private or loopback address".into(),
             ));
         }
     }
-    if !resolved {
-        return Err(AppError::Other("host did not resolve".into()));
+    Ok(addrs)
+}
+
+/// Ranges that are never a legitimate Minecraft server: link-local (incl. the
+/// `169.254.169.254` cloud-metadata endpoint), unspecified, multicast, broadcast.
+/// Deliberately narrower than `is_disallowed_ip` — LAN (`192.168.x`) and loopback
+/// servers are common and must stay pingable; only the never-a-server ranges are
+/// refused so the pinger can't be aimed at the metadata service.
+pub fn is_never_a_server_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            v4.is_link_local() || v4.is_unspecified() || v4.is_multicast() || v4.is_broadcast()
+        }
+        IpAddr::V6(v6) => {
+            v6.is_unspecified() || v6.is_multicast() || (v6.segments()[0] & 0xffc0) == 0xfe80
+        }
     }
-    Ok(())
+}
+
+const MAX_GUARDED_REDIRECTS: usize = 5;
+
+/// GET a webview/third-party-supplied URL with SSRF protection that holds across
+/// redirects and DNS rebinding. Redirects are followed manually (never
+/// automatically); every hop is re-resolved and re-checked against the
+/// private/loopback/link-local/metadata blocklist, and each request is pinned to
+/// the exact addresses that were validated, so a rebind between the check and the
+/// connect can't reach an internal service. Use this for any URL that originates
+/// outside the launcher (icons, stickers, skins).
+pub async fn guarded_get(raw: &str) -> Result<reqwest::Response> {
+    let mut current = reqwest::Url::parse(raw).map_err(|_| AppError::Other("invalid URL".into()))?;
+    for _ in 0..MAX_GUARDED_REDIRECTS {
+        let addrs = resolve_public_addrs(&current).await?;
+        let host = current.host_str().unwrap_or_default().to_string();
+        let client = reqwest::Client::builder()
+            .user_agent(USER_AGENT)
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .read_timeout(std::time::Duration::from_secs(60))
+            .redirect(reqwest::redirect::Policy::none())
+            // Pin DNS for this host to the addresses we just validated so the
+            // fetch can't connect to a different (rebinding) address.
+            .resolve_to_addrs(&host, &addrs)
+            .build()?;
+        let resp = client.get(current.clone()).send().await?;
+        if resp.status().is_redirection() {
+            let location = resp
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .ok_or_else(|| AppError::Other("redirect without a location".into()))?;
+            current = current
+                .join(location)
+                .map_err(|_| AppError::Other("invalid redirect location".into()))?;
+            continue;
+        }
+        return Ok(resp);
+    }
+    Err(AppError::Other("too many redirects".into()))
 }
