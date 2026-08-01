@@ -32,6 +32,8 @@ struct TokenResponse {
     #[serde(default)]
     error: Option<String>,
     #[serde(default)]
+    error_description: Option<String>,
+    #[serde(default)]
     access_token: Option<String>,
     #[serde(default)]
     refresh_token: Option<String>,
@@ -129,8 +131,23 @@ pub async fn refresh(
         .await?;
 
     if let Some(error) = resp.error {
+        // `invalid_grant` is the only code that genuinely means the refresh
+        // token is expired/revoked and re-login is required. Any other code
+        // (e.g. `invalid_request`) points at a malformed request or a
+        // transient issue, so surface Microsoft's own description instead of
+        // wrongly telling the user their session expired.
+        if error == "invalid_grant" {
+            return Err(AppError::Other(
+                "Your Microsoft session expired. Please sign in again.".into(),
+            ));
+        }
+        let detail = resp
+            .error_description
+            .map(|desc| desc.lines().next().unwrap_or_default().to_string())
+            .filter(|desc| !desc.is_empty())
+            .unwrap_or_else(|| error.clone());
         return Err(AppError::Other(format!(
-            "Session expired, please sign in again ({error})"
+            "Couldn't refresh Microsoft login ({error}): {detail}"
         )));
     }
 

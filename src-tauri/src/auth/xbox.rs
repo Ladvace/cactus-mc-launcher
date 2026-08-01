@@ -115,7 +115,6 @@ struct McLoginResponse {
     expires_in: i64,
 }
 
-/// Minecraft access token and its lifetime (seconds).
 pub struct McAuth {
     pub access_token: String,
     pub expires_in: i64,

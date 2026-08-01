@@ -82,6 +82,14 @@
             <span class="badge">{t("account.active")}</span>
           {/if}
           <button
+            class="reauth"
+            title={t("account.signInAgain")}
+            disabled={accountsStore.loggingIn}
+            onclick={() => accountsStore.login()}
+          >
+            <Icon name="refresh" size={14} />
+          </button>
+          <button
             class="remove"
             title={t("account.removeAccount")}
             onclick={() => accountsStore.remove(acc.id)}
@@ -241,6 +249,7 @@
     border-radius: 0;
     padding: 3px 9px;
   }
+  .reauth,
   .remove {
     background: transparent;
     border: none;
@@ -248,6 +257,13 @@
     padding: 6px;
     border-radius: var(--radius-sm);
     display: flex;
+  }
+  .reauth:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
+  .reauth:disabled {
+    opacity: 0.4;
   }
   .remove:hover {
     background: color-mix(in srgb, var(--danger) 12%, transparent);

@@ -268,6 +268,15 @@ pub async fn refresh_account(
     account: &Account,
 ) -> Result<Account> {
     let client_id = ensure_client_id()?;
+    // Legacy/incomplete accounts can be stored without a refresh token (e.g.
+    // saved before offline_access was requested). Without one there's nothing
+    // to refresh, so fail fast with a clear message instead of firing a request
+    // Microsoft rejects with a cryptic AADSTS900144.
+    if account.ms_refresh_token.trim().is_empty() {
+        return Err(AppError::Other(
+            "This account needs to sign in again to enable automatic refresh.".into(),
+        ));
+    }
     let ms_token = microsoft::refresh(http, client_id, &account.ms_refresh_token).await?;
     let refreshed = full_chain(http, ms_token).await?;
     app.state::<AccountStore>().upsert(app, refreshed.clone())?;
