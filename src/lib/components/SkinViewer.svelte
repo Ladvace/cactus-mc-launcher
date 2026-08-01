@@ -3,11 +3,8 @@
   import { SkinViewer, IdleAnimation } from "skinview3d";
 
   interface Props {
-    /** Skin texture as a URL or data URI. */
     skin: string;
-    /** Arm model — changes the model live. */
     model?: "classic" | "slim";
-    /** Optional cape texture (data URI). Empty = no cape. */
     cape?: string;
     width?: number;
     height?: number;

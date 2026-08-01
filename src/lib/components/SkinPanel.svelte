@@ -18,7 +18,9 @@
   let skinData = $state("");
   let capeData = $state("");
   let capes = $state<Cape[]>([]);
+  let capeThumbs = $state<Record<string, string>>({});
   let capesLoading = $state(true);
+  let capesError = $state<string | null>(null);
   let skinInput = $state<HTMLInputElement>();
   let changing = $state(false);
   let dragOver = $state(false);
@@ -49,14 +51,22 @@
     void account.uuid;
     let cancelled = false;
     capesLoading = true;
+    capesError = null;
+    capeThumbs = {};
     api
       .getCapes()
-      .then((owned) => {
+      .then(async (owned) => {
         if (cancelled) return;
         capes = owned;
         loadActiveCape(owned);
+        const thumbs = await buildCapeThumbs(owned);
+        if (!cancelled) capeThumbs = thumbs;
       })
-      .catch(() => !cancelled && (capes = []))
+      .catch((err) => {
+        if (cancelled) return;
+        capes = [];
+        capesError = String(err);
+      })
       .finally(() => !cancelled && (capesLoading = false));
     return () => (cancelled = true);
   });
@@ -68,6 +78,42 @@
     } else {
       capeData = "";
     }
+  }
+
+  // Cape textures are a 64×32 sheet; the front face sits at (1,1) sized 10×16.
+  // Crop just that region (scaled to the actual sheet width so legacy sizes
+  // still map correctly) into a small pixelated thumbnail for each cape button.
+  function cropCapeFront(src: string): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const unit = img.width / 64;
+        const canvas = document.createElement("canvas");
+        canvas.width = 10;
+        canvas.height = 16;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve("");
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(img, unit, unit, 10 * unit, 16 * unit, 0, 0, 10, 16);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => resolve("");
+      img.src = src;
+    });
+  }
+
+  async function buildCapeThumbs(list: Cape[]): Promise<Record<string, string>> {
+    const entries = await Promise.all(
+      list.map(async (cape) => {
+        try {
+          const thumb = await cropCapeFront(await api.downloadImage(cape.url));
+          return [cape.id, thumb] as const;
+        } catch {
+          return [cape.id, ""] as const;
+        }
+      })
+    );
+    return Object.fromEntries(entries.filter(([, thumb]) => thumb));
   }
 
   async function chooseCape(id: string | null) {
@@ -174,25 +220,39 @@
     <span class="skin-label">{t("account.model")}</span>
     <Select bind:value={variant} options={VARIANTS} ariaLabel={t("account.model")} />
 
+    <span class="skin-label">{t("account.cape")}</span>
     {#if capesLoading}
-      <span class="skin-label">{t("account.cape")}</span>
       <div class="cape-row">
         {#each Array(3) as _, index (index)}
           <span class="skeleton cape-skel"></span>
         {/each}
       </div>
+    {:else if capesError}
+      <p class="cape-note error">{capesError}</p>
     {:else if capes.length}
-      <span class="skin-label">{t("account.cape")}</span>
       <div class="cape-row">
-        <button class="cape-btn" class:on={!capes.some((cape) => cape.active)} onclick={() => chooseCape(null)}>
-          {t("account.capeNone")}
+        <button
+          class="cape-btn"
+          class:on={!capes.some((cape) => cape.active)}
+          title={t("account.capeNone")}
+          onclick={() => chooseCape(null)}
+        >
+          <span class="cape-thumb none"><Icon name="close" size={16} /></span>
+          <span class="cape-name">{t("account.capeNone")}</span>
         </button>
         {#each capes as cape (cape.id)}
-          <button class="cape-btn" class:on={cape.active} onclick={() => chooseCape(cape.id)}>
-            {cape.alias}
+          <button class="cape-btn" class:on={cape.active} title={cape.alias} onclick={() => chooseCape(cape.id)}>
+            {#if capeThumbs[cape.id]}
+              <img class="cape-thumb" src={capeThumbs[cape.id]} alt={cape.alias} />
+            {:else}
+              <span class="cape-thumb"></span>
+            {/if}
+            <span class="cape-name">{cape.alias}</span>
           </button>
         {/each}
       </div>
+    {:else}
+      <p class="cape-note">{t("account.capeEmpty")}</p>
     {/if}
 
     <div class="skin-actions">
@@ -310,22 +370,59 @@
   .cape-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 6px;
   }
   .cape-skel {
-    width: 54px;
-    height: 25px;
+    width: 44px;
+    height: 62px;
   }
   .cape-btn {
-    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 44px;
+    padding: 4px 4px 5px;
     background: var(--bg-card);
     border: 2px solid var(--border);
     color: var(--text-secondary);
-    font-size: 11.5px;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .cape-btn:hover {
+    border-color: var(--accent);
   }
   .cape-btn.on {
     border-color: var(--accent);
     color: var(--accent);
+  }
+  .cape-thumb {
+    width: 30px;
+    height: 48px;
+    image-rendering: pixelated;
+    background: var(--bg-app);
+    border: 1px solid var(--border-subtle);
+  }
+  .cape-thumb.none {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+  }
+  .cape-name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+  .cape-note {
+    margin: 0;
+    font-size: 11.5px;
+    color: var(--text-muted);
+  }
+  .cape-note.error {
+    color: var(--danger, #e5484d);
   }
   .skin-msg {
     margin: 0 0 2px;
