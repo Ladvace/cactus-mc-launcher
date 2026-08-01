@@ -78,9 +78,12 @@ export function currentLocale(): LocaleCode {
   return normalize(settingsStore.settings.language);
 }
 
+/** A `{name}` placeholder in a translation string. */
+const PLACEHOLDER_RE = /\{(\w+)\}/g;
+
 function interpolate(template: string, params?: Record<string, string | number>): string {
   if (!params) return template;
-  return template.replace(/\{(\w+)\}/g, (match, name) =>
+  return template.replace(PLACEHOLDER_RE, (match, name) =>
     name in params ? String(params[name]) : match
   );
 }
