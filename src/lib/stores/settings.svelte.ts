@@ -34,6 +34,7 @@ const DEFAULTS: Settings = {
   reduceTransparency: false,
   alwaysShowFocus: false,
   menuBranding: true,
+  openInstanceOnInstall: true,
 };
 
 class SettingsStore {

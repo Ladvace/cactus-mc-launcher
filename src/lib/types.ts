@@ -1,5 +1,3 @@
-// Mirrors the Rust types in `src-tauri/src`. Keep these in sync.
-
 export type ModLoader = "vanilla" | "fabric" | "quilt" | "forge" | "neoforge";
 
 export type InstanceKind = "client" | "server";
@@ -21,22 +19,18 @@ export interface Instance {
   loader: ModLoader;
   loaderVersion: string | null;
   group: string | null;
-  created: string; // ISO 8601
+  created: string;
   lastPlayed: string | null;
   totalPlaytimeSeconds: number;
   coverImage: boolean;
-  /** Legacy server max heap (MB); superseded by maxMemoryMb. */
   serverMemoryMb: number | null;
-  // Per-instance overrides (null = use the global setting).
   maxMemoryMb: number | null;
   minMemoryMb: number | null;
   jvmArgs: string | null;
   javaPath: string | null;
   gameWidth: number | null;
   gameHeight: number | null;
-  /** Absolute game-data folder; null = default under the instances folder. */
   gameDir: string | null;
-  /** Per-instance ngrok authtoken (overrides the global one); null = use global. */
   ngrokAuthtoken: string | null;
 }
 
@@ -88,16 +82,13 @@ export interface UpdateInstance {
   loader?: ModLoader;
   loaderVersion?: string;
   coverImage?: boolean;
-  /** Max heap (MB) for a server; 0 clears the override. */
   serverMemoryMb?: number;
-  // Per-instance overrides. 0 (numbers) / "" (strings) clears back to global.
   maxMemoryMb?: number;
   minMemoryMb?: number;
   jvmArgs?: string;
   javaPath?: string;
   gameWidth?: number;
   gameHeight?: number;
-  /** Per-instance ngrok authtoken; "" clears it (use the global one). */
   ngrokAuthtoken?: string;
 }
 
@@ -137,7 +128,6 @@ export interface ExternalInstance {
   icon: string | null;
 }
 
-// --- Boards service DTOs (mirror server/src/types.ts) ---
 export type BoardKind = "streamer" | "creator" | "server";
 
 export interface BoardSession {
@@ -208,7 +198,6 @@ export interface CacheStats {
 export interface ServiceStatus {
   id: string;
   name: string;
-  /** `null` = not configured for this build (shown neutral, not down). */
   up: boolean | null;
   latencyMs: number | null;
 }
@@ -216,7 +205,6 @@ export interface ServiceStatus {
 export interface Settings {
   theme: string;
   javaPath: string | null;
-  /** Per-major Java executables (e.g. "8"/"17"/"21" → path); overrides javaPath. */
   javaPaths: Record<string, string>;
   maxMemoryMb: number;
   minMemoryMb: number;
@@ -231,42 +219,26 @@ export interface Settings {
   dockPosition: DockPosition;
   decorTheme: string;
   dockMagnify: boolean;
-  /** Default parent folder for new instances' data. Empty = app default. */
   instancesDir: string;
-  /** Global ngrok authtoken for sharing servers; a per-instance token wins. */
   ngrokAuthtoken: string;
   showNews: boolean;
-  /** News layout: true = one story per page, false = a lead + two-up column. */
   newsSingle: boolean;
-  /** How dates are shown: "system" | "iso" | "us" | "eu". */
   dateFormat: string;
-  /** UI language code (see the i18n LOCALES list, e.g. "en", "fr", "ar", "ja"). */
   language: string;
-  /** Accent colour preset ("" = default gold; e.g. "emerald", "lapis"). */
   accent: string;
-  /** Whole-UI zoom, in percent (100 = default). */
   uiScale: number;
-  /** Volume of UI click sounds, 0–100. */
   soundVolume: number;
-  /** Loader pre-selected in the new-instance dialog. */
   defaultLoader: string;
-  /** Minimise animations and motion effects. */
   reduceMotion: boolean;
-  /** Use a plain readable font instead of the pixel display font. */
   readableFont: boolean;
-  /** Higher-contrast colours for readability. */
   highContrast: boolean;
-  /** Remove blur/translucency for legibility. */
   reduceTransparency: boolean;
-  /** Always show keyboard focus outlines. */
   alwaysShowFocus: boolean;
-  /** Show Cactus branding (wordmark + splashes) on the in-game title screen. */
   menuBranding: boolean;
+  openInstanceOnInstall: boolean;
 }
 
 export type DockPosition = "bottom" | "top" | "left" | "right";
-
-// Mirror the Rust payloads in src-tauri/src/launch.
 
 export type LaunchState =
   | "preparing"
@@ -471,14 +443,12 @@ export interface LoaderVersion {
   stable: boolean;
 }
 
-/** Live Server List Ping result (mirrors Rust `server_ping::ServerStatus`). */
 export interface ServerStatus {
   online: number;
   max: number;
   motd: string;
   players: string[];
   pingMs: number;
-  /** Server-broadcast icon as a data: URI, if any. */
   favicon?: string | null;
 }
 
@@ -488,7 +458,6 @@ export interface ServerSample {
   max: number;
 }
 
-/** Loaders with working install support today. */
 export const SUPPORTED_LOADERS: ModLoader[] = [
   "fabric",
   "quilt",
@@ -519,7 +488,6 @@ export interface TuneupPlan {
   maxMemMb: number;
   minMemMb: number;
   jvmArgs: string;
-  /** RAM is tight; heap backed off to grow lazily. Raising memory may prevent launch. */
   lowRam: boolean;
   mods: ModRec[];
   unavailable: string[];

@@ -10,7 +10,6 @@
   import { api } from "$lib/api";
   import { listen } from "@tauri-apps/api/event";
   import { getVersion } from "@tauri-apps/api/app";
-  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
   import Icon from "$lib/components/Icon.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
@@ -23,6 +22,7 @@
   import { toPct } from "$lib/stores/install.svelte";
   import {
     backgroundCss,
+    animClass,
     bgKind,
     parsePattern,
     parseImage,
@@ -32,7 +32,7 @@
   } from "$lib/background";
   import { fileToBackgroundDataUri } from "$lib/image";
   import { pickFolder } from "$lib/dialog";
-  import { THEME_PRESETS, DECOR_THEMES } from "$lib/themes";
+  import { THEME_PRESETS, DECOR_THEMES, ACCENT_PRESETS } from "$lib/themes";
   import { LINKS } from "$lib/links";
   import { playClick } from "$lib/sound";
   import { MOD_LOADERS } from "$lib/types";
@@ -50,14 +50,15 @@
     label: loader.label,
   }));
 
-  const ACCENTS: { value: string; color: string; labelKey: MessageKey }[] = [
-    { value: "", color: "#e8b23a", labelKey: "settings.accentGold" },
-    { value: "emerald", color: "#3fbf5f", labelKey: "settings.accentEmerald" },
-    { value: "diamond", color: "#4fd6d6", labelKey: "settings.accentDiamond" },
-    { value: "redstone", color: "#e5484d", labelKey: "settings.accentRedstone" },
-    { value: "lapis", color: "#4f86e0", labelKey: "settings.accentLapis" },
-    { value: "amethyst", color: "#9b6dff", labelKey: "settings.accentAmethyst" },
-  ];
+  const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+  const STATIC_THEMES = THEME_PRESETS.filter((preset) => !preset.bg.startsWith("anim:"));
+  const ANIMATED_THEMES = THEME_PRESETS.filter((preset) => preset.bg.startsWith("anim:"));
+  let themeTab = $state<"static" | "animated">(
+    (settingsStore.settings.background ?? "").startsWith("anim:") ? "animated" : "static"
+  );
+  const shownThemes = $derived(themeTab === "animated" ? ANIMATED_THEMES : STATIC_THEMES);
+
 
   type A11yKey =
     | "reduceMotion"
@@ -81,7 +82,6 @@
   let saved = $state(false);
   let saving = $state(false);
 
-  // Live sample of the chosen date format.
   const fmtDatePreview = $derived(formatDate(new Date().toISOString(), draft.dateFormat));
 
   const DATE_FORMATS = $derived([
@@ -91,7 +91,6 @@
     { value: "eu", label: "EU (20/07/2026)" },
   ]);
 
-  // Labelled ticks under the max-memory slider (a few GB marks).
   const MEM_MIN = 1024;
   const MEM_MAX = 16384;
   const memTicks = [1, 4, 8, 12, 16].map((gb, i, arr) => ({
@@ -111,9 +110,6 @@
   let cacheStats = $state<CacheStats | null>(null);
   let cacheLoading = $state(false);
 
-  // Credential-style fields (Giphy key, ngrok token) persist on their own on
-  // blur so they're remembered even without pressing "Save changes". A per-server
-  // ngrok key set on an instance overrides the global token saved here.
   async function persistCredential(field: "giphyApiKey" | "ngrokAuthtoken") {
     const value = draft[field].trim();
     draft[field] = value;
@@ -170,7 +166,6 @@
   $effect(() => {
     api.getDataDir().then((dir) => (dataDir = dir)).catch(() => {});
   });
-  // Moving data while a game runs from it (esp. shared meta/) would break it.
   const anyRunning = $derived(
     instancesStore.instances.some(
       (instance) => launchStore.isRunning(instance.id) || launchStore.isBusy(instance.id)
@@ -207,7 +202,7 @@
     }
   }
   function resetDataDir() {
-    pendingDataDir = null; // null = back to default
+    pendingDataDir = null;
     dataMoveOpen = true;
   }
   async function confirmMoveData() {
@@ -243,8 +238,7 @@
   const kind = $derived(bgKind(draft.background ?? ""));
   const colorValue = $derived.by(() => {
     const value = draft.background.startsWith("color:") ? draft.background.slice(6) : "";
-    // Decor-theme presets store a gradient here; the colour input needs a hex.
-    return /^#[0-9a-fA-F]{6}$/.test(value) ? value : DEFAULT_COLOR;
+    return HEX_COLOR_RE.test(value) ? value : DEFAULT_COLOR;
   });
   const activePattern = $derived(
     kind === "pattern" ? parsePattern(draft.background).name : ""
@@ -324,7 +318,7 @@
     const key = String(major);
     javaEditing = { ...javaEditing, [key]: !auto };
     if (auto) {
-      setJavaPath(major, ""); // back to managed
+      setJavaPath(major, "");
     } else if (!draft.javaPaths[key]) {
       setJavaPath(major, managedPaths[key] ?? "");
     }
@@ -335,9 +329,9 @@
     if (folder) draft.instancesDir = folder;
   }
 
-  // Sync the draft once settings finish loading. Only react to the `loaded`
-  // transition — reading `settings` untracked so later mutations don't re-run
-  // this effect and clobber in-progress draft edits.
+  // Seed the editable draft once settings finish loading. untrack() keeps this
+  // from re-firing on every settings change, which would clobber in-progress
+  // edits (e.g. after an instant-apply toggle writes back to the store).
   $effect(() => {
     if (settingsStore.loaded) {
       draft = { ...untrack(() => settingsStore.settings) };
@@ -405,6 +399,35 @@
       saving = false;
     }
   }
+
+  // javaPaths is a nested record, so it needs a deep compare; every other
+  // field is a primitive and compares by value. Drives the "unsaved" state.
+  function settingsEqual(a: Settings, b: Settings): boolean {
+    return (Object.keys(a) as (keyof Settings)[]).every((key) =>
+      key === "javaPaths"
+        ? JSON.stringify(a.javaPaths) === JSON.stringify(b.javaPaths)
+        : a[key] === b[key]
+    );
+  }
+  const dirty = $derived(
+    settingsStore.loaded && !settingsEqual(draft, settingsStore.settings)
+  );
+
+  // Show a single persistent "unsaved changes" toast while the draft differs
+  // from saved settings, and dismiss it the moment they match again — tracking
+  // the id so edits don't stack duplicate toasts.
+  let unsavedToastId: number | null = null;
+  $effect(() => {
+    if (dirty && unsavedToastId === null) {
+      unsavedToastId = toast.info(t("settings.unsavedChanges"), {
+        label: t("settings.saveChanges"),
+        run: save,
+      });
+    } else if (!dirty && unsavedToastId !== null) {
+      toast.dismiss(unsavedToastId);
+      unsavedToastId = null;
+    }
+  });
 </script>
 
 {#snippet colorField(value: string, onPick: (v: string) => void)}
@@ -422,6 +445,7 @@
     <h1>{t("settings.title")}</h1>
     <div class="head-actions">
       {#if saved}<span class="saved">{t("settings.saved")}</span>{/if}
+      {#if dirty}<span class="unsaved">{t("settings.unsavedChanges")}</span>{/if}
       <button class="btn primary" onclick={save} disabled={saving}>
         {saving ? t("settings.saving") : t("settings.saveChanges")}
       </button>
@@ -445,7 +469,7 @@
   </section>
 
   <section class="card-block">
-    <h3>{t("settings.interface")}</h3>
+    <h3>{t("settings.general")}</h3>
     <div class="setting">
       <div class="label">
         <span>{t("settings.language")}</span>
@@ -454,6 +478,52 @@
       <LanguageSelect />
     </div>
 
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.dateFormat")}</span>
+        <small>{t("settings.dateFormatDesc", { sample: fmtDatePreview })}</small>
+      </div>
+      <Select
+        bind:value={draft.dateFormat}
+        options={DATE_FORMATS}
+        width="220px"
+        onchange={() => settingsStore.save({ ...settingsStore.settings, dateFormat: draft.dateFormat })}
+        ariaLabel={t("settings.dateFormat")}
+      />
+    </div>
+
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.defaultLoader")}</span>
+        <small>{t("settings.defaultLoaderDesc")}</small>
+      </div>
+      <Select
+        bind:value={draft.defaultLoader}
+        options={LOADER_OPTIONS}
+        width="220px"
+        onchange={() => saveOne("defaultLoader", draft.defaultLoader)}
+        ariaLabel={t("settings.defaultLoader")}
+      />
+    </div>
+
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.openInstanceOnInstall")}</span>
+        <small>{t("settings.openInstanceOnInstallDesc")}</small>
+      </div>
+      <label class="switch">
+        <input
+          type="checkbox"
+          bind:checked={draft.openInstanceOnInstall}
+          onchange={() => saveOne("openInstanceOnInstall", draft.openInstanceOnInstall)}
+        />
+        <span class="track"><span class="thumb"></span></span>
+      </label>
+    </div>
+  </section>
+
+  <section class="card-block">
+    <h3>{t("settings.sound")}</h3>
     <div class="setting">
       <div class="label">
         <span>{t("settings.buttonSounds")}</span>
@@ -489,21 +559,10 @@
         }}
       />
     </div>
+  </section>
 
-    <div class="setting">
-      <div class="label">
-        <span>{t("settings.defaultLoader")}</span>
-        <small>{t("settings.defaultLoaderDesc")}</small>
-      </div>
-      <Select
-        bind:value={draft.defaultLoader}
-        options={LOADER_OPTIONS}
-        width="220px"
-        onchange={() => saveOne("defaultLoader", draft.defaultLoader)}
-        ariaLabel={t("settings.defaultLoader")}
-      />
-    </div>
-
+  <section class="card-block">
+    <h3>{t("settings.homeNews")}</h3>
     <div class="setting">
       <div class="label">
         <span>{t("settings.newsOnHome")}</span>
@@ -535,44 +594,10 @@
         </label>
       </div>
     {/if}
+  </section>
 
-    <div class="setting">
-      <div class="label">
-        <span>{t("settings.dateFormat")}</span>
-        <small>{t("settings.dateFormatDesc", { sample: fmtDatePreview })}</small>
-      </div>
-      <Select
-        bind:value={draft.dateFormat}
-        options={DATE_FORMATS}
-        width="220px"
-        onchange={() => settingsStore.save({ ...settingsStore.settings, dateFormat: draft.dateFormat })}
-        ariaLabel={t("settings.dateFormat")}
-      />
-    </div>
-
-    <div class="setting">
-      <div class="label">
-        <span>{t("settings.giphyKey")}</span>
-        <small>
-          Animated stickers are off by default. Paste a free key from
-          <button class="linkish" onclick={() => openUrl("https://developers.giphy.com")}>
-            developers.giphy.com
-          </button>
-          to enable the Stickers tab. The emoji picker always works.
-        </small>
-      </div>
-      <input
-        class="input narrow"
-        type="password"
-        placeholder="Paste key to enable"
-        bind:value={draft.giphyApiKey}
-        onblur={() => persistCredential("giphyApiKey")}
-        onkeydown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-        autocomplete="off"
-        spellcheck="false"
-      />
-    </div>
-
+  <section class="card-block">
+    <h3>{t("settings.dock")}</h3>
     <div class="setting">
       <div class="label">
         <span>{t("settings.dockPosition")}</span>
@@ -620,8 +645,6 @@
           class="range"
           bind:value={draft.uiScale}
           use:sliderFill={draft.uiScale}
-          oninput={() => getCurrentWebview().setZoom(draft.uiScale / 100).catch(() => {})}
-          onchange={() => saveOne("uiScale", draft.uiScale)}
         />
         <div class="mem-ticks">
           {#each scaleTicks as tick}
@@ -658,16 +681,16 @@
         <small>{t("settings.accentDesc")}</small>
       </div>
       <div class="accents">
-        {#each ACCENTS as accent (accent.value)}
+        {#each ACCENT_PRESETS as accent (accent.id)}
           <button
             class="accent-dot"
-            class:on={(draft.accent || "") === accent.value}
-            style="--dot:{accent.color}"
+            class:on={(draft.accent || "") === accent.id}
+            style="--dot:{accent.swatch}"
             title={t(accent.labelKey)}
             aria-label={t(accent.labelKey)}
             onclick={() => {
-              draft.accent = accent.value;
-              saveOne("accent", accent.value);
+              draft.accent = accent.id;
+              saveOne("accent", accent.id);
             }}
           ></button>
         {/each}
@@ -678,8 +701,24 @@
       <span>{t("settings.themePresets")}</span>
       <small>{t("settings.themePresetsDesc")}</small>
     </div>
+    <div class="seg theme-tabs">
+      <button
+        class="seg-btn"
+        class:on={themeTab === "static"}
+        onclick={() => (themeTab = "static")}
+      >
+        {t("settings.themesStatic")}
+      </button>
+      <button
+        class="seg-btn"
+        class:on={themeTab === "animated"}
+        onclick={() => (themeTab = "animated")}
+      >
+        {t("settings.themesAnimated")}
+      </button>
+    </div>
     <div class="themes">
-      {#each THEME_PRESETS as preset (preset.name)}
+      {#each shownThemes as preset (preset.name)}
         <button
           class="theme"
           class:on={draft.background === preset.bg && (draft.decorTheme ?? "") === (preset.decor ?? "")}
@@ -689,7 +728,10 @@
           }}
           title={preset.name}
         >
-          <span class="theme-swatch" style="background: {backgroundCss(preset.bg)};">
+          <span
+            class="theme-swatch {animClass(preset.bg)}"
+            style={animClass(preset.bg) ? "" : `background: ${backgroundCss(preset.bg)};`}
+          >
             {#if preset.decor}
               <img
                 class="theme-decor"
@@ -709,8 +751,8 @@
         <small>{t("settings.backgroundDesc")}</small>
       </div>
       <div
-        class="bg-preview"
-        style="background: {backgroundCss(draft.background)};"
+        class="bg-preview {animClass(draft.background)}"
+        style={animClass(draft.background) ? "" : `background: ${backgroundCss(draft.background)};`}
       ></div>
     </div>
 
@@ -802,6 +844,29 @@
       style="display:none"
       onchange={onBgFile}
     />
+
+    <div class="setting">
+      <div class="label">
+        <span>{t("settings.giphyKey")}</span>
+        <small>
+          Animated stickers are off by default. Paste a free key from
+          <button class="linkish" onclick={() => openUrl(LINKS.giphyDev)}>
+            developers.giphy.com
+          </button>
+          to enable the Stickers tab. The emoji picker always works.
+        </small>
+      </div>
+      <input
+        class="input narrow"
+        type="password"
+        placeholder="Paste key to enable"
+        bind:value={draft.giphyApiKey}
+        onblur={() => persistCredential("giphyApiKey")}
+        onkeydown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
   </section>
 
   <section class="card-block">
@@ -957,7 +1022,7 @@
         <span>{t("settings.ngrokAuthtoken")}</span>
         <small>
           {t("settings.ngrokDesc1")}
-          <button class="linkish" onclick={() => openUrl("https://dashboard.ngrok.com/get-started/your-authtoken")}>
+          <button class="linkish" onclick={() => openUrl(LINKS.ngrokAuthtoken)}>
             ngrok.com
           </button>{t("settings.ngrokDesc2")}
         </small>
@@ -1136,6 +1201,7 @@
 
   <div class="save-bar">
     {#if saved}<span class="saved">{t("settings.saved")}</span>{/if}
+    {#if dirty}<span class="unsaved">{t("settings.unsavedChanges")}</span>{/if}
     <button class="btn primary" onclick={save} disabled={saving}>
       {saving ? t("settings.saving") : t("settings.saveChanges")}
     </button>
@@ -1195,6 +1261,12 @@
     color: var(--accent);
     font-size: 13px;
     font-weight: 500;
+  }
+  .unsaved {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--warning);
+    white-space: nowrap;
   }
   .card-block {
     background: var(--bg-card);
@@ -1357,6 +1429,9 @@
   }
   .themes-label {
     margin-bottom: 10px;
+  }
+  .theme-tabs {
+    margin-bottom: 12px;
   }
   .themes {
     display: grid;
