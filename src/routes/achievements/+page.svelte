@@ -115,13 +115,16 @@
     <div class="state">{t("achievements.scanning")}</div>
   {:else if error}
     <div class="state err">{t("achievements.loadError", { error })}</div>
-  {:else if data && !data.hasData}
-    <div class="state">
-      <Icon name="trophy" size={28} />
-      <p>{t("achievements.noWorldData")}</p>
-      <small>{t("achievements.noWorldDataHelp")}</small>
-    </div>
   {:else if data}
+    {#if !data.hasData}
+      <div class="banner">
+        <Icon name="trophy" size={18} />
+        <div class="banner-text">
+          <strong>{t("achievements.noWorldData")}</strong>
+          <span>{t("achievements.noWorldDataHelp")}</span>
+        </div>
+      </div>
+    {/if}
     <section class="hero">
       <div class="hero-ring" style="--pct:{data.completion.percent}">
         <span class="hero-pct">{data.completion.percent}%</span>
@@ -317,13 +320,32 @@
     padding: 60px 20px;
     color: var(--text-muted);
   }
-  .state small {
-    max-width: 420px;
-    font-size: 12px;
-    line-height: 1.5;
-  }
   .state.err {
     color: var(--warning);
+  }
+
+  .banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    color: var(--text-muted);
+  }
+  .banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .banner-text strong {
+    color: var(--text);
+    font-size: 13px;
+  }
+  .banner-text span {
+    font-size: 12px;
+    line-height: 1.5;
   }
 
   .hero {
@@ -474,6 +496,7 @@
     font-size: 12px;
     color: var(--text-muted);
     cursor: pointer;
+    white-space: nowrap;
   }
   .custom-grid {
     display: grid;
@@ -488,8 +511,8 @@
     padding: 12px 14px;
     box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.03), inset -2px -2px 0 rgba(0, 0, 0, 0.25);
   }
-  .custom-tile.locked {
-    opacity: 0.55;
+  .custom-tile.locked .custom-name {
+    color: var(--text-muted);
   }
   .custom-ic {
     flex-shrink: 0;
@@ -540,8 +563,8 @@
     border: 1px solid var(--border);
     padding: 9px 11px;
   }
-  .adv-tile.locked {
-    opacity: 0.42;
+  .adv-tile.locked .adv-name {
+    color: var(--text-muted);
   }
   .adv-ic {
     flex-shrink: 0;
