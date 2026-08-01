@@ -9,6 +9,8 @@
   import GroupPicker from "$lib/components/GroupPicker.svelte";
   import FolderOverlay from "$lib/components/FolderOverlay.svelte";
   import DecorLayer from "$lib/components/DecorLayer.svelte";
+  import ReactiveGrid from "$lib/components/ReactiveGrid.svelte";
+  import NoiseGrid from "$lib/components/NoiseGrid.svelte";
   import Toaster from "$lib/components/Toaster.svelte";
   import UpdatePrompt from "$lib/components/UpdatePrompt.svelte";
   import CommandPalette from "$lib/components/CommandPalette.svelte";
@@ -24,7 +26,8 @@
   import { ui } from "$lib/stores/ui.svelte";
   import { currentLocale, RTL_LOCALES } from "$lib/i18n";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
-  import { backgroundCss } from "$lib/background";
+  import { invoke } from "@tauri-apps/api/core";
+  import { backgroundCss, animClass } from "$lib/background";
   import { readJson } from "$lib/storage";
   import { playClick } from "$lib/sound";
   import type { Snippet } from "svelte";
@@ -33,7 +36,9 @@
 
   let onboarded = $state(readJson<boolean>("cactus:onboarded", false));
 
-  const bg = $derived(backgroundCss(settingsStore.settings.background ?? ""));
+  const bgSetting = $derived(settingsStore.settings.background ?? "");
+  const bg = $derived(backgroundCss(bgSetting));
+  const bgAnim = $derived(animClass(bgSetting));
 
   const dockPos = $derived(settingsStore.settings.dockPosition ?? "bottom");
   const dockPad = $derived(
@@ -53,15 +58,12 @@
     initBoardApi();
   });
 
-  // Keep the document language + direction in sync with the chosen UI locale.
   $effect(() => {
     const locale = currentLocale();
     document.documentElement.lang = locale;
     document.documentElement.dir = RTL_LOCALES.includes(locale) ? "rtl" : "ltr";
   });
 
-  // Apply the accessibility / customization settings to the document root; the
-  // matching CSS lives in app.css.
   $effect(() => {
     const s = settingsStore.settings;
     const root = document.documentElement;
@@ -73,7 +75,6 @@
     root.dataset.accent = s.accent || "";
   });
 
-  // Whole-UI zoom via the real webview zoom (handles fixed layout correctly).
   $effect(() => {
     const scale = (settingsStore.settings.uiScale ?? 100) / 100;
     getCurrentWebview().setZoom(scale).catch(() => {});
@@ -91,9 +92,12 @@
       event.preventDefault();
       ui.toggleCommandPalette();
     }
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "i") {
+      event.preventDefault();
+      invoke("toggle_devtools").catch(() => {});
+    }
   }
 
-  // Capture phase so it fires even when a handler stops propagation.
   function onGlobalClick(event: MouseEvent) {
     if (!settingsStore.settings.uiSounds) return;
     const target = event.target as HTMLElement | null;
@@ -108,7 +112,13 @@
 <svelte:window oncontextmenu={onContextMenu} onclickcapture={onGlobalClick} onkeydown={onGlobalKeydown} />
 
 <div class="app">
-  <div class="bg-layer" style="background: {bg};"></div>
+  <div class="bg-layer {bgAnim}" style={bgAnim ? "" : `background: ${bg};`}></div>
+  {#if bgSetting === "anim:circuit" && !settingsStore.settings.reduceMotion}
+    <ReactiveGrid />
+  {/if}
+  {#if bgSetting === "anim:lattice" && !settingsStore.settings.reduceMotion}
+    <NoiseGrid />
+  {/if}
   <main class="content" style="{dockPad}: 90px;">
     {@render children()}
   </main>
@@ -198,15 +208,10 @@
     pointer-events: none;
   }
   .content {
-    /* No z-index here on purpose: a stacking context would trap fixed overlays
-       rendered by pages (modals, context menus, the instance picker) *below*
-       the Dock. Tree order already paints .content above the fixed .bg-layer. */
     position: relative;
     height: 100vh;
     width: 100%;
     overflow-y: auto;
-    /* Always reserve the scrollbar gutter so switching between scrolling and
-       non-scrolling views doesn't nudge the layout sideways. */
     scrollbar-gutter: stable;
     background: transparent;
   }

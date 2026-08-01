@@ -8,7 +8,25 @@
 
 export const PATTERNS = ["dots", "grid", "diagonal", "checker"] as const;
 
+/** Default app background; mirrors `--bg-app` in app.css. */
 export const DEFAULT_COLOR = "#17161a";
+
+/** Characters that could break out of a CSS `url("…")` value. */
+const CSS_URL_UNSAFE_RE = /["'()\\\s]/g;
+
+/** Characters not allowed in an animated-theme name (→ CSS class suffix). */
+const ANIM_NAME_UNSAFE_RE = /[^a-z0-9-]/gi;
+
+/** Build a CSS `url("…")` from a URL, percent-encoding characters that could
+ * otherwise break out of the declaration and inject arbitrary CSS. */
+export function cssUrl(uri: string): string {
+  return `url("${uri.replace(CSS_URL_UNSAFE_RE, encodeURIComponent)}")`;
+}
+
+/** A `#rrggbb` colour (leading `#` optional), capturing the six hex digits. */
+const SIX_DIGIT_HEX_RE = /^#?([0-9a-fA-F]{6})$/;
+/** A leading `0–1` opacity followed by `|` at the start of a `texture:` value. */
+const TEXTURE_OPACITY_PREFIX_RE = /^(0(?:\.\d+)?|1(?:\.0+)?)\|/;
 
 export function parsePattern(bg: string): { name: string; color: string | null } {
   const rest = bg.slice("pattern:".length);
@@ -39,7 +57,7 @@ export function parseTexture(bg: string): {
 } {
   let rest = bg.slice("texture:".length);
   let opacity = 0.5;
-  const match = /^(0(?:\.\d+)?|1(?:\.0+)?)\|/.exec(rest);
+  const match = TEXTURE_OPACITY_PREFIX_RE.exec(rest);
   if (match) {
     opacity = parseFloat(match[1]);
     rest = rest.slice(match[0].length);
@@ -66,8 +84,10 @@ function parsePrefixed(bg: string, prefix: string): { uri: string; color: string
 }
 
 function hexToRgba(hex: string, alpha: number): string {
-  const match = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!match) return `rgba(23, 22, 26, ${alpha})`;
+  const match = SIX_DIGIT_HEX_RE.exec(hex.trim());
+  // Fall back to the default app colour (which is a valid hex, so this recurses
+  // at most once) rather than repeating its rgb literal here.
+  if (!match) return hexToRgba(DEFAULT_COLOR, alpha);
   const rgb = parseInt(match[1], 16);
   return `rgba(${(rgb >> 16) & 255}, ${(rgb >> 8) & 255}, ${rgb & 255}, ${alpha})`;
 }
@@ -94,6 +114,10 @@ function patternCss(name: string, color: string | null): string {
 
 export function backgroundCss(bg: string): string {
   if (!bg || bg === "default") return "var(--bg-app)";
+  // Animated themes are driven by a CSS class (keyframes live in app.css), so the
+  // consumer applies `animClass(bg)` and skips the inline background. This is only
+  // a fallback base if a caller doesn't.
+  if (bg.startsWith("anim:")) return "var(--bg-app)";
   if (bg.startsWith("color:")) return bg.slice(6) || "var(--bg-app)";
   if (bg.startsWith("pattern:")) {
     const { name, color } = parsePattern(bg);
@@ -102,12 +126,12 @@ export function backgroundCss(bg: string): string {
   if (bg.startsWith("image:")) {
     const { uri, color } = parseImage(bg);
     const scrim = hexToRgba(color ?? DEFAULT_COLOR, 0.55);
-    return `linear-gradient(${scrim}, ${scrim}), url("${uri}") center / cover no-repeat`;
+    return `linear-gradient(${scrim}, ${scrim}), ${cssUrl(uri)} center / cover no-repeat`;
   }
   if (bg.startsWith("tile:")) {
     const { uri, color } = parseTile(bg);
     const base = color || "var(--bg-app)";
-    return `url("${uri}") 0 0 / 140px repeat, ${base}`;
+    return `${cssUrl(uri)} 0 0 / 140px repeat, ${base}`;
   }
   if (bg.startsWith("texture:")) {
     const { uri, color, opacity } = parseTexture(bg);
@@ -115,12 +139,12 @@ export function backgroundCss(bg: string): string {
     // meet without a subpixel seam.
     const overlayAlpha = Math.max(0, Math.min(1, 1 - opacity));
     const scrim = hexToRgba(color ?? DEFAULT_COLOR, overlayAlpha);
-    return `linear-gradient(${scrim}, ${scrim}), url("${uri}") repeat`;
+    return `linear-gradient(${scrim}, ${scrim}), ${cssUrl(uri)} repeat`;
   }
   return "var(--bg-app)";
 }
 
-type BgKind = "default" | "color" | "pattern" | "image" | "tile" | "texture";
+type BgKind = "default" | "color" | "pattern" | "image" | "tile" | "texture" | "anim";
 
 export function bgKind(bg: string): BgKind {
   if (bg.startsWith("color:")) return "color";
@@ -128,5 +152,15 @@ export function bgKind(bg: string): BgKind {
   if (bg.startsWith("image:")) return "image";
   if (bg.startsWith("tile:")) return "tile";
   if (bg.startsWith("texture:")) return "texture";
+  if (bg.startsWith("anim:")) return "anim";
   return "default";
+}
+
+/** CSS class for an animated theme (`anim:<name>`) — the element showing the
+ * background gets this class so app.css can drive its keyframes. "" for static
+ * backgrounds. Callers apply it and skip the inline `background`. */
+export function animClass(bg: string): string {
+  if (!bg.startsWith("anim:")) return "";
+  const name = bg.slice("anim:".length).replace(ANIM_NAME_UNSAFE_RE, "");
+  return name ? `anim-${name}` : "";
 }
