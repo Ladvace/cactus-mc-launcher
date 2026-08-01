@@ -4,6 +4,43 @@ All notable changes to **Cactus Launcher** are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.11.0] — 2026-08-01
+
+### Added
+- **Capes in the skin modal.** Your owned capes now appear as cropped previews so
+  you can see each one before selecting it, and the cape section is always shown
+  with clear "no capes" and error states instead of silently disappearing.
+- **Sign in again.** Each Microsoft account has a one-click re-sign-in that
+  re-mints a stale token in place, so you no longer have to delete and re-add an
+  account to recover it.
+- **Animated themes.** A new **Animated** tab adds gradient and pattern presets
+  plus two interactive backgrounds — a cursor-trail reactive grid and a
+  Perlin-noise lattice — both of which honour the *Reduce motion* setting.
+- **DevTools.** An opt-in build feature and a keyboard shortcut open the webview
+  inspector, including in release builds when enabled.
+
+### Changed
+- **Consistent settings saving.** Settings now apply on **Save** (UI scale no
+  longer takes effect instantly), and a single "unsaved changes" toast signals a
+  pending edit and offers to save it in one click.
+- **Clearer settings layout.** Options are grouped into more categories.
+- **Smarter sign-in refresh.** Automatic Microsoft token renewal now reports the
+  precise reason on failure and distinguishes a genuinely expired session from a
+  transient or malformed error, so you're only asked to sign in again when it is
+  actually needed.
+- **Centralized theming and cleanup.** Theme data lives in one place and the
+  codebase received a broad naming and de-duplication pass.
+
+### Fixed
+- **Back-to-back installs in the dock.** Starting two modpacks one after another
+  now shows a placeholder for both immediately, instead of the second appearing
+  only once its first progress event arrived.
+
+### Security
+- **Hardened untrusted inputs.** Additional guards against SSRF, path traversal,
+  and zip-bomb archives, plus tighter loader JVM-argument handling and pack
+  override extraction.
+
 ## [1.10.0] — 2026-07-27
 
 ### Added
