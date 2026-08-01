@@ -10,6 +10,13 @@ interface Progress {
 class InstallStore {
   progress = $state<Record<string, Progress>>({});
   pending = $state<Progress | null>(null);
+  // Downloads that have been kicked off but whose first progress event hasn't
+  // arrived yet. Kept as a count of outstanding tokens so the dock shows a
+  // placeholder immediately for each pack — without this, starting two packs
+  // back-to-back would only surface the second once its first event landed.
+  starting = $state(0);
+  private startTokens = new Set<number>();
+  private nextToken = 0;
   private started = false;
 
   init() {
@@ -37,8 +44,31 @@ class InstallStore {
 
       const isNew = !(instanceId in this.progress);
       this.progress = { ...this.progress, [instanceId]: { current, total, message } };
-      if (isNew) instancesStore.refresh();
+      if (isNew) {
+        this.consumeStart();
+        instancesStore.refresh();
+      }
     });
+  }
+
+  beginStart(): number {
+    const token = this.nextToken++;
+    this.startTokens.add(token);
+    this.starting = this.startTokens.size;
+    return token;
+  }
+  // Progress events don't carry the caller's token, so when any download's
+  // first event arrives we retire the oldest outstanding token (FIFO): that
+  // download is now tracked in `progress` and no longer merely "starting".
+  private consumeStart() {
+    const first = this.startTokens.values().next();
+    if (!first.done) {
+      this.startTokens.delete(first.value);
+      this.starting = this.startTokens.size;
+    }
+  }
+  endStart(token: number) {
+    if (this.startTokens.delete(token)) this.starting = this.startTokens.size;
   }
 
   isInstalling(id: string): boolean {
@@ -57,7 +87,11 @@ class InstallStore {
   }
 
   anyActive(): boolean {
-    return this.pending !== null || Object.keys(this.progress).length > 0;
+    return (
+      this.starting > 0 ||
+      this.pending !== null ||
+      Object.keys(this.progress).length > 0
+    );
   }
   primaryInstanceId(): string | null {
     return Object.keys(this.progress)[0] ?? null;
