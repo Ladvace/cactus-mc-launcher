@@ -4,7 +4,7 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { THEME_PRESETS, type ThemePreset } from "$lib/themes";
-  import { backgroundCss } from "$lib/background";
+  import { backgroundCss, animClass } from "$lib/background";
   import { ui } from "$lib/stores/ui.svelte";
   import { writeJson } from "$lib/storage";
   import { copyText } from "$lib/clipboard";
@@ -149,7 +149,10 @@
                 title={preset.name}
                 onclick={() => applyTheme(preset)}
               >
-                <span class="swatch" style="background: {backgroundCss(preset.bg)};"></span>
+                <span
+                  class="swatch {animClass(preset.bg)}"
+                  style={animClass(preset.bg) ? "" : `background: ${backgroundCss(preset.bg)};`}
+                ></span>
                 <span class="theme-name">{preset.name}</span>
               </button>
             {/each}

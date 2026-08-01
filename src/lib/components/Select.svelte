@@ -12,9 +12,7 @@
     disabled?: boolean;
     placeholder?: string;
     ariaLabel?: string;
-    /** Show a filter box at the top of the menu (useful for long lists). */
     searchable?: boolean;
-    /** Extra control rendered on the search row (e.g. a filter toggle). */
     header?: Snippet;
 
     width?: string;
@@ -139,7 +137,6 @@
         break;
       case "ArrowUp":
         event.preventDefault();
-        // From the top option, arrow up returns to the search box (if any).
         if (idx <= 0 && searchable) root?.querySelector<HTMLInputElement>(".sel-search")?.focus();
         else focusOptionAt(opts, here - 1);
         break;
@@ -286,7 +283,9 @@
     align-items: center;
     gap: 8px;
     width: 100%;
-    padding: 11px 12px;
+    /* 9px vertical matches .search-input and .btn so a Select sits flush with
+       inputs/buttons on the same toolbar row. */
+    padding: 9px 12px;
     background: var(--bg-input);
     border: 2px solid var(--border);
     color: var(--text);

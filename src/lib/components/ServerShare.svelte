@@ -5,12 +5,11 @@
   import { settingsStore } from "$lib/stores/settings.svelte";
   import { copyText } from "$lib/clipboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { LINKS } from "$lib/links";
   import { DEFAULT_PORT, parseServerPort } from "$lib/serverAddress";
   import { t } from "$lib/i18n";
 
   let { id }: { id: string } = $props();
-
-  const AUTHTOKEN_URL = "https://dashboard.ngrok.com/get-started/your-authtoken";
 
   const instance = $derived(instancesStore.get(id));
   const globalToken = $derived((settingsStore.settings.ngrokAuthtoken ?? "").trim());
@@ -102,7 +101,7 @@
     <button class="btn primary sm" disabled={!tokenDraft.trim()} onclick={saveToken}>
       {t("server.saveAndShare")}
     </button>
-    <button class="linkish" onclick={() => openUrl(AUTHTOKEN_URL)}>{t("server.getOne")}</button>
+    <button class="linkish" onclick={() => openUrl(LINKS.ngrokAuthtoken)}>{t("server.getOne")}</button>
   {:else}
     <button class="btn primary sm" onclick={start} disabled={busy}>
       {busy ? t("server.starting") : t("server.shareViaNgrok")}

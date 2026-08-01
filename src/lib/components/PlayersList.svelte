@@ -29,8 +29,6 @@
     }
   }
 
-  // A running server owns the files, so drive it via console commands and
-  // re-read once it has rewritten them; a stopped server is edited directly.
   async function run(consoleCmd: string, edit: () => Promise<void>) {
     busy = true;
     try {

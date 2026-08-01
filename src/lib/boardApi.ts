@@ -11,13 +11,20 @@ import type {
   SnapshotManifest,
 } from "$lib/types";
 
+const TRAILING_SLASH_RE = /\/$/;
+/** Max size of a downloaded board snapshot before import (snapshots are config +
+ * references, so a few MB; this bounds the per-byte-array + IPC expansion). */
+const MAX_SNAPSHOT_BYTES = 64_000_000;
+/** Error text the backend returns when the board session is no longer valid. */
+const EXPIRED_SESSION_RE = /expired|invalid.*session/i;
+
 let BASE = "";
 let ready: Promise<void> | null = null;
 
 export function initBoardApi(): Promise<void> {
   return (ready ??= invoke<string>("backend_base")
     .then((base) => {
-      BASE = (base ?? "").replace(/\/$/, "");
+      BASE = (base ?? "").replace(TRAILING_SLASH_RE, "");
     })
     .catch(() => {}));
 }
@@ -61,7 +68,7 @@ function doAuthedFetch(path: string, token: string, init: RequestInit): Promise<
 async function looksExpired(res: Response): Promise<boolean> {
   if (res.status === 401 || res.status === 403) return true;
   const body = await res.clone().json().catch(() => ({}));
-  return /expired|invalid.*session/i.test((body as any)?.error ?? "");
+  return EXPIRED_SESSION_RE.test((body as any)?.error ?? "");
 }
 
 async function authed<T>(
@@ -106,10 +113,15 @@ export const boardApi = {
     ),
 
   async importSnapshot(id: string): Promise<ImportResult> {
-    const res = await fetch(`${BASE}/v1/snapshots/${id}/blob`);
+    const res = await fetch(`${BASE}/v1/snapshots/${encodeURIComponent(id)}/blob`);
     if (!res.ok) throw new Error(`couldn't download snapshot (${res.status})`);
-    const bytes = Array.from(new Uint8Array(await res.arrayBuffer()));
-    return api.importSetup(bytes);
+    const buffer = await res.arrayBuffer();
+    // The blob is untrusted (a remote board) — bound it before expanding into a
+    // per-byte array + JSON for the IPC, so a huge snapshot can't exhaust memory.
+    if (buffer.byteLength > MAX_SNAPSHOT_BYTES) {
+      throw new Error("this snapshot is too large to import");
+    }
+    return api.importSetup(Array.from(new Uint8Array(buffer)));
   },
 
   myBoards: (token: string) =>

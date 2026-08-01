@@ -87,9 +87,10 @@
     return `${Math.round(cm / 100)} m`;
   }
   const fmtDate = (iso: string | null) => formatDate(iso);
-  function cleanKey(key: string): string {
-    const last = key.split(":").pop() ?? key;
-    return last.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const WORD_START_RE = /\b\w/g;
+  function titleCaseKey(key: string): string {
+    const name = key.split(":").pop() ?? key;
+    return name.replace(/_/g, " ").replace(WORD_START_RE, (char) => char.toUpperCase());
   }
 </script>
 
@@ -231,7 +232,7 @@
             <ul class="bars">
               {#each data.stats.topMined as e (e.key)}
                 <li>
-                  <span class="bar-label">{cleanKey(e.key)}</span>
+                  <span class="bar-label">{titleCaseKey(e.key)}</span>
                   <div class="track"><div class="fill" style="width:{(e.count / (data.stats.topMined[0].count || 1)) * 100}%"></div></div>
                   <span class="bar-val">{fmtNumber(e.count)}</span>
                 </li>
@@ -248,7 +249,7 @@
             <ul class="bars">
               {#each data.stats.topKilled as e (e.key)}
                 <li>
-                  <span class="bar-label">{cleanKey(e.key)}</span>
+                  <span class="bar-label">{titleCaseKey(e.key)}</span>
                   <div class="track"><div class="fill" style="width:{(e.count / (data.stats.topKilled[0].count || 1)) * 100}%"></div></div>
                   <span class="bar-val">{fmtNumber(e.count)}</span>
                 </li>

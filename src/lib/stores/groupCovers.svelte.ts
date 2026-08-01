@@ -18,8 +18,9 @@ class GroupCovers {
   }
 
   set(name: string, uri: string) {
-    this.covers = { ...this.covers, [name]: uri };
-    this.persist();
+    const next = { ...this.covers, [name]: uri };
+    writeJson(KEY, next);
+    this.covers = next;
   }
 
   clear(name: string) {

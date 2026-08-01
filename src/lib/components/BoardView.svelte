@@ -88,7 +88,7 @@
   </header>
 
   {#if board.kind === "streamer" && board.streamUrl}
-    <button class="banner stream" onclick={() => openUrl(board!.streamUrl!)}>
+    <button class="banner stream" onclick={() => openUrl(board!.streamUrl!).catch(() => {})}>
       <Icon name="video" size={16} /> {t("community.watchStream")}
       <span class="ext">{t("community.opensInBrowser")}</span>
     </button>

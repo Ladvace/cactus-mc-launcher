@@ -286,8 +286,8 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #57c84a;
-    box-shadow: 0 0 5px rgba(87, 200, 74, 0.9);
+    background: var(--success);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--success) 90%, transparent);
     flex-shrink: 0;
   }
   .pending {
@@ -311,8 +311,8 @@
     border-color: var(--accent);
   }
   .ic.accept:hover:not(:disabled) {
-    color: #57c84a;
-    border-color: #57c84a;
+    color: var(--success);
+    border-color: var(--success);
   }
   .ic.decline:hover:not(:disabled),
   .ic.remove:hover:not(:disabled) {

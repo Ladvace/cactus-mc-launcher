@@ -221,7 +221,6 @@
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
-  /* Play together stands out: pushed to the far right, filled accent chip. */
   .tab.play {
     margin-left: auto;
     display: inline-flex;

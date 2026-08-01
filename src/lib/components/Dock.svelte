@@ -5,7 +5,7 @@
   import Icon from "./Icon.svelte";
   import InstanceIcon from "./InstanceIcon.svelte";
   import { instancesStore } from "$lib/stores/instances.svelte";
-  import { installStore } from "$lib/stores/install.svelte";
+  import { installStore, toPct } from "$lib/stores/install.svelte";
   import { launchStore } from "$lib/stores/launch.svelte";
   import { accountsStore } from "$lib/stores/accounts.svelte";
   import { settingsStore } from "$lib/stores/settings.svelte";
@@ -34,8 +34,6 @@
 
   let winH = $state(browser ? window.innerHeight : 900);
 
-  // Ungrouped instances plus one tile per folder — mirrors the home grid so the
-  // dock and home stay in sync.
   type Entry =
     | { kind: "instance"; instance: Instance }
     | { kind: "folder"; name: string; instances: Instance[] };
@@ -58,9 +56,9 @@
 
   const cap = $derived.by(() => {
     if (horizontal) return 7;
-    const chrome = 52; // dock padding + border + a little breathing room
-    const perTile = 56; // ITEM (48) + GAP (8)
-    const fixed = 6 * perTile + 2 * 14; // 6 fixed tiles + 2 separators
+    const chrome = 52;
+    const perTile = 56;
+    const fixed = 6 * perTile + 2 * 14;
     const slots = Math.max(1, Math.min(7, Math.floor((winH - chrome - fixed) / perTile)));
     const total = dockEntries.length;
     return total <= slots ? slots : Math.max(1, slots - 1);
@@ -103,14 +101,30 @@
     | { kind: "settings"; href: string; label: string }
     | { kind: "account"; label: string };
 
-  const dlId = $derived(installStore.primaryInstanceId());
   const pinnedHasId = (id: string) =>
     pinned.some(
       (entry) =>
         (entry.kind === "instance" && entry.instance.id === id) ||
         (entry.kind === "folder" && entry.instances.some((inst) => inst.id === id))
     );
-  const showDownloads = $derived(installStore.anyActive() && !(dlId && pinnedHasId(dlId)));
+  const activeUnpinned = $derived(
+    Object.keys(installStore.progress).filter((id) => !pinnedHasId(id))
+  );
+  const dlId = $derived(activeUnpinned[0] ?? null);
+  const showDownloads = $derived(installStore.starting > 0 || activeUnpinned.length > 0);
+  const pending = $derived(installStore.pending);
+  const dlPct = $derived(
+    dlId
+      ? installStore.pct(dlId)
+      : pending
+        ? toPct(pending.current, pending.total)
+        : null
+  );
+  const dlLabel = $derived(
+    dlId
+      ? installStore.progressFor(dlId)?.message ?? installStore.overallMessage()
+      : pending?.message ?? installStore.overallMessage()
+  );
 
   const items = $derived<Item[]>([
     { kind: "nav", href: "/", icon: "home", label: t("nav.home") },
@@ -136,9 +150,9 @@
       ? [
           {
             kind: "downloads" as const,
-            pct: installStore.overallPct(),
+            pct: dlPct,
             targetId: dlId,
-            label: installStore.overallMessage(),
+            label: dlLabel,
           },
         ]
       : []),
@@ -151,7 +165,7 @@
   const ITEM = 48;
   const SEP = 6;
   const GAP = 8;
-  const PAD = 14; // dock border (2) + padding-left (12)
+  const PAD = 14;
   const MAX = 1.28;
   const RANGE = 100;
 
@@ -167,7 +181,7 @@
   });
 
   let dockEl = $state<HTMLElement>();
-  let dockStart = 0; // captured on enter (resting frame) to avoid feedback drift
+  let dockStart = 0;
   let scales = $state<number[]>([]);
   let mouseX = 0;
   let mouseY = 0;
@@ -498,7 +512,7 @@
     border-color: var(--border);
   }
   .dock-item.running {
-    border-color: #57c84a;
+    border-color: var(--success);
   }
   .run-dot {
     position: absolute;
@@ -508,9 +522,9 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #57c84a;
+    background: var(--success);
     border: 2px solid var(--bg-card);
-    box-shadow: 0 0 6px rgba(87, 200, 74, 0.9);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--success) 90%, transparent);
     pointer-events: none;
   }
   .run-dot.preparing {
@@ -565,7 +579,6 @@
     object-fit: cover;
     image-rendering: pixelated;
   }
-  /* "beta" tag on the Community dock tile. */
   .beta-badge {
     position: absolute;
     top: -5px;

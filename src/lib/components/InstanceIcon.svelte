@@ -1,19 +1,12 @@
 <script lang="ts">
-  import type { Instance, ModLoader } from "$lib/types";
+  import type { Instance } from "$lib/types";
+  import { LOADER_COLORS } from "$lib/themes";
 
   interface Props {
     instance: Instance;
     size?: number;
   }
   let { instance, size = 48 }: Props = $props();
-
-  const loaderColor: Record<ModLoader, string> = {
-    vanilla: "#5b8a3a",
-    fabric: "#c8a86a",
-    quilt: "#9b59d0",
-    forge: "#4a6b8a",
-    neoforge: "#d98a3a",
-  };
 
   const initials = $derived(
     instance.name
@@ -22,7 +15,7 @@
       .map((word) => word[0]?.toUpperCase() ?? "")
       .join("") || "?"
   );
-  const backgroundColor = $derived(loaderColor[instance.loader] ?? "#4a6b8a");
+  const backgroundColor = $derived(LOADER_COLORS[instance.loader] ?? LOADER_COLORS.forge);
 </script>
 
 {#if instance.icon}

@@ -6,6 +6,7 @@
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { ui } from "$lib/stores/ui.svelte";
   import { installStore, toPct } from "$lib/stores/install.svelte";
+  import { settingsStore } from "$lib/stores/settings.svelte";
   import { formatCount } from "$lib/format";
   import { t } from "$lib/i18n";
   import { goto } from "$app/navigation";
@@ -207,6 +208,9 @@
     mpCurrent = 0;
     mpTotal = 0;
     mpMessage = t("browse.starting");
+    // Reserve a dock slot immediately so a second concurrent install shows a
+    // loader right away, rather than only once its instance record exists.
+    const startToken = installStore.beginStart();
     try {
       const instance = await api.installModpack(
         hit.source as Source,
@@ -215,11 +219,14 @@
       );
       await instancesStore.refresh();
       close();
-      goto(`/instance/${instance.id}`);
+      if (settingsStore.settings.openInstanceOnInstall) {
+        goto(`/instance/${instance.id}`);
+      }
     } catch (err) {
       error = String(err);
       installStore.clearPending();
     } finally {
+      installStore.endStart(startToken);
       installing = false;
     }
   }

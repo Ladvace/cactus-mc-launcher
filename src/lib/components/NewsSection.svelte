@@ -5,6 +5,7 @@
   import { api } from "$lib/api";
   import { t } from "$lib/i18n";
   import { formatDate } from "$lib/time";
+  import { cssUrl } from "$lib/background";
   import { settingsStore } from "$lib/stores/settings.svelte";
   import Icon from "./Icon.svelte";
   import { tooltip } from "$lib/tooltip";
@@ -116,7 +117,7 @@
             class:link={!!featured.link}
             class:noimg={!featured.image}
             onclick={() => open(featured)}
-            style={featured.image ? `background-image:url('${featured.image}')` : ""}
+            style={featured.image ? `background-image:${cssUrl(featured.image)}` : ""}
           >
             <div class="feature-scrim">
               {#if featured.category}<span class="cat">{featured.category}</span>{/if}
@@ -134,7 +135,7 @@
             {#each minis as item (item.id)}
               <button class="mini" class:link={!!item.link} onclick={() => open(item)}>
                 {#if item.image}
-                  <div class="mini-thumb" style="background-image:url('{item.image}')"></div>
+                  <div class="mini-thumb" style="background-image:{cssUrl(item.image)}"></div>
                 {:else}
                   <div class="mini-thumb placeholder"><Icon name="globe" size={18} /></div>
                 {/if}
@@ -293,8 +294,6 @@
     gap: 12px;
   }
   .mini {
-    /* Fixed half-column height so a lone card on the last page keeps its normal
-       size (top slot) instead of stretching to fill the whole column. */
     height: calc((var(--news-h) - 12px) / 2);
     display: flex;
     gap: 10px;

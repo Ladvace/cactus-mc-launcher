@@ -1,4 +1,16 @@
+/** Cap on an uploaded image before it's read — non-GIFs are downscaled to a
+ * canvas (bounded), but GIFs pass through raw and end up in settings/localStorage,
+ * so bound the input to keep a giant file from bloating persisted state. */
+const MAX_IMAGE_BYTES = 20_000_000;
+
+function ensureWithinSize(file: File): void {
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new Error("that image is too large (max 20 MB)");
+  }
+}
+
 export async function fileToIconDataUri(file: File, size = 256): Promise<string> {
+  ensureWithinSize(file);
   const raw = await readAsDataURL(file);
   if (file.type === "image/gif") return raw;
   return await downscaleSquare(raw, size);
@@ -35,6 +47,7 @@ function downscaleSquare(src: string, size: number): Promise<string> {
 }
 
 export async function fileToBackgroundDataUri(file: File, max = 1366): Promise<string> {
+  ensureWithinSize(file);
   const raw = await readAsDataURL(file);
   if (file.type === "image/gif") return raw;
   return await downscaleFit(raw, max);

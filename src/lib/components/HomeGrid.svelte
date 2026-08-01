@@ -27,7 +27,7 @@
   const GAP = 16;
   const PITCH = 168 + GAP;
   const MAX_H = 4;
-  const DRAG_THRESHOLD = 6; // px before a press becomes a drag
+  const DRAG_THRESHOLD = 6;
 
   let gridWidth = $state(0);
   const maxCols = $derived(Math.max(1, Math.floor((gridWidth + GAP) / PITCH)));
@@ -38,10 +38,10 @@
 
   const CELL = 168;
   function folderIcon(width: number, height: number): number {
-    const availW = width * CELL + (width - 1) * GAP - 28; // folder + preview padding/border
-    const availH = height * CELL + (height - 1) * GAP - 60; // + meta row & gaps
-    const perW = (availW - 4) / 2; // 2 columns, one 4px gap
-    const perH = (availH - 4) / 2; // up to 2 rows
+    const availW = width * CELL + (width - 1) * GAP - 28;
+    const availH = height * CELL + (height - 1) * GAP - 60;
+    const perW = (availW - 4) / 2;
+    const perH = (availH - 4) / 2;
     return clamp(Math.floor(Math.min(perW, perH)), 28, 148);
   }
 
@@ -249,8 +249,6 @@
   }
 
   function onGridClickCapture(event: MouseEvent) {
-    // Swallow the click the browser fires after a drag so we don't also
-    // navigate into the instance / open the folder.
     if (suppressClick) {
       event.stopPropagation();
       event.preventDefault();
@@ -375,7 +373,6 @@
   .grid.arranging .tile {
     animation: jiggle 0.62s ease-in-out infinite;
   }
-  /* Stagger in three groups so the wobble reads as organic, not synchronized. */
   .grid.arranging .tile:nth-child(3n) {
     animation-delay: -0.21s;
   }
@@ -424,7 +421,6 @@
       transform: rotate(0.4deg);
     }
   }
-  /* Respect reduced-motion: keep the dashed-edit affordance, drop the wobble. */
   :global([data-reduce-motion="true"]) .grid.arranging .tile {
     animation: none;
   }
@@ -531,7 +527,6 @@
     z-index: 3;
     touch-action: none;
   }
-  /* Edge handles are invisible hit zones with a thin accent bar on hover. */
   .handle.e {
     top: 0;
     right: -4px;

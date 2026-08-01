@@ -49,7 +49,6 @@
   const instance = $derived(instancesStore.get(id));
   const isVanilla = $derived(instance?.loader === "vanilla");
 
-  // Open Browse with this instance pre-selected as the install target.
   function openBrowse() {
     ui.browseInstanceId = id;
     goto("/browse");
@@ -153,7 +152,6 @@
   let contentLoading = $state(false);
   let sharedIds = $state<Set<string>>(new Set());
 
-  // Sub-tabs within Content, by type (only the types actually present are shown).
   const CONTENT_TYPES = ["mod", "resourcepack", "shader", "datapack"] as const;
   const CONTENT_TYPE_LABELS: Record<string, MessageKey> = {
     mod: "browse.tabMods",
@@ -170,7 +168,6 @@
       ? content
       : content.filter((item) => item.projectType === contentFilter)
   );
-  // If the active sub-tab's type disappears (all removed), fall back to All.
   $effect(() => {
     if (contentFilter !== "all" && !presentTypes.includes(contentFilter as (typeof CONTENT_TYPES)[number])) {
       contentFilter = "all";

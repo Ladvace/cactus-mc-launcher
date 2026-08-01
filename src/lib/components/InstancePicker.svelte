@@ -15,8 +15,6 @@
   let rootEl = $state<HTMLElement>();
   let triggerEl = $state<HTMLButtonElement>();
   let searchEl = $state<HTMLInputElement>();
-  // Fixed-position anchor for the dropdown so it doesn't inflate a scrollable
-  // parent (e.g. a modal body) and cause a second scrollbar.
   let pos = $state<{ left: number; top: number; width: number } | null>(null);
 
   function place() {

@@ -35,9 +35,6 @@
 
   const loaders = ["", "fabric", "quilt", "forge", "neoforge"];
 
-  // When Browse is opened from an instance's "Find mods" button, pre-filter to
-  // that instance so only compatible content shows (right type + MC version +
-  // loader) — you can't accidentally grab an incompatible mod.
   const fromInstance =
     ui.browseInstanceId ? instancesStore.get(ui.browseInstanceId) : null;
   onDestroy(() => {
@@ -47,7 +44,6 @@
   const isVanillaTarget = fromInstance?.loader === "vanilla";
 
   let source = $state<Source>("modrinth");
-  // Vanilla has no loader, so it can only take resource packs / datapacks.
   let activeType = $state<ProjectType>(isVanillaTarget ? "resourcepack" : "mod");
   let query = $state("");
   let debounced = $state("");
@@ -106,7 +102,6 @@
     sorts.map((sortOption) => ({ value: sortOption.value, label: t(sortOption.labelKey) }))
   );
 
-  // Advanced filters are Modrinth facets; CurseForge doesn't support them here.
   const advancedAvailable = $derived(source === "modrinth");
   const envOptions = $derived([
     { value: "", label: t("browse.envAny") },
@@ -176,7 +171,6 @@
   });
 
   $effect(() => {
-    // Track dependencies:
     void [source, activeType, debounced, gameVersion, loader, sort, selectedCategories, environment, openSource];
     search();
   });

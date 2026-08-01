@@ -66,10 +66,10 @@
     color: var(--text-secondary);
   }
   .grp-added {
-    color: var(--success, #3fb950);
+    color: var(--success);
   }
   .grp-fixed {
-    color: var(--warning, #ffb454);
+    color: var(--warning);
   }
   ul {
     margin: 0.2rem 0 0;

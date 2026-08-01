@@ -20,7 +20,6 @@
   let newName = $state("");
   let newAddress = $state("");
 
-  // Discover: browse a public directory (minecraft-list.info) to find servers.
   let view = $state<"mine" | "discover">("mine");
   let dQuery = $state("");
   let dDebounced = $state("");
@@ -38,8 +37,9 @@
     { value: "rating", label: t("servers.sortRating") },
   ]);
 
-  // Strip Minecraft §-formatting codes from directory-provided text.
-  const clean = (value: string) => value.replace(/§./g, "").trim();
+  const MC_FORMATTING_CODE_RE = /§./g;
+  const stripFormattingCodes = (value: string) =>
+    value.replace(MC_FORMATTING_CODE_RE, "").trim();
 
   $effect(() => {
     const value = dQuery;
@@ -85,11 +85,11 @@
   }
 
   function addFromDiscover(server: BrowseServer) {
-    const name = clean(server.name) || server.address;
+    const name = stripFormattingCodes(server.name) || server.address;
     const added = serversStore.add({
       name,
       address: server.address,
-      description: clean(server.description),
+      description: stripFormattingCodes(server.description),
       tags: server.country ? [server.country] : [],
     });
     if (added) {
@@ -316,7 +316,7 @@
                   <Icon name="globe" size={18} />
                 {/if}
               </div>
-              <h2>{clean(srv.name) || srv.address}</h2>
+              <h2>{stripFormattingCodes(srv.name) || srv.address}</h2>
               <span class="status" class:online={srv.online} class:offline={!srv.online}>
                 {#if srv.online}
                   ● {t("servers.countOnline", { count: srv.players.toLocaleString() })}
@@ -326,12 +326,12 @@
               </span>
             </div>
 
-            {#if clean(srv.description)}
-              <p class="desc">{clean(srv.description)}</p>
+            {#if stripFormattingCodes(srv.description)}
+              <p class="desc">{stripFormattingCodes(srv.description)}</p>
             {/if}
 
             <div class="tags">
-              {#if srv.version}<span class="tag ver">{clean(srv.version)}</span>{/if}
+              {#if srv.version}<span class="tag ver">{stripFormattingCodes(srv.version)}</span>{/if}
               {#if srv.country}<span class="tag">{srv.country}</span>{/if}
               {#if srv.votes > 0}
                 <span class="tag"><Icon name="heart" size={10} /> {formatCount(srv.votes)}</span>
@@ -344,7 +344,7 @@
                 <button class="btn sm" onclick={() => copyText(srv.address, t("servers.copiedAddress", { address: srv.address }))} title={t("servers.copyAddress")}>
                   <Icon name="copy" size={13} />
                 </button>
-                <button class="btn ghost sm" onclick={(e) => onAddToClick(e, { name: clean(srv.name) || srv.address, address: srv.address, description: "", tags: [] })} title={t("servers.addToInstanceList")}>
+                <button class="btn ghost sm" onclick={(e) => onAddToClick(e, { name: stripFormattingCodes(srv.name) || srv.address, address: srv.address, description: "", tags: [] })} title={t("servers.addToInstanceList")}>
                   <Icon name="cube" size={13} />
                 </button>
                 <button class="btn primary sm" onclick={() => addFromDiscover(srv)} title={t("servers.addToMine")}>

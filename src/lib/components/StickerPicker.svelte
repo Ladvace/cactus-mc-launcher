@@ -8,6 +8,7 @@
   import { emojiToDataUri } from "$lib/image";
   import { DECOR_SPRITES, spriteToSquareIcon } from "$lib/decor";
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { LINKS } from "$lib/links";
   import type { Sticker } from "$lib/types";
 
   const picker = $derived(ui.stickerPicker);
@@ -226,7 +227,7 @@
           </p>
           <p>
             {t("sticker.giphyPromptBefore")}
-            <button class="linkish" onclick={() => openUrl("https://developers.giphy.com")}>
+            <button class="linkish" onclick={() => openUrl(LINKS.giphyDev)}>
               developers.giphy.com</button
             >{t("sticker.giphyPromptAfter")}
           </p>

@@ -9,6 +9,7 @@
   import { api } from "$lib/api";
   import { instancesStore } from "$lib/stores/instances.svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
+  import { LINKS } from "$lib/links";
   import {
     MOD_LOADERS,
     SUPPORTED_LOADERS,
@@ -292,7 +293,7 @@
             <button
               type="button"
               class="link"
-              onclick={() => openUrl("https://www.minecraft.net/eula")}
+              onclick={() => openUrl(LINKS.minecraftEula)}
               >{t("create.minecraftEula")}</button
             >.
           </span>
