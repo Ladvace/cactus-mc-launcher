@@ -8,6 +8,7 @@
   import { copyText } from "$lib/clipboard";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { goto } from "$app/navigation";
+  import { tooltip } from "$lib/tooltip";
   import { t } from "$lib/i18n";
 
   interface Props {
@@ -83,7 +84,8 @@
           {/if}
           <button
             class="reauth"
-            title={t("account.signInAgain")}
+            aria-label={t("account.signInAgain")}
+            use:tooltip={t("account.signInAgain")}
             disabled={accountsStore.loggingIn}
             onclick={() => accountsStore.login()}
           >
