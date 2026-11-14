@@ -1,0 +1,295 @@
+pub mod microsoft;
+pub mod xbox;
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use std::time::Duration;
+
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use crate::host::{Host};
+
+use crate::error::{AppError, Result};
+use crate::paths;
+
+/// Set while a device-code login is polling; `cancel_login` flips it so the
+/// poll loop can bail out (e.g. the user started the flow by mistake). Only one
+/// login runs at a time, so a single flag is enough.
+static LOGIN_CANCEL: AtomicBool = AtomicBool::new(false);
+
+/// Signal the in-progress device-code login (if any) to stop polling.
+pub fn cancel_login() {
+    LOGIN_CANCEL.store(true, Ordering::SeqCst);
+}
+
+// Azure application client ID.
+//
+// Provided at build time via the `AZURE_CLIENT_ID` environment variable or a
+// gitignored `.env` file at the crate root (see `build.rs` and `.env.example`).
+// Register a free app at https://portal.azure.com (Entra ID → App
+// registrations), enable "Allow public client flows", and put the Application
+// (client) ID in `.env`. Until then, Microsoft login is disabled and offline
+// mode still works.
+const AZURE_CLIENT_ID: &str = match option_env!("AZURE_CLIENT_ID") {
+    Some(id) => id,
+    None => "",
+};
+
+fn ensure_client_id() -> Result<&'static str> {
+    if AZURE_CLIENT_ID.is_empty() {
+        return Err(AppError::Other(
+            "Microsoft login isn't configured yet. Set AZURE_CLIENT_ID in .env \
+             (see .env.example) and rebuild."
+                .into(),
+        ));
+    }
+    Ok(AZURE_CLIENT_ID)
+}
+
+pub fn is_configured() -> bool {
+    !AZURE_CLIENT_ID.is_empty()
+}
+
+/// A signed-in Microsoft/Minecraft account, including refresh material.
+/// Never sent to the frontend as-is (see `AccountInfo`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+    /// Minecraft profile UUID (no dashes).
+    pub id: String,
+    pub username: String,
+    pub uuid: String,
+    pub ms_refresh_token: String,
+    pub mc_access_token: String,
+    /// Unix seconds when the Minecraft token expires.
+    pub expires_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountInfo {
+    pub id: String,
+    pub username: String,
+    pub uuid: String,
+    pub kind: String,
+}
+
+fn to_info(account: &Account) -> AccountInfo {
+    AccountInfo {
+        id: account.id.clone(),
+        username: account.username.clone(),
+        uuid: account.uuid.clone(),
+        kind: "microsoft".into(),
+    }
+}
+
+/// Full account state for the frontend: accounts plus which one is active
+/// (`activeId == null` means offline mode).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountsState {
+    pub accounts: Vec<AccountInfo>,
+    pub active_id: Option<String>,
+    pub microsoft_configured: bool,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+struct AccountData {
+    #[serde(default)]
+    accounts: Vec<Account>,
+    #[serde(default)]
+    active_id: Option<String>,
+}
+
+#[derive(Default)]
+pub struct AccountStore {
+    inner: Mutex<AccountData>,
+}
+
+impl AccountStore {
+    pub fn load(&self, app: &Host) -> Result<()> {
+        let file = paths::data_dir(app)?.join("accounts.json");
+        if file.exists() {
+            if let Ok(text) = std::fs::read_to_string(&file) {
+                if let Ok(data) = serde_json::from_str::<AccountData>(&text) {
+                    *self.inner.lock().unwrap() = data;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn persist(&self, app: &Host, data: &AccountData) -> Result<()> {
+        let file = paths::data_dir(app)?.join("accounts.json");
+        paths::write_private(&file, serde_json::to_string_pretty(data)?.as_bytes())
+    }
+
+    pub fn state(&self) -> AccountsState {
+        let data = self.inner.lock().unwrap();
+        AccountsState {
+            accounts: data.accounts.iter().map(to_info).collect(),
+            active_id: data.active_id.clone(),
+            microsoft_configured: is_configured(),
+        }
+    }
+
+    pub fn active_account(&self) -> Option<Account> {
+        let data = self.inner.lock().unwrap();
+        let id = data.active_id.as_ref()?;
+        data.accounts.iter().find(|account| &account.id == id).cloned()
+    }
+
+    pub fn upsert(&self, app: &Host, account: Account) -> Result<()> {
+        let mut data = self.inner.lock().unwrap();
+        if let Some(existing) = data.accounts.iter_mut().find(|entry| entry.id == account.id) {
+            *existing = account;
+        } else {
+            data.accounts.push(account);
+        }
+        self.persist(app, &data)
+    }
+
+    pub fn set_active(&self, app: &Host, id: Option<String>) -> Result<()> {
+        let mut data = self.inner.lock().unwrap();
+        if let Some(id) = &id {
+            if !data.accounts.iter().any(|account| &account.id == id) {
+                return Err(AppError::Other("account not found".into()));
+            }
+        }
+        data.active_id = id;
+        self.persist(app, &data)
+    }
+
+    pub fn remove(&self, app: &Host, id: &str) -> Result<()> {
+        let mut data = self.inner.lock().unwrap();
+        data.accounts.retain(|account| account.id != id);
+        if data.active_id.as_deref() == Some(id) {
+            data.active_id = None;
+        }
+        self.persist(app, &data)
+    }
+
+    /// Remove every account and delete accounts.json. Used by the full "reset
+    /// app data" flow.
+    pub fn clear(&self, app: &Host) -> Result<()> {
+        let mut data = self.inner.lock().unwrap();
+        data.accounts.clear();
+        data.active_id = None;
+        let file = paths::data_dir(app)?.join("accounts.json");
+        if file.exists() {
+            std::fs::remove_file(&file)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeviceCodeEvent {
+    user_code: String,
+    verification_uri: String,
+    message: String,
+    expires_in: u64,
+}
+
+pub async fn login(app: &Host) -> Result<AccountInfo> {
+    let client_id = ensure_client_id()?;
+    let http = crate::http::client()?;
+
+    LOGIN_CANCEL.store(false, Ordering::SeqCst);
+    let device_code = microsoft::request_device_code(&http, client_id).await?;
+    let _ = app.emit(
+        "auth-device-code",
+        DeviceCodeEvent {
+            user_code: device_code.user_code.clone(),
+            verification_uri: device_code.verification_uri.clone(),
+            message: device_code.message.clone(),
+            expires_in: device_code.expires_in,
+        },
+    );
+
+    let deadline = Utc::now().timestamp() + device_code.expires_in as i64;
+    let mut interval = device_code.interval.max(1);
+
+    let ms_token = loop {
+        if Utc::now().timestamp() > deadline {
+            return Err(AppError::Other("Login timed out. Please try again.".into()));
+        }
+        // Sleep the poll interval in 1s slices so a cancel is picked up quickly.
+        for _ in 0..interval {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            if LOGIN_CANCEL.load(Ordering::SeqCst) {
+                return Err(AppError::Other("Sign-in cancelled.".into()));
+            }
+        }
+        match microsoft::poll_token(&http, client_id, &device_code.device_code).await? {
+            microsoft::PollOutcome::Pending => continue,
+            microsoft::PollOutcome::SlowDown => {
+                interval += 5;
+                continue;
+            }
+            microsoft::PollOutcome::Success(token) => break token,
+        }
+    };
+
+    let account = full_chain(&http, ms_token).await?;
+
+    let store = app.state::<AccountStore>();
+    store.upsert(app, account.clone())?;
+    store.set_active(app, Some(account.id.clone()))?;
+
+    let _ = app.emit("auth-login-done", ());
+    Ok(to_info(&account))
+}
+
+async fn full_chain(http: &reqwest::Client, ms_token: microsoft::MsToken) -> Result<Account> {
+    let xbl = xbox::xbl_authenticate(http, &ms_token.access_token).await?;
+    let xsts = xbox::xsts_authorize(http, &xbl.token).await?;
+    let mc_login = xbox::minecraft_login(http, &xsts.user_hash, &xsts.token).await?;
+    let profile = xbox::minecraft_profile(http, &mc_login.access_token).await?;
+
+    Ok(Account {
+        id: profile.id.clone(),
+        username: profile.name,
+        uuid: profile.id,
+        ms_refresh_token: ms_token.refresh_token,
+        mc_access_token: mc_login.access_token,
+        expires_at: Utc::now().timestamp() + mc_login.expires_in,
+    })
+}
+
+pub async fn refresh_account(
+    app: &Host,
+    http: &reqwest::Client,
+    account: &Account,
+) -> Result<Account> {
+    let client_id = ensure_client_id()?;
+    // Legacy/incomplete accounts can be stored without a refresh token (e.g.
+    // saved before offline_access was requested). Without one there's nothing
+    // to refresh, so fail fast with a clear message instead of firing a request
+    // Microsoft rejects with a cryptic AADSTS900144.
+    if account.ms_refresh_token.trim().is_empty() {
+        return Err(AppError::Other(
+            "This account needs to sign in again to enable automatic refresh.".into(),
+        ));
+    }
+    let ms_token = microsoft::refresh(http, client_id, &account.ms_refresh_token).await?;
+    let refreshed = full_chain(http, ms_token).await?;
+    app.state::<AccountStore>().upsert(app, refreshed.clone())?;
+    Ok(refreshed)
+}
+
+pub async fn active_valid_account(
+    app: &Host,
+    http: &reqwest::Client,
+) -> Result<Option<Account>> {
+    let store = app.state::<AccountStore>();
+    let Some(account) = store.active_account() else {
+        return Ok(None);
+    };
+    if account.expires_at - 60 > Utc::now().timestamp() {
+        return Ok(Some(account));
+    }
+    let refreshed = refresh_account(app, http, &account).await?;
+    Ok(Some(refreshed))
+}

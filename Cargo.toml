@@ -1,0 +1,94 @@
+[package]
+name = "cactus-launcher-rune"
+version = "1.11.0"
+description = "Cactus Launcher, a Minecraft launcher"
+authors = ["Ladvace"]
+license = "AGPL-3.0-only"
+edition = "2024"
+publish = false
+
+[[bin]]
+# The name the Tauri builds shipped: their updater relaunches this path after installing us.
+name = "cactus-launcher"
+path = "src/main.rs"
+
+[dependencies]
+rune = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6", features = ["native-file-dialog"] }
+rune-kit = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6", features = ["markdown"] }
+rune-motion = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+
+# Backend (src/backend).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "stream", "multipart"], default-features = false }
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+zip = "2"
+sha1 = "0.10"
+sha2 = "0.10"
+rsa = { version = "0.9", features = ["sha2"] }
+hex = "0.4"
+md-5 = "0.10"
+base64 = "0.22"
+ngrok = "0.19.0"
+sysinfo = { version = "0.33", default-features = false, features = ["system"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+fastnbt = "2.6.2"
+rusqlite = { version = "0.32", features = ["bundled"] }
+icns = "0.4"
+
+# What the webview and its plugins used to do.
+open = "5"
+# Self-update from the signed latest.json the releases publish.
+cargo-packager-updater = { version = "0.2", default-features = false, features = ["rustls-tls"] }
+dirs = "6"
+# assets/static, embedded, so the binary carries its decor, flags and textures.
+include_dir = "0.7"
+# Decoding on our side so small pixel art can be upscaled nearest-neighbour before Rune filters it.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+
+# Rune ships patched copies of these; a dependency's [patch] doesn't reach us, so repeat it.
+# Installers: `cargo build --release && cargo packager --release` (cargo install cargo-packager).
+# Releases are built by .github/workflows/release.yml.
+[package.metadata.packager]
+product-name = "Cactus Launcher"
+identifier = "com.ladvace.cactuslauncher"
+category = "Game"
+homepage = "https://cactus.gianmarcocavallo.com"
+license-file = "LICENSE"
+out-dir = "target/release"
+binaries = [{ path = "cactus-launcher", main = true }]
+icons = [
+    "assets/icons/32x32.png",
+    "assets/icons/128x128.png",
+    "assets/icons/128x128@2x.png",
+    "assets/icons/icon.icns",
+    "assets/icons/icon.ico",
+]
+
+[package.metadata.packager.macos]
+minimum-system-version = "11.0"
+
+[package.metadata.packager.deb]
+package-name = "cactus-launcher"
+
+[patch.crates-io]
+wgpu-hal = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+winit = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+parley_engine = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+accesskit_windows = { git = "https://github.com/anomalyco/rune", rev = "f1f54ce8bf485ee3a95804deace315f53a8970f6" }
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+opt-level = 2
+
+[profile.release]
+codegen-units = 16
+lto = "thin"
+strip = true
